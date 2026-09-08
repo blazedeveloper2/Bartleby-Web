@@ -13,6 +13,7 @@ import {
   setsOf, syncDay, logWeight, delSession, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, liftScores, standingOf, resEx,
   resetPanel, resetToggle, resetToggleAll, resetSelection, applyReset, resetDismiss,
+  levelHTML, levelNow,
 } from './rank.js';
 import { MUSCLE_SVG } from './bodymap.js';
 
@@ -49,7 +50,7 @@ function renderProg() {
      Unscored movements (bodyweight core work) and lifts with no weight
      set aren't in the map and stay the default text colour. */
   const sc = liftScores();
-  let h = '';
+  let h = levelHTML(levelNow());
   PROGRAM.forEach((day, di) => {
     let tot = 0, dn = 0;
     day.sections.forEach((sec, si) => sec.ex.forEach((_, ei) => { tot++; if (ch[ek(di,si,ei)]) dn++; }));
@@ -122,6 +123,7 @@ function toggleChk(k) {
   const res = syncDay(di, tally);
   if (!res) return;
   paintDayHead(di, tally);            // the "Logged" pill may have appeared
+  paintLevel(res);
   renderRank(root);
   if (res.logged && !showCelebration(res)) toast(`${res.label} logged`);
 }
@@ -151,6 +153,15 @@ function paintDayHead(di, tally) {
   const want = comp && isLoggedToday(di);
   if (want && !pill) right.insertAdjacentHTML('afterbegin', '<span class="day-xp logged">Logged</span>');
   else if (!want && pill) pill.remove();
+}
+
+/* Swap the strip in place rather than through renderProg(), for the same
+   reason as the day header — and flash it once when the level moved up. */
+function paintLevel(res) {
+  const old = q('#p-program .tl-card');
+  if (!old) return;
+  old.outerHTML = levelHTML(levelNow());
+  if (res?.levelUp) q('#p-program .tl-card')?.classList.add('just-up');
 }
 
 /* The "Clear All" bar only exists when something is checked. */

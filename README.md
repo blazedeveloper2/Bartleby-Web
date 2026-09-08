@@ -9,7 +9,10 @@ Live apps:
   (tap an exercise to set its working weight), a bodyweight trend chart, and a
   **Rank** tab: a letter grade (F→SS) computed from your working weights
   against published population strength standards relative to your bodyweight,
-  plus streaks, a consistency heatmap, milestones and a daily verse.
+  plus a training level that climbs one step per finished session (with a
+  level-up card when it does), streaks, a consistency heatmap, milestones and
+  a daily verse. The level is attendance only: it never reads a weight, so it
+  can't move the letter and the letter can't be farmed by showing up.
   Every weighted lift in the program is scored; each one is tagged with how
   trustworthy its standard is (exact match / proxy movement / estimate).
   See `apps/workout/standards.js` for the data and its sources.

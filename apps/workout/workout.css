@@ -205,6 +205,32 @@
 .wk .day-xp{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--text-3);white-space:nowrap}
 .wk .day-xp.logged{color:var(--green);background:var(--green-d);padding:3px 8px;border-radius:4px}
 
+/* ── training level ──
+   Attendance, not strength. It wears the accent colour and never a rank
+   colour, and the hex is smaller than the letter's, so the two can sit on
+   the same tab without being mistaken for each other. */
+.tl-card{position:relative;display:flex;align-items:center;gap:14px;background:var(--bg-card);border:none;border-radius:0;--n:11px;
+  box-shadow:inset 0 0 0 1px var(--border);
+  clip-path:polygon(var(--n) 0,100% 0,100% calc(100% - var(--n)),calc(100% - var(--n)) 100%,0 100%,0 var(--n));
+  padding:13px 16px;margin-bottom:16px}
+.tl-hex{position:relative;width:58px;height:66px;flex-shrink:0;display:grid;place-items:center;background:var(--blue);
+  clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+.tl-hex::before{content:'';position:absolute;inset:2px;background:var(--bg-card);
+  clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+.tl-hex>span{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;line-height:1}
+.tl-hex-l{font-size:7.5px;font-weight:700;letter-spacing:1.5px;color:var(--text-3);margin-bottom:3px}
+.tl-hex-n{font-family:var(--mono);font-size:24px;font-weight:700;letter-spacing:-1px;color:var(--blue)}
+.tl-body{flex:1;min-width:0}
+.tl-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.tl-kicker{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-3)}
+.tl-note{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--text-3);white-space:nowrap}
+.tl-title{font-size:15px;font-weight:700;letter-spacing:-.2px;margin-top:3px}
+.tl-meter{display:flex;gap:2px;margin-top:8px}
+.tl-meter i{flex:1;min-width:0;height:5px;border-radius:1px;background:var(--border-lt);transition:background .25s ease}
+.tl-meter i.on{background:var(--blue)}
+.tl-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;font-size:10.5px;color:var(--text-3)}
+.tl-foot b{color:var(--text-2);font-weight:600}
+
 /* â”€â”€ shared card shell â”€â”€ */
 .pg-card{position:relative;background:var(--bg-card);border:none;border-radius:0;--n:11px;
   box-shadow:inset 0 0 0 1px var(--border);
@@ -483,6 +509,10 @@
 .lv-tier-l{font-family:var(--mono);font-size:18px;font-weight:700;line-height:1;min-width:26px}
 .lv-tier-n{font-size:12.5px;font-weight:600}
 .lv-rank-sub{font-size:12px;color:var(--text-2);margin-top:6px;line-height:1.45}
+/* the level block is a smaller cousin of the rank block, in the accent colour */
+.lv-level .lv-badge-hex{width:74px;height:84px}
+.lv-level .lv-badge-hex>b{font-size:30px;letter-spacing:-1px}
+.lv-level .lv-rank-n{font-size:20px}
 .lv-badges{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;margin-top:14px}
 .lv-badge{width:74px}
 .lv-badge-n{font-size:10.5px;font-weight:700;line-height:1.25;margin-top:-2px}
@@ -495,6 +525,9 @@
   .rk-badge{width:66px;height:74px}
   .rk-letter{font-size:32px;letter-spacing:-1.5px}
   .rk-hero-row{gap:12px}
+  .tl-card{gap:12px;padding:12px 14px}
+  .tl-hex{width:52px;height:60px}
+  .tl-hex-n{font-size:21px}
   .wk .ex-row{grid-template-columns:24px 17px 1fr auto;gap:7px;padding-left:14px}
   .wk .ex-idx{font-size:9px}
   .day-title{font-size:10.5px;letter-spacing:.8px}

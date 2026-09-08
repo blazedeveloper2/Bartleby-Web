@@ -53,7 +53,7 @@ body{
 /* Every readout uses fixed-width digits so counters don't jitter as they run. */
 .day-prog,.day-idx,.ex-idx,.ex-sets,.ex-wt,
 .bw-stat-v,.bw-h-w,.bw-h-d,.pg-big-v,.rk-foot-pct,.rk-letter,
-.pg-card-note,.pg-s-d,.pg-pr-w,.rk-lift-foot,.rk-lift-r{font-variant-numeric:tabular-nums}
+.pg-card-note,.pg-s-d,.pg-pr-w,.rk-lift-foot,.rk-lift-r,.tl-hex-n,.tl-note{font-variant-numeric:tabular-nums}
 
 /* ═══ SHARED: DAY / SECTION CARD ═══ */
 .day-card{

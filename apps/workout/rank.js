@@ -8,8 +8,8 @@
       bodyweight. It cannot be farmed by showing up — only by lifting
       more. See standards.js for the data and its source.
 
-   2. CONSISTENCY (streak, heatmap, milestones). Derived from the
-      logs this module maintains:
+   2. CONSISTENCY (streak, heatmap, milestones, level). Derived from
+      the logs this module maintains:
 
         bp_log  [{d,di,ex,sets}]     completed sessions
         bp_pr   [{d,ex,from,to,k,p}] every working-weight change
@@ -29,9 +29,11 @@
       subtracts from the load total, and the milestones you earned stay
       earned — shown as no longer held rather than quietly deleted.
 
-   There is deliberately no XP number. A second score that rises just
-   for attendance would compete with the letter and let you feel
-   stronger without being stronger.
+   The level is attendance and says so: one step per finished session
+   on a curve that widens as it goes, computed from bp_log and nothing
+   else. It never reads a weight, so showing up can't move the letter
+   and the letter can't be farmed by showing up — two scores for two
+   different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
 import { PROGRAM } from './data.js';
@@ -442,6 +444,30 @@ export function standingOf(name) {
   return lift ? { state: 'scored', lift } : { state: 'noweight' };
 }
 
+/* ═══════════════════ LEVEL ═══════════════════ */
+
+/* Sessions to climb from level L to L+1. The first step is a single
+   session, then they widen — at five sessions a week that is a level every
+   fortnight or so by the half-year mark, and one a month after two years. */
+const levelStep = L => 1 + Math.floor(L / 2);
+
+/* Attendance words on purpose, so none of them can be read as a strength
+   claim next to the letter's names. */
+const LEVEL_TITLES = [
+  [1, 'Day One'], [2, 'Walk-On'], [5, 'Regular'], [10, 'Fixture'], [15, 'Grinder'],
+  [20, 'Veteran'], [30, 'Old Hand'], [40, 'Lifer'], [50, 'Institution'],
+];
+const levelTitle = n => LEVEL_TITLES.reduce((t, [min, name]) => n >= min ? name : t, LEVEL_TITLES[0][1]);
+
+/* Nothing is stored for the level: it is a function of the session count,
+   so it follows the log in both directions and a log reset takes it too. */
+export function levelOf(sessions) {
+  let n = 1, into = sessions, need = levelStep(1);
+  while (into >= need) { into -= need; n++; need = levelStep(n); }
+  return { n, into, need, sessions, title: levelTitle(n) };
+}
+export const levelNow = () => levelOf(logAll().length);
+
 /* ═══════════════════ CONSISTENCY STATS ═══════════════════ */
 
 /* Where each scheduled day's work actually landed.
@@ -533,6 +559,7 @@ export function stats() {
     weekDone: weeks.get(dateStr(weekStart(new Date())))?.size || 0,
     weekTarget: weekTargetFor(dateStr(weekStart(new Date()))),
     perfectWeeks, maxGap,
+    level: levelOf(log.length),
     bwCount: bwLog.length,
     bwDelta: bwLog.length >= 2 ? bwLog[bwLog.length - 1].w - bwLog[0].w : 0,
   };
@@ -551,6 +578,7 @@ export function snapshot() {
   return {
     rankIdx: pv.rank.i,
     rank: pv.rank,
+    level: cs.level,
     lifts: new Map(pv.lifts.map(l => [l.name, { i: l.rank.i, rank: l.rank }])),
     badges: new Set([...Object.keys(achAll()), ...earned(cs, pv)]),
   };
@@ -558,14 +586,15 @@ export function snapshot() {
 
 function diff(before, after, ctx) {
   const rankUp = after.rankIdx > before.rankIdx ? after.rank : null;
+  const levelUp = after.level.n > before.level.n ? after.level : null;
   const tierUps = [];
   after.lifts.forEach((cur, name) => {
     const prev = before.lifts.get(name);
     if (prev && cur.i > prev.i) tierUps.push({ name, rank: cur.rank });
   });
   const badges = BADGES.filter(b => after.badges.has(b.id) && !before.badges.has(b.id));
-  if (!rankUp && !tierUps.length && !badges.length) return null;
-  return { rankUp, tierUps, badges, ...ctx };
+  if (!rankUp && !levelUp && !tierUps.length && !badges.length) return null;
+  return { rankUp, levelUp, tierUps, badges, ...ctx };
 }
 
 /* A day logs itself the moment its last exercise is checked; unchecking on
@@ -705,7 +734,7 @@ const resetSel = new Set();
 
 const RESETS = [
   { id:'log', key:'bp_log', n:'Session log', u:'session',
-    d:'Streaks, the heatmap, hard-set totals and every consistency milestone are counted out of this.' },
+    d:'Streaks, the heatmap, hard-set totals, your level and every consistency milestone are counted out of this.' },
   { id:'pr',  key:'bp_pr',  n:'Weight-change history', u:'entry', p:'entries',
     d:'Personal records, net load added, back-offs — and the proof that separates a weight you typed from one you have trained. Clearing it makes every current weight read as a fresh starting point.' },
   { id:'wt',  key:'bp_wt',  n:'Working weights', u:'lift',
@@ -753,7 +782,7 @@ const BURST = Array.from({ length: 12 }, (_, i) =>
   `<i style="--a:${i * 30}deg;--d:${58 + (i % 3) * 22}px;--t:${(i % 4) * 40}ms"></i>`).join('');
 
 export function celebrationHTML(r) {
-  if (!r || (!r.rankUp && !r.tierUps?.length && !r.badges?.length)) return null;
+  if (!r || (!r.rankUp && !r.levelUp && !r.tierUps?.length && !r.badges?.length)) return null;
   let h = '';
   if (r.rankUp) {
     h += `<div class="lv-rank" style="--rc:var(${r.rankUp.c})">
@@ -761,6 +790,18 @@ export function celebrationHTML(r) {
       <div class="lv-letter"><span class="lv-burst">${BURST}</span><span class="lv-badge-hex"><b>${r.rankUp.l}</b></span></div>
       <div class="lv-rank-n">${r.rankUp.name}</div>
       <div class="lv-rank-sub">${r.rankUp.blurb}</div>
+    </div>`;
+  }
+  /* Second billing when it shares the card with a rank-up: the letter is the
+     rarer event, and the level wears the accent colour rather than a rank
+     colour so the two never read as the same kind of thing. */
+  if (r.levelUp) {
+    const lv = r.levelUp, left = lv.need - lv.into;
+    h += `<div class="lv-level" style="--rc:var(--blue)">
+      <div class="lv-kicker ${h ? 'mid' : ''}">Level Up</div>
+      <div class="lv-letter"><span class="lv-burst">${BURST}</span><span class="lv-badge-hex"><b>${lv.n}</b></span></div>
+      <div class="lv-rank-n">${lv.title}</div>
+      <div class="lv-rank-sub">Level ${lv.n} · ${fmtN(lv.sessions)} session${lv.sessions === 1 ? '' : 's'} in · ${left} more to Level ${lv.n + 1}</div>
     </div>`;
   }
   if (r.tierUps?.length) {
@@ -967,6 +1008,23 @@ function heatmapHTML(s) {
       <span><i class="pg-hm-c make"></i>Made up</span>
       <span><i class="pg-hm-c miss"></i>Missed</span>
       <span><i class="pg-hm-c rest"></i>Rest day</span>
+    </div>
+  </div>`;
+}
+
+/* One notch per session the current level asks for, lit as they land —
+   the same meter the day cards use, so it reads as the same kind of
+   progress. Shared by the Program tab's header and the Rank tab. */
+export function levelHTML(lv) {
+  const left = lv.need - lv.into;
+  const notches = Array.from({ length: lv.need }, (_, i) => `<i class="${i < lv.into ? 'on' : ''}"></i>`).join('');
+  return `<div class="tl-card">
+    <div class="tl-hex"><span><span class="tl-hex-l">LV</span><span class="tl-hex-n">${lv.n}</span></span></div>
+    <div class="tl-body">
+      <div class="tl-top"><span class="tl-kicker">Training Level</span><span class="tl-note">${fmtN(lv.sessions)} session${lv.sessions === 1 ? '' : 's'}</span></div>
+      <div class="tl-title">${lv.title}</div>
+      <div class="tl-meter">${notches}</div>
+      <div class="tl-foot"><span><b>${left} more</b> session${left === 1 ? '' : 's'} to Level ${lv.n + 1}</span><span class="tl-note">${lv.into}/${lv.need}</span></div>
     </div>
   </div>`;
 }
@@ -1246,6 +1304,7 @@ export function renderRank(root) {
   let h = heroHTML(st);
   h += verseHTML();
   h += verdictHTML(st);
+  h += levelHTML(s.level);
   h += `<div class="bw-stats pg-tiles">
     ${tile('Streak', s.streak, s.streak === 1 ? 'day' : 'days', s.streak && s.streak === s.best ? 'personal best' : '', s.streak)}
     ${tile('Best', s.best, s.best === 1 ? 'day' : 'days', '', s.best)}
