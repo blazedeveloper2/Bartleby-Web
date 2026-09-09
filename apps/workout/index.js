@@ -13,8 +13,8 @@ import {
   setsOf, syncDay, logWeight, delSession, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, liftScores, standingOf, resEx,
   resetPanel, resetToggle, resetToggleAll, resetSelection, applyReset, resetDismiss,
-  levelHTML, levelNow,
-} from './rank.js';
+  renderBadges,
+} from './rank.js?v=armory-1';
 import { MUSCLE_SVG } from './bodymap.js';
 
 /* ── namespaced storage ── */
@@ -32,6 +32,7 @@ let root = null;
 let activeTab = 'program';
 let bwRange = '30';
 let bwEditDate = null;
+let mmReturnFocus = null;
 let mmEx = null;             // exercise currently open in the muscle modal
 
 const BW_RANGES = [
@@ -50,7 +51,7 @@ function renderProg() {
      Unscored movements (bodyweight core work) and lifts with no weight
      set aren't in the map and stay the default text colour. */
   const sc = liftScores();
-  let h = levelHTML(levelNow());
+  let h = '';
   PROGRAM.forEach((day, di) => {
     let tot = 0, dn = 0;
     day.sections.forEach((sec, si) => sec.ex.forEach((_, ei) => { tot++; if (ch[ek(di,si,ei)]) dn++; }));
@@ -123,7 +124,6 @@ function toggleChk(k) {
   const res = syncDay(di, tally);
   if (!res) return;
   paintDayHead(di, tally);            // the "Logged" pill may have appeared
-  paintLevel(res);
   renderRank(root);
   if (res.logged && !showCelebration(res)) toast(`${res.label} logged`);
 }
@@ -153,15 +153,6 @@ function paintDayHead(di, tally) {
   const want = comp && isLoggedToday(di);
   if (want && !pill) right.insertAdjacentHTML('afterbegin', '<span class="day-xp logged">Logged</span>');
   else if (!want && pill) pill.remove();
-}
-
-/* Swap the strip in place rather than through renderProg(), for the same
-   reason as the day header — and flash it once when the level moved up. */
-function paintLevel(res) {
-  const old = q('#p-program .tl-card');
-  if (!old) return;
-  old.outerHTML = levelHTML(levelNow());
-  if (res?.levelUp) q('#p-program .tl-card')?.classList.add('just-up');
 }
 
 /* The "Clear All" bar only exists when something is checked. */
@@ -260,7 +251,9 @@ function paintMMStanding() {
 }
 
 function openMM(ex) {
+  mmReturnFocus = document.activeElement;
   mmEx = ex;
+  mmView('both');
   q('#mm-name').textContent = ex.n;
   paintMMStanding();
   let info = `<span class="mm-tag">${ex.s}</span>`;
@@ -274,7 +267,7 @@ function openMM(ex) {
      three shades on the figure. */
   const muscles = ex.m.replace(/\(.*?\)/g,'').split(',').map(s=>s.trim()).filter(Boolean);
   q('#mm-mlist').innerHTML = muscles.map((m, i) =>
-    `<span class="mm-muscle-chip lvl-${mLevel(i)}" data-act="mm-chip" data-m="${m.toLowerCase()}">${m}</span>`).join('');
+    `<button type="button" class="mm-muscle-chip lvl-${mLevel(i)}" data-act="mm-chip" data-m="${m.toLowerCase()}" aria-pressed="false"><span>${m}</span><small>${["Primary", "Supporting", "Stabilizing"][mLevel(i)-1]}</small></button>`).join('');
   mmReadout('');
 
   /* Swap the highlight with transitions suppressed, otherwise the previous
@@ -291,8 +284,47 @@ function openMM(ex) {
   map.classList.remove('no-tx');
 
   q('#mm-ol').classList.add('on');
+  q('.mm-card').scrollTop = 0;
+  q('.mm-close').focus({preventScroll:true});
 }
-function closeMM() { q('#mm-ol').classList.remove('on'); mmEx = null; }
+function closeMM() {
+  q('#mm-ol').classList.remove('on'); mmEx = null;
+  mmReturnFocus?.focus({preventScroll:true});
+}
+function mmView(view) {
+  const map = q('.mm-map');
+  map.dataset.view = view;
+  map.classList.remove('is-focused');
+  root.querySelectorAll('.m-fig').forEach(svg => svg.setAttribute('viewBox','0 0 160 340'));
+  root.querySelectorAll('[data-act="mm-view"]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
+  root.querySelectorAll('.mm-muscle-chip').forEach(b => b.setAttribute('aria-pressed','false'));
+  focusMuscle(null,false);
+  mmReadout('Tap a muscle to inspect');
+}
+function inspectMuscle(button) {
+  const name=button.dataset.m;
+  if(button.getAttribute('aria-pressed') === 'true') { mmView('both'); return; }
+  mmView('both');
+  focusMuscle(name,true);
+  const regions=[...root.querySelectorAll('.m-region.focus')];
+  if (!regions.length) { mmReadout(button.querySelector('span').textContent); return; }
+  const front=regions.some(e => e.id.startsWith('f-'));
+  const back=regions.some(e => e.id.startsWith('b-'));
+  const view=front && back ? 'both' : front ? 'front' : 'back';
+  q('.mm-map').dataset.view=view;
+  q('.mm-map').classList.add('is-focused');
+  root.querySelectorAll('[data-act="mm-view"]').forEach(b => b.setAttribute('aria-pressed',String(b.dataset.view===view)));
+  root.querySelectorAll('.m-fig').forEach(svg => {
+    const boxes=regions.filter(e=>e.ownerSVGElement===svg).map(e=>e.getBBox());
+    if(!boxes.length) return;
+    const y=Math.max(0,Math.min(...boxes.map(b=>b.y))-24);
+    const bottom=Math.min(340,Math.max(...boxes.map(b=>b.y+b.height))+24);
+    svg.setAttribute('viewBox',`0 ${y} 160 ${Math.max(100,bottom-y)}`);
+  });
+  button.setAttribute('aria-pressed','true');
+  mmReadout(button.querySelector('span').textContent + ' · tap again for full body');
+}
+
 
 /* Say what the edit actually did to the record, which is the whole point of
    the log being able to walk itself back. "80 → 100 lbs" would be the same
@@ -542,6 +574,7 @@ function switchTab(tab) {
   root.querySelectorAll('.wk .panel').forEach(pl => pl.classList.remove('active'));
   q('#p-' + tab).classList.add('active');
   if (tab === 'rank') renderRank(root);
+  if (tab === 'badges') renderBadges(root);
 }
 
 /* ═══════════════════ EVENT DELEGATION ═══════════════════ */
@@ -557,11 +590,13 @@ function onClick(e) {
   const a = el.dataset;
   switch (a.act) {
     case 'tab':       switchTab(a.tab); break;
+    case 'badge-filter': renderBadges(root,a.filter); break;
     case 'row':       openMM(resEx(PROGRAM[+a.di].sections[+a.si].ex[+a.ei])); break;
     case 'chk':       toggleChk(a.k); break;
     case 'clear':     clearChk(); break;
     case 'mm-close':  closeMM(); break;
-    case 'mm-chip':   mmReadout(el.textContent); break;
+    case 'mm-chip':   inspectMuscle(el); break;
+    case 'mm-view': mmView(a.view); break;
     case 'bw-range':  bwSetRange(a.k); break;
     case 'bw-save':   bwSave(); break;
     case 'bw-edit':   bwEdit(a.d); break;
@@ -585,12 +620,12 @@ function onChange(e) {
    the shapes it belongs to. Touch gets the same answers through onClick. */
 function onOver(e) {
   const chip = e.target.closest?.('.mm-muscle-chip');
-  if (chip) { focusMuscle(chip.dataset.m, true); mmReadout(chip.textContent); return; }
+  if (chip) return;
   const reg = e.target.closest?.('.m-region');
   if (reg) mmReadout(regionName(reg));
 }
 function onOut(e) {
-  if (e.target.closest?.('.mm-muscle-chip')) focusMuscle(null, false);
+  // Selected muscle focus persists until another selection or view change.
 }
 
 /* Settings changed the pull-up-bar flag or the theme. Re-render everything:
@@ -600,8 +635,18 @@ function onExternalChange() {
   if (!root) return;
   renderProg(); renderBW();
   if (activeTab === 'rank') renderRank(root);
+  if (activeTab === 'badges') renderBadges(root);
 }
 function onKeydown(e) {
+  if (q('#mm-ol').classList.contains('on')) {
+    if (e.key === 'Escape') { e.preventDefault(); closeMM(); return; }
+    if (e.key === 'Tab') {
+      const items=[...q('.mm-card').querySelectorAll('button,input')].filter(el=>!el.disabled && el.getClientRects().length);
+      const first=items[0],last=items[items.length-1];
+      if(e.shiftKey && document.activeElement===first) { e.preventDefault();last.focus(); }
+      else if(!e.shiftKey && document.activeElement===last) { e.preventDefault();first.focus(); }
+    }
+  }
   if (e.key !== 'Enter') return;
   if (e.target.id === 'bw-weight') bwSave();
   else if (e.target.id === 'mm-wt') e.target.blur();
@@ -611,29 +656,39 @@ function onKeydown(e) {
 
 function template() {
   return `<div class="wk">
-    <div class="app-head"><h1>Build Program</h1><p>Dumbbells + Bench · 4 Day Upper/Lower + Calisthenics · Rank Up</p></div>
+    
     <nav class="nav"><div class="nav-inner">
       <button class="tab active" data-act="tab" data-tab="program">Program</button>
       <button class="tab" data-act="tab" data-tab="bw">Weight</button>
       <button class="tab" data-act="tab" data-tab="rank">Rank</button>
+      <button class="tab" data-act="tab" data-tab="badges">Badges</button>
     </div></nav>
     <div class="app-wrap">
       <div class="panel active" id="p-program"></div>
       <div class="panel" id="p-bw"></div>
       <div class="panel" id="p-rank"></div>
+      <div class="panel" id="p-badges"></div>
     </div>
 
     <div class="mm-overlay" id="mm-ol">
-      <div class="mm-card">
-        <div class="mm-head"><div class="mm-title" id="mm-name"></div><button class="mm-close" data-act="mm-close">&times;</button></div>
+      <div class="mm-card" role="dialog" aria-modal="true" aria-labelledby="mm-name">
+        <div class="mm-head game-frame"><div><div class="mm-kicker">Exercise lab</div><div class="mm-title" id="mm-name"></div></div><button class="mm-close" data-act="mm-close" aria-label="Close exercise viewer">&times;</button></div>
         <div class="mm-info" id="mm-info"></div>
         <div class="mm-wt-row">
-          <span class="mm-wt-lbl">Working Weight</span>
+          <label class="mm-wt-lbl" for="mm-wt">Working weight<span>Saved when you leave the field</span></label>
           <div class="mm-wt-box"><input class="mm-wt-in" id="mm-wt" type="number" step="2.5" min="0" inputmode="decimal" placeholder="—"><span class="mm-wt-u">lbs</span></div>
         </div>
         <div id="mm-rank"></div>
-        <div class="mm-map">${MUSCLE_SVG}</div>
-        <div class="m-readout" id="mm-readout"></div>
+        <section class="mm-anatomy">
+        <div class="mm-map-toolbar"><span>Muscle map</span><div class="mm-views" aria-label="Body view">
+          <button data-act="mm-view" data-view="both" aria-pressed="true">Both</button>
+          <button data-act="mm-view" data-view="front" aria-pressed="false">Front</button>
+          <button data-act="mm-view" data-view="back" aria-pressed="false">Back</button>
+        </div></div>
+        <div class="mm-map" data-view="both">${MUSCLE_SVG}</div>
+        <div class="mm-legend"><span><i class="primary"></i>Primary</span><span><i class="secondary"></i>Supporting</span><span><i class="tertiary"></i>Stabilizing</span></div>
+        </section>
+        <div class="m-readout" id="mm-readout" aria-live="polite"></div>
         <div class="mm-muscles"><div class="mm-muscles-title">Target Muscles</div><div class="mm-muscle-list" id="mm-mlist"></div></div>
       </div>
     </div>

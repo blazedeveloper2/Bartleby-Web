@@ -7,7 +7,7 @@
    To add a new app: import it and drop it into the APPS array.
    ═══════════════════════════════════════════════════════════ */
 
-import workout from '../../apps/workout/index.js';
+import workout from '../../apps/workout/index.js?v=armory-1';
 import finance from '../../apps/finance/index.js';
 import { toast } from './ui.js';
 import { THEMES, getTheme, setTheme, applyTheme } from './theme.js';
@@ -43,7 +43,7 @@ function loadStyles(href) {
   const link = document.createElement('link');
   link.rel = 'stylesheet';
   link.href = href;
-  document.head.appendChild(link);
+  document.head.insertBefore(link, document.querySelector('link[href="assets/css/redesign.css"]'));
   loadedStyles.add(href);
 }
 

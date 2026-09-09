@@ -1,0 +1,83 @@
+/* Reusable illustrated Armory kit. Art is decorative; all controls are HTML. */
+:root{--game-frame:url('../img/armory/frame.png');--game-button:url('../img/armory/button.png');--game-medals:url('../img/armory/medals.png')}
+.game-frame{position:relative;background:#17120e;isolation:isolate;padding:28px;color:#fff0d8}
+.game-frame::after,html[data-theme="arcade"] .wk :is(.day-card,.tl-card,.rk-hero,.pg-card,.bw-chart-card,.bw-add,.lv-card)::after,
+html[data-theme="arcade"] :is(.mm-card,.sx-card,.fin .fx-form,.fin .nw-hero)::after{
+ content:'';display:block;position:absolute;inset:0;z-index:2;pointer-events:none;width:auto;height:auto;
+ opacity:1;background:none;box-shadow:none;border:42px solid transparent;border-image:var(--game-frame) 340 / 42px / 0 stretch;transform:none;animation:none;
+}
+html[data-theme="arcade"] .wk :is(.day-card,.tl-card,.rk-hero,.pg-card,.bw-chart-card,.bw-add,.lv-card),
+html[data-theme="arcade"] :is(.mm-card,.sx-card,.fin .fx-form,.fin .nw-hero){position:relative;background-color:#17120e;border-color:transparent;border-radius:5px;isolation:isolate}
+html[data-theme="arcade"] .wk .day-top{padding:24px 25px 18px;background:linear-gradient(100deg,#9a4a1426,transparent)}
+html[data-theme="arcade"] .wk .day-meter{padding-left:25px;padding-right:25px}
+html[data-theme="arcade"] .wk .day-body{padding-bottom:13px}
+html[data-theme="arcade"] .wk .day-card{margin-bottom:22px;box-shadow:0 10px 24px #0003}
+html[data-theme="arcade"] .wk :is(.pg-card,.rk-hero,.tl-card){padding:28px}
+html[data-theme="arcade"] .wk .tl-card{background:radial-gradient(ellipse at 15% 50%,#70370d4d,transparent 70%),#17120e}
+html[data-theme="arcade"] .wk .tl-hex{filter:drop-shadow(0 0 10px #ff7a1840)}
+html[data-theme="arcade"] .wk .tl-title{font-size:24px;letter-spacing:.4px}
+html[data-theme="arcade"] .wk .tl-meter{padding:3px;background:#090705;border:1px solid #684628}
+html[data-theme="arcade"] .wk .tl-meter i{height:8px;background:#32271d}
+html[data-theme="arcade"] .wk .tl-meter i.on{background:linear-gradient(#ffd274,#ff8a32);box-shadow:0 0 8px #ff8a3277}
+.game-button,html[data-theme="arcade"] :is(.wk,.fin) .tab,html[data-theme="arcade"] .collection-filters button,
+html[data-theme="arcade"] :is(.wk .lv-btn,.fin .fx-btn.pri,.sx-btn.pri){
+ background-color:transparent;background-image:var(--game-button);background-size:100% 100%;background-position:center;background-repeat:no-repeat;
+ border:0;border-radius:0;color:#c7af94;min-height:52px;padding:14px 20px;font-weight:600;cursor:pointer;box-shadow:none;
+}
+html[data-theme="arcade"] :is(.wk,.fin) .tab{font-size:14px;filter:saturate(.2) brightness(.8);transition:filter .18s ease;color:#c7b9a8}
+html[data-theme="arcade"] :is(.wk,.fin) .tab.active,
+html[data-theme="arcade"] :is(.wk,.fin) .tab:hover{background-color:transparent;background-image:var(--game-button);border:0;color:#ffdc9a;filter:none;box-shadow:none}
+html[data-theme="arcade"] :is(.wk,.fin) .nav-inner{padding:0;border:0;border-radius:0;background:transparent;gap:6px}
+html[data-theme="arcade"] .fin .fx-btn.pri{color:#ffdc9a;padding:17px 25px;min-height:58px}
+html[data-theme="arcade"] .wk .mm-card::after{display:none}
+/* The scrollable dialog uses a frame on its sticky header, never across the scroll area. */
+html[data-theme="arcade"] .wk .mm-head{border-image:var(--game-frame) 340 / 22px / 0 stretch;border-style:solid;border-width:1px;padding:20px 25px;background:#17120e}
+html[data-theme="arcade"] .wk .mm-card{border:1px solid #7a512b}
+.game-medal{display:block;flex-shrink:0;width:96px;height:96px;background-image:var(--game-medals);background-size:300% 200%;background-repeat:no-repeat;margin:0 auto;filter:drop-shadow(0 5px 6px #0007)}
+.game-medal.art-0{background-position:0 0}.game-medal.art-1{background-position:50% 0}.game-medal.art-2{background-position:100% 0}
+.game-medal.art-3{background-position:0 100%}.game-medal.art-4{background-position:50% 100%}.game-medal.art-5{background-position:100% 100%}
+.game-medal.locked{filter:grayscale(.9) brightness(.7);opacity:.8}
+.collection-bar{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:24px;padding:5px 0 15px;border-bottom:1px solid var(--border)}
+.collection-bar strong{display:block;font-family:var(--mono);font-size:24px;margin-top:5px;color:var(--text)}
+.collection-bar small{font:12px var(--font);color:var(--text-2)}
+.collection-filters{display:flex;gap:6px}.collection-filters button{min-height:40px;padding:9px 15px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-2);font:13px var(--font);cursor:pointer}
+.collection-filters button[aria-pressed="true"]{border-color:var(--blue);color:var(--blue)}
+html[data-theme="arcade"] .collection-filters button{min-width:85px;min-height:42px;padding:10px 15px;font-size:12px;filter:saturate(.2) brightness(.8)}
+html[data-theme="arcade"] .collection-filters button[aria-pressed="true"]{filter:none;color:#ffdc9a}
+.wk .pg-b-group{margin-bottom:30px}.wk .pg-b-gt{margin-bottom:12px}.wk .pg-b-gt>span:first-child{font-size:13px;letter-spacing:1.5px;color:var(--text-2)}
+.wk .pg-b-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+html[data-theme] .wk .pg-b{--rarity:#a6adb6;position:relative;display:flex;flex-direction:column;align-items:center;min-width:0;min-height:228px;padding:14px 12px 18px;opacity:1;border-radius:8px;border:1px solid var(--border);border-top:2px solid var(--rarity);background:var(--bg-card);box-shadow:none;clip-path:none;overflow:hidden}
+html[data-theme] .wk .pg-b.rarity-rare{--rarity:#68bce0}html[data-theme] .wk .pg-b.rarity-epic{--rarity:#c091ef}html[data-theme] .wk .pg-b.rarity-legendary{--rarity:#eab66b}
+html[data-theme] .wk .pg-b.on{background:radial-gradient(ellipse at 50% 35%,color-mix(in srgb,var(--rarity) 16%,transparent),transparent 70%),var(--bg-card);border-color:color-mix(in srgb,var(--rarity) 65%,var(--border))}
+.badge-rarity{display:flex;align-items:center;justify-content:space-between;gap:4px;width:100%;font:9px var(--mono);text-transform:uppercase;letter-spacing:.7px;color:var(--rarity)}
+.badge-rarity>span{font-size:9px;color:var(--text-3);letter-spacing:0}
+.wk .pg-b .game-medal{width:112px;height:112px;margin:4px auto}
+html[data-theme] .wk .pg-b-n{font-size:15px;line-height:1.3;font-weight:700;color:var(--text);background:none;-webkit-text-fill-color:currentColor;animation:none;text-align:center}
+html[data-theme] .wk .pg-b-r{font-size:12px;line-height:1.5;color:var(--text-2);margin-top:8px;text-align:center}
+.collection-link{width:100%;display:flex;align-items:center;gap:16px;text-align:left;background:var(--bg-card);border:1px solid var(--border-lt);border-radius:10px;padding:12px 20px;margin-bottom:18px;color:var(--text);cursor:pointer}
+.collection-link .game-medal{width:64px;height:64px;margin:0}.collection-link b{display:block;font-size:15px}.collection-link small{display:block;margin-top:6px;font-size:12px;color:var(--text-2)}.collection-link>span:last-child{margin-left:auto;color:var(--blue);font-size:22px}
+.badge-empty{padding:32px 20px;border:1px solid var(--border);background:var(--bg-card);border-radius:10px;font-size:14px;line-height:1.7;color:var(--text-2)}
+.lv-badge .game-medal{width:100px;height:100px}
+@media(max-width:650px){
+ html[data-theme="arcade"] :is(.wk,.fin) .tab{font-size:12px;padding:12px 12px;min-height:48px}
+ html[data-theme="arcade"] :is(.wk,.fin) .nav-inner{gap:2px}
+ html[data-theme="arcade"] .wk .day-top{padding:23px 22px 15px}
+ html[data-theme="arcade"] .wk :is(.pg-card,.rk-hero,.tl-card){padding:24px 23px}
+ html[data-theme="arcade"] .wk .tl-title{font-size:21px}
+ .wk .pg-b-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ html[data-theme] .wk .pg-b{padding:12px 9px 16px;min-height:220px}.wk .pg-b .game-medal{width:100px;height:100px}
+ .badge-rarity{font-size:8px;letter-spacing:.3px}.badge-rarity>span{font-size:8px}
+ .collection-bar{gap:10px}.collection-filters{width:100%}.collection-filters button{flex:1}.collection-bar strong{font-size:21px}
+}
+@media(prefers-reduced-motion:reduce){.game-button,html[data-theme="arcade"] :is(.wk,.fin) .tab{transition:none}}
+/* Active and hover states must retain the complete sprite background definition. */
+html[data-theme="arcade"] :is(.wk,.fin) .tab.active,
+html[data-theme="arcade"] :is(.wk,.fin) .tab:hover{background-size:100% 100%;background-repeat:no-repeat;background-position:center}
+.game-medal.locked{filter:grayscale(.6) brightness(.85);opacity:.9}
+html[data-theme="arcade"] .wk .pg-b{padding:18px 14px 20px;border:0;border-radius:3px;background-color:#17120e}
+html[data-theme="arcade"] .wk .pg-b::after{content:'';position:absolute;inset:0;pointer-events:none;border:30px solid transparent;border-image:var(--game-frame) 340 / 30px / 0 stretch;filter:grayscale(.7) brightness(.8);opacity:.8}
+html[data-theme="arcade"] .wk .pg-b.on::after{filter:none;opacity:1}
+html[data-theme="arcade"] .wk .pg-b.on{box-shadow:inset 0 0 35px color-mix(in srgb,var(--rarity) 12%,transparent)}
+html[data-theme="arcade"] .wk .sec-lbl{padding-left:24px;padding-right:24px}
+.badge-rarity,.badge-rarity>span{font-size:10px}
+@media(max-width:650px){.badge-rarity,.badge-rarity>span{font-size:10px;letter-spacing:0}}
