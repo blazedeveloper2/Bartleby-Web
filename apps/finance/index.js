@@ -886,7 +886,7 @@ function onDataChange() { if (root) renderAll(); }
 /* ═══════════════════ TEMPLATE + LIFECYCLE ═══════════════════ */
 function template() {
   return `<div class="fin">
-    
+    <div class="app-head"><h1>Finance</h1><p>Money Tracker</p></div>
     <nav class="nav"><div class="nav-inner">
       <button class="tab active" data-act="tab" data-tab="add">Add</button>
       <button class="tab" data-act="tab" data-tab="history">History</button>

@@ -117,15 +117,6 @@ const svg = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
    display `req`, which is what makes them pull you forward. */
 const CATS = ['Consistency', 'Strength', 'Volume', 'Progression'];
 const BADGES = [
-  { id:'sessions5', cat:0, ico:'bolt', n:'Initiate', req:'Finish 5 sessions', t:s => s.sessions >= 5 },
-  { id:'sessions25', cat:0, ico:'medal', n:'Iron Regular', req:'Finish 25 sessions', t:s => s.sessions >= 25 },
-  { id:'sessions75', cat:0, ico:'shield', n:'Forged Habit', req:'Finish 75 sessions', t:s => s.sessions >= 75 },
-  { id:'sessions365', cat:0, ico:'crown', n:'The Long Game', req:'Finish 365 sessions', t:s => s.sessions >= 365 },
-  { id:'sets100', cat:2, ico:'star', n:'First Hundred', req:'Complete 100 hard sets', t:s => s.sets >= 100 },
-  { id:'sets250', cat:2, ico:'medal', n:'Work Capacity', req:'Complete 250 hard sets', t:s => s.sets >= 250 },
-  { id:'pr5', cat:3, ico:'bolt', n:'Breaking Ground', req:'5 proven working-weight increases', t:s => s.prs >= 5 },
-  { id:'pr100', cat:3, ico:'crown', n:'Beyond The Limit', req:'100 proven working-weight increases', t:s => s.prs >= 100 },
-
   /* -- Consistency -- */
   { id:'first',     cat:0, ico:'bolt',   n:'First Rep',        req:'Finish 1 session',               t:s => s.sessions >= 1 },
   { id:'ten',       cat:0, ico:'bolt',   n:'Double Digits',    req:'Finish 10 sessions',             t:s => s.sessions >= 10 },
@@ -168,25 +159,6 @@ const BADGES = [
   { id:'pr50',      cat:3, ico:'target', n:'Never Satisfied',  req:'50 working-weight increases',    t:s => s.prs >= 50 },
   { id:'load500',   cat:3, ico:'peak',   n:'Plus Five Hundred',req:'+500 lbs of load added',         t:s => s.loadAdded >= 500 },
 ];
-
-// Reusable atlas positions. Names and requirements remain accessible HTML.
-function badgeArt(b) {
-  if (b.ico === 'crown' || ['hundred','twoHundred','sessions365'].includes(b.id)) return 5;
-  if (b.ico === 'flame') return 2;
-  if (b.cat === 1 || b.cat === 2) return 1;
-  if (b.cat === 3) return 4;
-  if (['check','cal','shield'].includes(b.ico)) return 3;
-  return 0;
-}
-function badgeRarity(b) {
-  if (['rankS','liftS','twoHundred','sessions365','pr100','sets4000'].includes(b.id)) return 'legendary';
-  if (['rankA','liftA','hundred','streak40','weeks10','pr50','load500','sessions75'].includes(b.id)) return 'epic';
-  if (['first','sessions5','ten','pr1','sets100','rankD'].includes(b.id)) return 'common';
-  return 'rare';
-}
-function badgeMedal(b, on=true) {
-  return `<span class="game-medal art-${badgeArt(b)} ${on?'earned':'locked'}" aria-hidden="true"></span>`;
-}
 
 /* Flatten consistency + strength into the shape the tests above expect.
    `st` is always the PROVEN view — a weight you typed but have not trained
@@ -841,7 +813,7 @@ export function celebrationHTML(r) {
   if (r.badges?.length) {
     h += `<div class="lv-kicker ${h ? 'mid' : ''}">${r.badges.length === 1 ? 'Milestone Unlocked' : `${r.badges.length} Milestones Unlocked`}</div>
       <div class="lv-badges">${r.badges.map(b => `
-        <div class="lv-badge">${badgeMedal(b)}<div class="lv-badge-n">${b.n}</div></div>`).join('')}</div>`;
+        <div class="lv-badge"><div class="pg-b-ico on">${svg(b.ico)}</div><div class="lv-badge-n">${b.n}</div></div>`).join('')}</div>`;
   }
   return `<div class="lv-card">${h}<button class="lv-btn" data-act="lv-close">Keep Going</button></div>`;
 }
@@ -1062,7 +1034,7 @@ function tile(label, value, unit, sub, cnt) {
   return `<div class="bw-stat">
     <div class="bw-stat-v">${v}${unit ? `<span class="bw-stat-u">${unit}</span>` : ''}</div>
     <div class="bw-stat-l">${label}</div>
-    ${sub ? `<div class="bw-stat-d up">${sub}</div>` : ''}
+    <div class="bw-stat-d ${sub ? 'up' : 'flat'}">${sub || '·'}</div>
   </div>`;
 }
 
@@ -1154,16 +1126,15 @@ function progressionHTML(s, st) {
   </div>`;
 }
 
-function badgesHTML(ach, filter = 'all') {
+function badgesHTML(ach) {
   /* Three states, not two. "Earned" and "still true" stopped being the same
      thing the moment a back-off could move you back down a letter, and
      deleting the badge would be pretending the month you held it never
      happened. */
   const cell = (b, i) => {
     const on = ach.ids.has(b.id), held = ach.now.has(b.id);
-    return `<div class="pg-b rarity-${badgeRarity(b)} ${on ? 'on' : ''} ${on && !held ? 'lapsed' : ''}" style="--i:${i}" data-badge="${b.id}">
-      <div class="badge-rarity">${badgeRarity(b)}<span>${on ? 'Unlocked' : 'Locked'}</span></div>
-      ${badgeMedal(b,on)}
+    return `<div class="pg-b ${on ? 'on' : ''} ${on && !held ? 'lapsed' : ''}" style="--i:${i}">
+      <div class="pg-b-ico ${on ? 'on' : ''}">${svg(b.ico)}</div>
       <div class="pg-b-n">${b.n}</div>
       <div class="pg-b-r">${!on ? b.req
         : held ? `Unlocked${ach.at[b.id] ? ` · ${fmtD(ach.at[b.id])}` : ''}`
@@ -1173,12 +1144,10 @@ function badgesHTML(ach, filter = 'all') {
 
   let i = 0;
   const groups = CATS.map((title, ci) => {
-    const preferred = ['first','sessions5','ten','week','sessions25','streak8','weeks4','fifty','sessions75','streak20','comeback','weeks10','hundred','streak40','twoHundred','sessions365','pr1','pr5','fullSheet','pr15','load100','weighIn','recomp','pr50','load500','pr100'];
-    const all = BADGES.filter(b => b.cat === ci).sort((a,b) => preferred.indexOf(a.id) - preferred.indexOf(b.id));
+    const all = BADGES.filter(b => b.cat === ci);
     const got = all.filter(b => ach.ids.has(b.id));
     /* earned first inside each group, so progress reads top-down */
-    const ordered = [...got, ...all.filter(b => !ach.ids.has(b.id))].filter(b => filter === 'all' || (filter === 'earned' ? ach.ids.has(b.id) : !ach.ids.has(b.id)));
-    if (!ordered.length) return '';
+    const ordered = [...got, ...all.filter(b => !ach.ids.has(b.id))];
     return `<div class="pg-b-group">
       <div class="pg-b-gt"><span>${title}</span><span class="pg-b-gc ${got.length === all.length ? 'full' : ''}">${got.length}/${all.length}</span></div>
       <div class="pg-b-grid">${ordered.map(b => cell(b, i++)).join('')}</div>
@@ -1186,20 +1155,12 @@ function badgesHTML(ach, filter = 'all') {
   }).join('');
 
   const lapsed = [...ach.ids].filter(id => !ach.now.has(id)).length;
-  return `<div class="badge-collection">
-    <div class="collection-bar"><div><span class="pg-kicker">Achievements</span><strong>${ach.ids.size}<small> / ${BADGES.length} unlocked</small></strong></div>
-    <div class="collection-filters" aria-label="Achievement filter">${[['all','All'],['earned','Unlocked'],['locked','Locked']].map(([id,label])=>`<button data-act="badge-filter" data-filter="${id}" aria-pressed="${filter===id}">${label}</button>`).join('')}</div></div>
+  return `<div class="pg-card">
+    <div class="pg-card-head"><div class="pg-card-title">Achievements</div><div class="pg-card-note">${ach.ids.size}/${BADGES.length}</div></div>
     ${lapsed ? `<div class="pg-b-lapse">${lapsed} of these ${lapsed === 1 ? 'is' : 'are'} no longer true at your current weights.
       Earning something is a date on the calendar, so ${lapsed === 1 ? 'it stays' : 'they stay'} unlocked — but the card says so rather than pretending.</div>` : ''}
-    ${groups || '<div class="badge-empty">Your collection starts with one finished session. Locked badges show what to work toward.</div>'}
+    ${groups}
   </div>`;
-}
-
-export function renderBadges(root, filter='all') {
-  const panel=root.querySelector('#rank-badges');
-  if (!panel) return;
-  const st=strength(), s=stats();
-  panel.innerHTML=badgesHTML(achievements(s,st),filter);
 }
 
 function historyHTML(s) {
@@ -1354,8 +1315,8 @@ export function renderRank(root) {
   h += liftsHTML(st);
   h += heatmapHTML(s);
   h += progressionHTML(s, st);
+  h += badgesHTML(ach);
   h += historyHTML(s);
-  h += `<details class="rank-collection"><summary>Badges <span>${ach.ids.size} / ${BADGES.length} unlocked</span></summary><div id="rank-badges">${badgesHTML(ach)}</div></details>`;
   h += resetHTML();
   p.innerHTML = h;
   tickCounts(p);

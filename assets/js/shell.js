@@ -7,10 +7,10 @@
    To add a new app: import it and drop it into the APPS array.
    ═══════════════════════════════════════════════════════════ */
 
-import workout from '../../apps/workout/index.js?v=armory-2';
-import finance from '../../apps/finance/index.js';
+import workout from '../../apps/workout/index.js?v=original-viewer-1';
+import finance from '../../apps/finance/index.js?v=original-viewer-1';
 import { toast } from './ui.js';
-import { THEMES, getTheme, setTheme, applyTheme } from './theme.js';
+import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=original-viewer-1';
 
 // Scripture is parked in archive/ for now — to bring it back, move
 // archive/apps/scripture and archive/assets/data back to their old paths,
@@ -43,7 +43,7 @@ function loadStyles(href) {
   const link = document.createElement('link');
   link.rel = 'stylesheet';
   link.href = href;
-  document.head.insertBefore(link, document.querySelector('link[href="assets/css/redesign.css"]'));
+  document.head.appendChild(link);
   loadedStyles.add(href);
 }
 
@@ -147,7 +147,7 @@ function buildSettings() {
   el.id = 'sx-ol';
   el.innerHTML = `
     <div class="sx-card">
-      <div class="sx-head"><div class="sx-title">Settings</div><button class="sx-close" data-sx="close" aria-label="Close settings">Done</button></div>
+      <div class="sx-head"><div class="sx-title">Settings</div><button class="sx-close" data-sx="close">&times;</button></div>
       <div class="sx-body">
         <div class="sx-sec-lbl">Theme</div>
         <div class="sx-themes" id="sx-themes"></div>

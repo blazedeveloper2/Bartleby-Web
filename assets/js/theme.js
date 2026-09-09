@@ -10,7 +10,6 @@
    ═══════════════════════════════════════════════════════════ */
 
 export const THEMES = [
-  { id:'studio', name:'Studio', desc:'Graphite, warm orange, and clean lines.', sw:['#ff985c','#71dfb0','#171a1e'] },
   { id:'arcade', name:'Arcade',    desc:'Orange game-HUD. Glow, sweeps, scanlines.', sw:['#ff7a18','#ffb43f','#150f0a'] },
   { id:'dark',   name:'Midnight',  desc:'The original blue-grey. Calm, no motion.',  sw:['#3b82f6','#8b5cf6','#10121a'] },
   { id:'light',  name:'Daylight',  desc:'Bright paper-white. Calm, no motion.',      sw:['#2563eb','#7c3aed','#ffffff'] },

@@ -13,8 +13,8 @@ import {
   setsOf, syncDay, logWeight, delSession, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, liftScores, standingOf, resEx,
   resetPanel, resetToggle, resetToggleAll, resetSelection, applyReset, resetDismiss,
-  renderBadges,
-} from './rank.js?v=armory-2';
+  levelHTML, levelNow,
+} from './rank.js?v=original-viewer-1';
 import { MUSCLE_SVG } from './bodymap.js';
 
 /* ── namespaced storage ── */
@@ -51,7 +51,7 @@ function renderProg() {
      Unscored movements (bodyweight core work) and lifts with no weight
      set aren't in the map and stay the default text colour. */
   const sc = liftScores();
-  let h = '';
+  let h = levelHTML(levelNow());
   PROGRAM.forEach((day, di) => {
     let tot = 0, dn = 0;
     day.sections.forEach((sec, si) => sec.ex.forEach((_, ei) => { tot++; if (ch[ek(di,si,ei)]) dn++; }));
@@ -124,6 +124,7 @@ function toggleChk(k) {
   const res = syncDay(di, tally);
   if (!res) return;
   paintDayHead(di, tally);            // the "Logged" pill may have appeared
+  paintLevel(res);
   renderRank(root);
   if (res.logged && !showCelebration(res)) toast(`${res.label} logged`);
 }
@@ -153,6 +154,15 @@ function paintDayHead(di, tally) {
   const want = comp && isLoggedToday(di);
   if (want && !pill) right.insertAdjacentHTML('afterbegin', '<span class="day-xp logged">Logged</span>');
   else if (!want && pill) pill.remove();
+}
+
+/* Swap the strip in place rather than through renderProg(), for the same
+   reason as the day header — and flash it once when the level moved up. */
+function paintLevel(res) {
+  const old = q('#p-program .tl-card');
+  if (!old) return;
+  old.outerHTML = levelHTML(levelNow());
+  if (res?.levelUp) q('#p-program .tl-card')?.classList.add('just-up');
 }
 
 /* The "Clear All" bar only exists when something is checked. */
@@ -475,7 +485,7 @@ function renderBW() {
   h += `<div class="bw-add ${editing?'editing':''}">
     <div class="bw-add-fld"><div class="bw-add-lbl">${editing?'Editing':'Date'}</div><input class="bw-in" type="date" id="bw-date" value="${editing?bwEditDate:todayStr()}" max="${todayStr()}" ${editing?'readonly':''}></div>
     <div class="bw-add-fld"><div class="bw-add-lbl">Weight (lbs)</div><input class="bw-in" type="number" step="0.1" min="0" id="bw-weight" placeholder="—" value="${editEntry?editEntry.w:''}" inputmode="decimal"></div>
-    <button class="bw-add-btn pri" data-act="bw-save">${editing?'Update':'Log'}</button>
+    <button class="bw-add-btn" data-act="bw-save">${editing?'Update':'Log'}</button>
     ${editing?`<button class="bw-add-btn ghost" data-act="bw-cancel">Cancel Edit</button>`:''}
   </div>`;
 
@@ -574,7 +584,6 @@ function switchTab(tab) {
   root.querySelectorAll('.wk .panel').forEach(pl => pl.classList.remove('active'));
   q('#p-' + tab).classList.add('active');
   if (tab === 'rank') renderRank(root);
-  if (tab === 'badges') renderBadges(root);
 }
 
 /* ═══════════════════ EVENT DELEGATION ═══════════════════ */
@@ -590,12 +599,11 @@ function onClick(e) {
   const a = el.dataset;
   switch (a.act) {
     case 'tab':       switchTab(a.tab); break;
-    case 'badge-filter': renderBadges(root,a.filter); break;
     case 'row':       openMM(resEx(PROGRAM[+a.di].sections[+a.si].ex[+a.ei])); break;
     case 'chk':       toggleChk(a.k); break;
     case 'clear':     clearChk(); break;
     case 'mm-close':  closeMM(); break;
-    case 'mm-chip':   inspectMuscle(el); break;
+    case 'mm-chip': inspectMuscle(el); break;
     case 'mm-view': mmView(a.view); break;
     case 'bw-range':  bwSetRange(a.k); break;
     case 'bw-save':   bwSave(); break;
@@ -635,7 +643,6 @@ function onExternalChange() {
   if (!root) return;
   renderProg(); renderBW();
   if (activeTab === 'rank') renderRank(root);
-  if (activeTab === 'badges') renderBadges(root);
 }
 function onKeydown(e) {
   if (q('#mm-ol').classList.contains('on')) {
@@ -656,23 +663,21 @@ function onKeydown(e) {
 
 function template() {
   return `<div class="wk">
-    
+    <div class="app-head"><h1>Build Program</h1><p>Dumbbells + Bench · 4 Day Upper/Lower + Calisthenics · Rank Up</p></div>
     <nav class="nav"><div class="nav-inner">
       <button class="tab active" data-act="tab" data-tab="program">Program</button>
       <button class="tab" data-act="tab" data-tab="bw">Weight</button>
       <button class="tab" data-act="tab" data-tab="rank">Rank</button>
-
     </div></nav>
     <div class="app-wrap">
       <div class="panel active" id="p-program"></div>
       <div class="panel" id="p-bw"></div>
       <div class="panel" id="p-rank"></div>
-
     </div>
 
     <div class="mm-overlay" id="mm-ol">
       <div class="mm-card" role="dialog" aria-modal="true" aria-labelledby="mm-name">
-        <div class="mm-head game-frame"><div><div class="mm-kicker">Exercise lab</div><div class="mm-title" id="mm-name"></div></div><button class="mm-close" data-act="mm-close" aria-label="Close exercise viewer">&times;</button></div>
+        <div class="mm-head"><div><div class="mm-kicker">Exercise lab</div><div class="mm-title" id="mm-name"></div></div><button class="mm-close" data-act="mm-close" aria-label="Close exercise viewer">&times;</button></div>
         <div class="mm-info" id="mm-info"></div>
         <div class="mm-wt-row">
           <label class="mm-wt-lbl" for="mm-wt">Working weight<span>Saved when you leave the field</span></label>
@@ -702,7 +707,7 @@ export default {
   id: 'workout',
   name: 'Workout',
   storagePrefix: 'bp_',
-  styles: 'apps/workout/workout.css',
+  styles: 'apps/workout/workout.css?v=original-viewer-1',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
