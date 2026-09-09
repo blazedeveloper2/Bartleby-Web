@@ -1196,7 +1196,7 @@ function badgesHTML(ach, filter = 'all') {
 }
 
 export function renderBadges(root, filter='all') {
-  const panel=root.querySelector('#p-badges');
+  const panel=root.querySelector('#rank-badges');
   if (!panel) return;
   const st=strength(), s=stats();
   panel.innerHTML=badgesHTML(achievements(s,st),filter);
@@ -1355,6 +1355,7 @@ export function renderRank(root) {
   h += heatmapHTML(s);
   h += progressionHTML(s, st);
   h += historyHTML(s);
+  h += `<details class="rank-collection"><summary>Badges <span>${ach.ids.size} / ${BADGES.length} unlocked</span></summary><div id="rank-badges">${badgesHTML(ach)}</div></details>`;
   h += resetHTML();
   p.innerHTML = h;
   tickCounts(p);

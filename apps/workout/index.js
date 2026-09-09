@@ -14,7 +14,7 @@ import {
   isLoggedToday, celebrationHTML, renderRank, liftScores, standingOf, resEx,
   resetPanel, resetToggle, resetToggleAll, resetSelection, applyReset, resetDismiss,
   renderBadges,
-} from './rank.js?v=armory-1';
+} from './rank.js?v=armory-2';
 import { MUSCLE_SVG } from './bodymap.js';
 
 /* ── namespaced storage ── */
@@ -475,7 +475,7 @@ function renderBW() {
   h += `<div class="bw-add ${editing?'editing':''}">
     <div class="bw-add-fld"><div class="bw-add-lbl">${editing?'Editing':'Date'}</div><input class="bw-in" type="date" id="bw-date" value="${editing?bwEditDate:todayStr()}" max="${todayStr()}" ${editing?'readonly':''}></div>
     <div class="bw-add-fld"><div class="bw-add-lbl">Weight (lbs)</div><input class="bw-in" type="number" step="0.1" min="0" id="bw-weight" placeholder="—" value="${editEntry?editEntry.w:''}" inputmode="decimal"></div>
-    <button class="bw-add-btn" data-act="bw-save">${editing?'Update':'Log'}</button>
+    <button class="bw-add-btn pri" data-act="bw-save">${editing?'Update':'Log'}</button>
     ${editing?`<button class="bw-add-btn ghost" data-act="bw-cancel">Cancel Edit</button>`:''}
   </div>`;
 
@@ -661,13 +661,13 @@ function template() {
       <button class="tab active" data-act="tab" data-tab="program">Program</button>
       <button class="tab" data-act="tab" data-tab="bw">Weight</button>
       <button class="tab" data-act="tab" data-tab="rank">Rank</button>
-      <button class="tab" data-act="tab" data-tab="badges">Badges</button>
+
     </div></nav>
     <div class="app-wrap">
       <div class="panel active" id="p-program"></div>
       <div class="panel" id="p-bw"></div>
       <div class="panel" id="p-rank"></div>
-      <div class="panel" id="p-badges"></div>
+
     </div>
 
     <div class="mm-overlay" id="mm-ol">

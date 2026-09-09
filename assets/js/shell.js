@@ -7,7 +7,7 @@
    To add a new app: import it and drop it into the APPS array.
    ═══════════════════════════════════════════════════════════ */
 
-import workout from '../../apps/workout/index.js?v=armory-1';
+import workout from '../../apps/workout/index.js?v=armory-2';
 import finance from '../../apps/finance/index.js';
 import { toast } from './ui.js';
 import { THEMES, getTheme, setTheme, applyTheme } from './theme.js';
@@ -147,7 +147,7 @@ function buildSettings() {
   el.id = 'sx-ol';
   el.innerHTML = `
     <div class="sx-card">
-      <div class="sx-head"><div class="sx-title">Settings</div><button class="sx-close" data-sx="close">&times;</button></div>
+      <div class="sx-head"><div class="sx-title">Settings</div><button class="sx-close" data-sx="close" aria-label="Close settings">Done</button></div>
       <div class="sx-body">
         <div class="sx-sec-lbl">Theme</div>
         <div class="sx-themes" id="sx-themes"></div>
