@@ -4,9 +4,12 @@
    Every colour in the suite comes from the variables below, so a
    theme is just one block of overrides on <html data-theme="...">.
 
-   A theme owns more than colour: the `arcade` block at the bottom
-   layers on the animation set (scanlines, shimmer sweeps, glow
-   pulses, staggered card entrances) that `dark` deliberately omits.
+   A theme owns more than colour: it owns motion too. Both `arcade`
+   and `dark` carry an animation set at the bottom of this file, and
+   they are deliberately different in kind — arcade runs loud and
+   continuous (scanlines, glow pulses, shimmer), midnight runs quiet
+   and event-driven (soft entrances, one slow sheen, no loops you
+   can see from across the room). `light` stays completely still.
 
    Adding a theme: copy a palette block, give it a data-theme name,
    and add it to THEMES in assets/js/theme.js.
@@ -41,7 +44,8 @@ html[data-theme="arcade"] {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   DARK — the original cool-grey/blue palette. No animation set.
+   DARK — the original cool-grey/blue palette. Its motion set lives
+   at the bottom of this file, under MIDNIGHT ANIMATIONS.
    ═══════════════════════════════════════════════════════════ */
 html[data-theme="dark"] {
   --bg:#08090d;--bg-card:#10121a;--bg-alt:#141722;--bg-hover:#1a1d2a;
@@ -92,7 +96,8 @@ html[data-theme="light"] {
 
 /* ═══════════════════════════════════════════════════════════
    ARCADE ANIMATIONS
-   Scoped to the theme so `dark` stays completely still.
+   Scoped to the theme: `light` stays completely still, and `dark`
+   has its own, quieter set further down.
    All of it collapses under prefers-reduced-motion at the bottom.
    ═══════════════════════════════════════════════════════════ */
 
@@ -241,14 +246,138 @@ html[data-theme="arcade"] .lv-burst i{
   html[data-theme="arcade"] .day-card:hover{transform:translateY(-2px)}
 }
 
+/* ═══════════════════════════════════════════════════════════
+   MIDNIGHT ANIMATIONS
+   The counterpart to the arcade set, built on the opposite idea.
+   Arcade is ambient: things glow and sweep whether or not you did
+   anything. Midnight is event-driven — nearly everything here fires
+   once, because something happened, and then stops. The only loops
+   left are the rank letter's halo, the progress-bar sheen and today's
+   cell on the heatmap, all at an amplitude you notice only if you
+   go looking for it.
+
+   Same hooks as arcade throughout, so nothing in the apps had to
+   learn that a second theme exists.
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes mn-rise    { from{opacity:0;transform:translateY(7px)} to{opacity:1;transform:none} }
+@keyframes mn-fade    { from{opacity:0} to{opacity:1} }
+@keyframes mn-slide   { from{opacity:0;transform:translateX(-5px)} to{opacity:1;transform:none} }
+/* the sheen crosses in the first fifth of the cycle and then waits: a bar you
+   glance at reads as still, a bar you watch catches the light once */
+@keyframes mn-sheen   { 0%{transform:translateX(-160%)} 22%,100%{transform:translateX(400%)} }
+@keyframes mn-halo    { 0%,100%{text-shadow:0 0 14px #3b82f62e} 50%{text-shadow:0 0 26px #3b82f655} }
+@keyframes mn-pop     { from{transform:scale(.84)} to{transform:scale(1)} }
+@keyframes mn-ring    { from{opacity:.5;transform:scale(1)} to{opacity:0;transform:scale(1.85)} }
+@keyframes mn-today   { 0%,100%{box-shadow:0 0 0 1.5px var(--blue)}
+                         50%{box-shadow:0 0 0 1.5px var(--blue),0 0 9px -1px #3b82f6aa} }
+@keyframes mn-daydone { 0%{box-shadow:0 0 0 0 #3b82f600}
+                       45%{box-shadow:0 0 0 1px #3b82f6,0 0 20px -5px #3b82f6}
+                      100%{box-shadow:0 0 0 0 #3b82f600} }
+@keyframes mn-spark   { 0%{opacity:.9;transform:rotate(var(--a)) translateX(5px) scale(1)}
+                      100%{opacity:0;transform:rotate(var(--a)) translateX(var(--d)) scale(.25)} }
+
+/* ── cards ease in close together: a settle, not a cascade ── */
+html[data-theme="dark"] .day-card,
+html[data-theme="dark"] .pg-card,
+html[data-theme="dark"] .tl-card,
+html[data-theme="dark"] .bw-chart-card,
+html[data-theme="dark"] .bw-add {
+  animation:mn-rise .3s cubic-bezier(.25,.8,.3,1) both;
+  box-shadow:inset 0 1px 0 #ffffff05;
+}
+/* the level strip is the Program tab's first child, so the day cards start at 2 */
+html[data-theme="dark"] .day-card:nth-child(2){animation-delay:.03s}
+html[data-theme="dark"] .day-card:nth-child(3){animation-delay:.06s}
+html[data-theme="dark"] .day-card:nth-child(4){animation-delay:.09s}
+html[data-theme="dark"] .day-card:nth-child(5){animation-delay:.12s}
+html[data-theme="dark"] .day-card:nth-child(6){animation-delay:.15s}
+html[data-theme="dark"] .pg-card:nth-child(3){animation-delay:.04s}
+html[data-theme="dark"] .pg-card:nth-child(4){animation-delay:.08s}
+html[data-theme="dark"] .pg-card:nth-child(5){animation-delay:.12s}
+
+html[data-theme="dark"] .day-card:hover,
+html[data-theme="dark"] .pg-card:hover { border-color:var(--border-lt) }
+
+/* ── one cool sheen per progress bar, on a long cycle ── */
+html[data-theme="dark"] .sx-bar-fill { position:relative;overflow:hidden }
+html[data-theme="dark"] .sx-bar-fill::after {
+  content:'';position:absolute;inset:0;width:30%;
+  background:linear-gradient(90deg,transparent,#ffffff2e,transparent);
+  animation:mn-sheen 5.5s cubic-bezier(.4,0,.2,1) infinite;
+}
+
+/* ── the rank letter breathes rather than burns ── */
+html[data-theme="dark"] .rk-letter { animation:mn-halo 5s ease-in-out infinite }
+html[data-theme="dark"] .rk-marker { box-shadow:0 0 0 2px var(--bg-card),0 0 10px -2px var(--glow) }
+/* no scanline: .rk-scan stays display:none here, which is half the difference */
+
+/* ── the tab you're on gets a soft underglow ── */
+html[data-theme="dark"] .wk .tab.active,
+html[data-theme="dark"] .fin .tab.active { box-shadow:0 2px 10px -4px var(--glow) }
+
+/* ── ticking a box: a short settle and one ring, then nothing ── */
+html[data-theme="dark"] .wk .ex-chk{position:relative}
+html[data-theme="dark"] .wk .ex-chk.on { animation:mn-pop .2s cubic-bezier(.25,.8,.3,1) }
+html[data-theme="dark"] .wk .ex-chk.on::before{
+  content:'';position:absolute;inset:-2px;border-radius:7px;
+  border:1.5px solid var(--glow);animation:mn-ring .45s ease-out both;pointer-events:none;
+}
+
+/* finishing a whole day flashes that card once; so does a level-up on the strip */
+html[data-theme="dark"] .day-card.just-done,
+html[data-theme="dark"] .tl-card.just-up{animation:mn-daydone .8s ease-out}
+
+/* ── heatmap: cells fade in column by column, and only today keeps moving ── */
+html[data-theme="dark"] .pg-hm-c {
+  animation:mn-fade .3s ease both;
+  animation-delay:calc(var(--c, 0) * 14ms);
+}
+html[data-theme="dark"] .pg-hm-c.today { animation:mn-today 3.4s ease-in-out infinite }
+
+/* ── achievement tiles and the PR feed arrive in order ── */
+html[data-theme="dark"] .pg-b {
+  animation:mn-rise .28s cubic-bezier(.25,.8,.3,1) both;
+  animation-delay:calc(var(--i, 0) * 12ms);
+}
+html[data-theme="dark"] .pg-pr {
+  animation:mn-slide .28s ease both;
+  animation-delay:calc(var(--i, 0) * 26ms);
+}
+/* an unlocked milestone is stated in colour here, not in movement */
+html[data-theme="dark"] .pg-b.on .pg-b-n { color:var(--green) }
+
+/* ── celebration: sparks, but cooler and over sooner ── */
+html[data-theme="dark"] .lv-burst i{
+  display:block;animation:mn-spark .7s cubic-bezier(.2,.7,.3,1) both;animation-delay:var(--t);
+}
+html[data-theme="dark"] .lv-card { box-shadow:0 0 0 1px #3b82f628,0 30px 90px -20px #000 }
+
+/* ── sidebar active app ── */
+html[data-theme="dark"] .app-btn.active { box-shadow:inset 2px 0 0 var(--glow) }
+
+/* desktop hover lift, a shade shallower than arcade's */
+@media (hover:hover) and (min-width:821px){
+  html[data-theme="dark"] .pg-card,
+  html[data-theme="dark"] .day-card{transition:transform .18s ease,border-color .18s ease}
+  html[data-theme="dark"] .pg-card:hover,
+  html[data-theme="dark"] .day-card:hover{transform:translateY(-1px)}
+}
+
+/* Both motion themes collapse together — whichever one you're on, asking
+   for reduced motion has to be the end of the argument. */
 @media (prefers-reduced-motion: reduce) {
   html[data-theme="arcade"] *,
   html[data-theme="arcade"] *::before,
-  html[data-theme="arcade"] *::after {
+  html[data-theme="arcade"] *::after,
+  html[data-theme="dark"] *,
+  html[data-theme="dark"] *::before,
+  html[data-theme="dark"] *::after {
     animation-duration:.001s !important;
     animation-iteration-count:1 !important;
     animation-delay:0s !important;
     transition-duration:.001s !important;
   }
-  html[data-theme="arcade"] .lv-burst{display:none}
+  html[data-theme="arcade"] .lv-burst,
+  html[data-theme="dark"] .lv-burst{display:none}
 }
