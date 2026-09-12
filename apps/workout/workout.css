@@ -175,7 +175,7 @@
 .bw-in{background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:9px 10px;color:var(--text);font-family:var(--mono);font-size:14px;font-weight:600;outline:none;transition:border-color .15s;width:100%;-webkit-appearance:none}
 .bw-in:focus{border-color:var(--blue)}
 .bw-in[readonly]{opacity:.6;cursor:not-allowed}
-.bw-add-btn{background:var(--blue);border:none;color:#fff;font-family:var(--font);font-size:13px;font-weight:600;padding:0 18px;border-radius:var(--rs);cursor:pointer;transition:background .15s;height:38px;white-space:nowrap}
+.bw-add-btn{background:var(--blue);border:none;color:var(--on-accent);font-family:var(--font);font-size:13px;font-weight:600;padding:0 18px;border-radius:var(--rs);cursor:pointer;transition:background .15s;height:38px;white-space:nowrap}
 .bw-add-btn:hover{background:var(--btn-hover)}
 .bw-add-btn.ghost{background:var(--bg);color:var(--text-2);border:1px solid var(--border);grid-column:1/-1}
 .bw-add-btn.ghost:hover{background:var(--bg-hover);color:var(--text)}
@@ -517,7 +517,7 @@
 .lv-badge{width:74px}
 .lv-badge-n{font-size:10.5px;font-weight:700;line-height:1.25;margin-top:-2px}
 .lv-xp{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--green);margin-top:18px}
-.lv-btn{width:100%;margin-top:14px;background:var(--blue);border:none;color:#fff;font-family:var(--font);font-size:13.5px;font-weight:600;padding:12px;border-radius:var(--rs);cursor:pointer;transition:background .15s}
+.lv-btn{width:100%;margin-top:14px;background:var(--blue);border:none;color:var(--on-accent);font-family:var(--font);font-size:13.5px;font-weight:600;padding:12px;border-radius:var(--rs);cursor:pointer;transition:background .15s}
 .lv-btn:hover{background:var(--btn-hover)}
 
 @media(max-width:480px){

@@ -67,7 +67,7 @@ body{
 .day-top-l{display:flex;align-items:center;gap:8px;min-width:0}
 .day-idx{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--blue);letter-spacing:-.5px;flex-shrink:0}
 .day-sep{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text-3);flex-shrink:0}
-.day-badge{padding:3px 8px;border-radius:2px;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#fff;flex-shrink:0}
+.day-badge{padding:3px 8px;border-radius:2px;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--on-accent);flex-shrink:0}
 .day-title{font-size:11.5px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* ═══ SHARED: SEGMENTED METER ═══ */

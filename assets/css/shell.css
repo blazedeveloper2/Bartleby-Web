@@ -100,8 +100,8 @@
   .app-btn .app-ico{width:20px;height:20px}
   .app-btn .app-ico svg{width:20px;height:20px}
   .app-btn:hover{background:transparent;color:var(--text-2)}
-  .app-btn.active{background:var(--blue);color:#fff}
-  .app-btn.active .app-ico{color:#fff}
+  .app-btn.active{background:var(--blue);color:var(--on-accent)}
+  .app-btn.active .app-ico{color:var(--on-accent)}
   .app-btn:not(.active) .app-ico{color:var(--text-3)}
   .app-btn .app-soon{display:none}
 }
@@ -176,6 +176,6 @@
 .sx-actions{display:flex;gap:8px}
 .sx-btn{flex:1;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:13.5px;font-weight:600;padding:12px;border-radius:var(--rs);cursor:pointer;transition:all .15s}
 .sx-btn:hover{background:var(--bg-hover);border-color:var(--border-lt)}
-.sx-btn.pri{background:var(--blue);border-color:transparent;color:#fff}
+.sx-btn.pri{background:var(--blue);border-color:transparent;color:var(--on-accent)}
 
 .sx-btn.pri:hover{background:var(--btn-hover)}

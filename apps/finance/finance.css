@@ -133,7 +133,7 @@
   color:var(--text-2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .13s}
 .fx-calbtn svg{width:17px;height:17px}
 .fx-calbtn:hover{color:var(--text);border-color:var(--border-lt)}
-.fx-calbtn.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.fx-calbtn.on{background:var(--blue);border-color:var(--blue);color:var(--on-accent)}
 
 /* Spending calendar: each day shows what it cost, tinted by how much */
 .fx-histcal{margin:0 0 12px}
@@ -147,7 +147,7 @@
 .fx-cal-d.today{border-color:var(--text-3)}
 .fx-cal-d.sel{background:var(--blue);border-color:var(--blue);box-shadow:0 0 0 2px var(--sel-bd)}
 .fx-cal-d.sel::before{opacity:0}
-.fx-cal-d.sel .fx-cal-n,.fx-cal-d.sel .fx-cal-a{color:#fff}
+.fx-cal-d.sel .fx-cal-n,.fx-cal-d.sel .fx-cal-a{color:var(--on-accent)}
 .fx-cal-foot{display:flex;justify-content:space-between;gap:10px;margin-top:11px;padding-top:10px;
   border-top:1px solid var(--border);font-size:10.5px;color:var(--text-2)}
 
@@ -347,7 +347,7 @@
   font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.5px;cursor:pointer;transition:all .13s}
 .nw-r-btn:hover:not(:disabled):not(.sel){color:var(--text-2)}
 .nw-r-btn:disabled{opacity:.3;cursor:default}
-.nw-r-btn.sel{background:var(--blue);color:#fff}
+.nw-r-btn.sel{background:var(--blue);color:var(--on-accent)}
 
 .nw-plot{padding-left:52px}
 .nw-plot-in{position:relative;height:190px}

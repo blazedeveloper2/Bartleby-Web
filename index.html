@@ -17,17 +17,20 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/tokens.css">
-<link rel="stylesheet" href="assets/css/themes.css">
-<link rel="stylesheet" href="assets/css/shell.css">
+<link rel="stylesheet" href="assets/css/tokens.css?v=black-theme-1">
+<link rel="stylesheet" href="assets/css/themes.css?v=black-theme-1">
+<link rel="stylesheet" href="assets/css/shell.css?v=black-theme-1">
 <script>
 /* Set the theme before first paint so there's no flash of the wrong palette.
    Kept inline and dependency-free on purpose — assets/js/theme.js owns the
    real logic, this just mirrors the stored value as early as possible. */
 (function(){
+  /* Keep MOTION in step with THEMES in assets/js/theme.js. */
+  var MOTION = { arcade:'loud', black:'quiet', dark:'quiet', light:'none' };
   var t = 'arcade';
-  try { var s = JSON.parse(localStorage.getItem('bs_theme')); if (s === 'dark' || s === 'arcade') t = s; } catch(e){}
+  try { var s = JSON.parse(localStorage.getItem('bs_theme')); if (MOTION[s]) t = s; } catch(e){}
   document.documentElement.setAttribute('data-theme', t);
+  document.documentElement.setAttribute('data-motion', MOTION[t]);
 })();
 </script>
 </head>
@@ -56,6 +59,6 @@
   </main>
 </div>
 
-<script type="module" src="assets/js/shell.js?v=original-viewer-2"></script>
+<script type="module" src="assets/js/shell.js?v=black-theme-1"></script>
 </body>
 </html>
