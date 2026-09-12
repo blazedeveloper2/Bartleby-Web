@@ -36,7 +36,7 @@ html[data-theme="arcade"] {
   --map-base:#1a1108;--map-region:#241708;
   /* body-map tiers: accent, then blended 55% and 28% toward --map-region */
   --map-p:#ff7a18;--map-s:#9c4d11;--map-t:#61330d;--map-edge:#0a0705;
-  --hm-off:#1e1409;--hm-void:#140d07;
+  --hm-off:#1e1409;
   --grid:#2b1d10;
   /* rank bands — need real hue separation, not six shades of orange */
   --rk-f:#6b5540;--rk-d:#e0452f;--rk-c:#ffb01f;
@@ -48,7 +48,7 @@ html[data-theme="arcade"] {
    DARK — the original cool-grey/blue palette. Its motion set lives
    at the bottom of this file, under MIDNIGHT ANIMATIONS.
    ═══════════════════════════════════════════════════════════ */
-html[data-motion="quiet"] {
+html[data-theme="dark"] {
   --bg:#08090d;--bg-card:#10121a;--bg-alt:#141722;--bg-hover:#1a1d2a;
   --bg-input:#0c0e14;--border:#1c2030;--border-lt:#252a3a;
 
@@ -65,7 +65,7 @@ html[data-motion="quiet"] {
   --glow-a:#3b82f62e;--glow-b:#3b82f655;--glow-c:#3b82f6aa;
   --map-base:#151922;--map-region:#1a1e2a;
   --map-p:#3b82f6;--map-s:#2c559a;--map-t:#243a63;--map-edge:#08090d;
-  --hm-off:#171a26;--hm-void:#12151f;
+  --hm-off:#171a26;
   --grid:#1c2030;
   --rk-f:#4a5068;--rk-d:#ef4444;--rk-c:#f59e0b;
   --rk-b:#3b82f6;--rk-a:#8b5cf6;--rk-s:#22c55e;--rk-ss:#f472b6;
@@ -102,7 +102,7 @@ html[data-theme="black"] {
   --map-base:#121212;--map-region:#1c1c1c;
   /* body-map tiers: accent, then blended 55% and 28% toward --map-region */
   --map-p:#e4e4e7;--map-s:#767677;--map-t:#545455;--map-edge:#000000;
-  --hm-off:#1a1a1a;--hm-void:#111111;
+  --hm-off:#1a1a1a;
   --grid:#242424;
   /* rank bands — the one place the monochrome has to break, since six
      shades of silver would be six shades of nothing */
@@ -131,7 +131,7 @@ html[data-theme="light"] {
   --map-base:#e5e8f0;--map-region:#dcdfe9;
   /* body-map tiers: accent, then blended 55% and 28% toward --map-region */
   --map-p:#2563eb;--map-s:#84a3ec;--map-t:#bccbef;--map-edge:#f4f5f9;
-  --hm-off:#e5e8f0;--hm-void:#edeff5;
+  --hm-off:#e5e8f0;
   --grid:#dcdfe9;
   --rk-f:#98a0b4;--rk-d:#dc2626;--rk-c:#d97706;
   --rk-b:#2563eb;--rk-a:#7c3aed;--rk-s:#16a34a;--rk-ss:#be185d;

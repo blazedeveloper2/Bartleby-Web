@@ -352,10 +352,14 @@
 .pg-hm-dow span{font-family:var(--mono);font-size:8px;font-weight:600;color:var(--text-3);display:flex;align-items:center;line-height:1}
 .pg-hm{flex:1;min-width:0;display:grid;grid-template-columns:repeat(16,1fr);grid-template-rows:repeat(7,1fr);gap:3px}
 .pg-hm-c{aspect-ratio:1;border-radius:2.5px;background:var(--bg);border:1px solid var(--border)}
-.pg-hm-c.rest{background:transparent;border-color:var(--hm-off)}
-.pg-hm-c.pre,.pg-hm-c.future{background:transparent;border-color:var(--hm-void)}
-.pg-hm-c.open{background:var(--bg);border-color:var(--border-lt)}
-.pg-hm-c.miss{background:var(--red-d);border-color:var(--red-d)}
+/* Three states, and only three. Trained is green, missed is red, and
+   everything else wears the same quiet outline — a rest day, a day before
+   you started tracking, a day still ahead, and today's session that hasn't
+   happened yet are none of them something you did or failed to do, so
+   giving each its own shade turned a three-state grid into a six-state one.
+   Today still reads as today: it keeps the ring below. */
+.pg-hm-c.rest,.pg-hm-c.pre,.pg-hm-c.future,.pg-hm-c.open{background:transparent;border-color:var(--hm-off)}
+.pg-hm-c.miss{background:var(--red);border-color:var(--red)}
 .pg-hm-c.hit{background:var(--green);border-color:var(--green)}
 .pg-hm-c.today{box-shadow:0 0 0 1.5px var(--blue)}
 .pg-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:10px;color:var(--text-3);font-weight:500}
