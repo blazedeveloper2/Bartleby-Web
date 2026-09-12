@@ -989,7 +989,10 @@ function heatmapHTML(s) {
         tip = `${fmtD(ds)} · ${s.log.filter(e => e.d === ds).map(e => PROGRAM[e.di]?.label).join(', ') || 'session'}`;
       }
       else if (!sched)                           cls = 'rest',   tip = `${fmtD(ds)} · rest day`;
-      else if (made)                             cls = 'make',   tip = `${fmtD(ds)} · ${label} · made up ${fmtD(made)}`;
+      /* A made-up day is a done day. The grid answers one question — did the
+         work happen — so it gets the same cell as any other session, and the
+         fact that it moved lives in the tooltip where it can't add noise. */
+      else if (made)                             cls = 'hit',    tip = `${fmtD(ds)} · ${label} · made up ${fmtD(made)}`;
       else if (ds === today)                     cls = 'open',   tip = `Today · ${label}`;
       else if (s.firstDate && ds >= s.firstDate) cls = 'miss',   tip = `${fmtD(ds)} · missed`;
       else                                       cls = 'pre',    tip = fmtD(ds);
@@ -1005,7 +1008,6 @@ function heatmapHTML(s) {
     </div>
     <div class="pg-legend">
       <span><i class="pg-hm-c hit"></i>Trained</span>
-      <span><i class="pg-hm-c make"></i>Made up</span>
       <span><i class="pg-hm-c miss"></i>Missed</span>
       <span><i class="pg-hm-c rest"></i>Rest day</span>
     </div>

@@ -357,7 +357,6 @@
 .pg-hm-c.open{background:var(--bg);border-color:var(--border-lt)}
 .pg-hm-c.miss{background:var(--red-d);border-color:var(--red-d)}
 .pg-hm-c.hit{background:var(--green);border-color:var(--green)}
-.pg-hm-c.make{background:var(--green-d);border-color:var(--green)}
 .pg-hm-c.today{box-shadow:0 0 0 1.5px var(--blue)}
 .pg-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:10px;color:var(--text-3);font-weight:500}
 .pg-legend span{display:flex;align-items:center;gap:5px}
