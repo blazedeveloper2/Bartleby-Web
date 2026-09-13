@@ -7,10 +7,10 @@
    To add a new app: import it and drop it into the APPS array.
    ═══════════════════════════════════════════════════════════ */
 
-import workout from '../../apps/workout/index.js?v=program-sep26';
-import finance from '../../apps/finance/index.js?v=program-sep26';
-import { toast } from './ui.js?v=program-sep26';
-import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=program-sep26';
+import workout from '../../apps/workout/index.js?v=decline-sep26';
+import finance from '../../apps/finance/index.js?v=decline-sep26';
+import { toast } from './ui.js?v=decline-sep26';
+import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=decline-sep26';
 
 // Scripture is parked in archive/ for now — to bring it back, move
 // archive/apps/scripture and archive/assets/data back to their old paths,
