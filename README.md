@@ -155,3 +155,21 @@ git add -A; git commit -m "describe what you changed"; git push
 
 The repo is **blazedeveloper2/Bartleby-Web**. It stays Public because
 GitHub Pages on a free account only serves public repos.
+
+### If a change doesn't show up
+
+Every script and stylesheet is requested with a `?v=` tag on the end, so the
+browser knows when to go and fetch a fresh copy instead of reusing the one it
+already has. **Change any CSS or JS, and that tag has to change too** —
+otherwise the site deploys fine and nobody sees it, which is a genuinely
+confusing way to lose an afternoon.
+
+Every file shares one tag, so bumping it is one command from this folder.
+Pick any new name you like in place of `may-2027`:
+
+```
+git grep -l "?v=" -- ':!README.md' | xargs sed -i "s/?v=[a-z0-9-]*/?v=may-2027/g"
+```
+
+Then commit and push as usual. If you ever want to check what the live site is
+actually serving, open it and hard-reload with **Ctrl+Shift+R**.

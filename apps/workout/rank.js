@@ -36,9 +36,9 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js';
-import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js';
-import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js';
+import { PROGRAM } from './data.js?v=consistency-2';
+import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=consistency-2';
+import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=consistency-2';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -989,10 +989,11 @@ function heatmapHTML(s) {
         tip = `${fmtD(ds)} · ${s.log.filter(e => e.d === ds).map(e => PROGRAM[e.di]?.label).join(', ') || 'session'}`;
       }
       else if (!sched)                           cls = 'rest',   tip = `${fmtD(ds)} · rest day`;
-      /* A made-up day is a done day. The grid answers one question — did the
-         work happen — so it gets the same cell as any other session, and the
-         fact that it moved lives in the tooltip where it can't add noise. */
-      else if (made)                             cls = 'hit',    tip = `${fmtD(ds)} · ${label} · made up ${fmtD(made)}`;
+      /* A made-up day is a done day, all the way down. The grid answers one
+         question — did the work happen — and work that moved to Wednesday
+         still happened, so Tuesday reads as trained and says so on hover
+         exactly the way a session done on the day would. */
+      else if (made)                             cls = 'hit',    tip = `${fmtD(ds)} · ${label}`;
       else if (ds === today)                     cls = 'open',   tip = `Today · ${label}`;
       else if (s.firstDate && ds >= s.firstDate) cls = 'miss',   tip = `${fmtD(ds)} · missed`;
       else                                       cls = 'pre',    tip = fmtD(ds);

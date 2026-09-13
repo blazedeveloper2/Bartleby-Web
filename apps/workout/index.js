@@ -5,16 +5,16 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, MMAP } from './data.js';
-import { load, save, todayStr, dateStr } from '../../assets/js/storage.js';
-import { toast } from '../../assets/js/ui.js';
-import { pctColor, ord } from './standards.js';
+import { PROGRAM, MMAP } from './data.js?v=consistency-2';
+import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=consistency-2';
+import { toast } from '../../assets/js/ui.js?v=consistency-2';
+import { pctColor, ord } from './standards.js?v=consistency-2';
 import {
   setsOf, syncDay, logWeight, delSession, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, liftScores, standingOf, resEx,
   resetPanel, resetToggle, resetToggleAll, resetSelection, applyReset, resetDismiss,
-} from './rank.js?v=black-theme-1';
-import { MUSCLE_SVG } from './bodymap.js';
+} from './rank.js?v=consistency-2';
+import { MUSCLE_SVG } from './bodymap.js?v=consistency-2';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -696,7 +696,7 @@ export default {
   id: 'workout',
   name: 'Workout',
   storagePrefix: 'bp_',
-  styles: 'apps/workout/workout.css?v=black-theme-1',
+  styles: 'apps/workout/workout.css?v=consistency-2',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
