@@ -36,9 +36,9 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js?v=consistency-2';
-import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=consistency-2';
-import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=consistency-2';
+import { PROGRAM } from './data.js?v=consistency-3';
+import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=consistency-3';
+import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=consistency-3';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -984,15 +984,21 @@ function heatmapHTML(s) {
       const made = cov && cov !== 'done' ? cov : null;
       let cls, tip;
       if (ds > today)                            cls = 'future', tip = fmtD(ds);
+      /* A rest day stays a rest day even when you trained on it. This has to
+         come before the hits check: train Tuesday's card on Wednesday and
+         both dates would otherwise light up — Wednesday for carrying the
+         session, Tuesday for being credited with it — and one session would
+         paint two green squares. The grid reports the schedule, so the work
+         is credited once, to the day that asked for it. streaksFrom already
+         skips unscheduled dates for the same reason. */
+      else if (!sched)                           cls = 'rest',   tip = `${fmtD(ds)} · rest day`;
       else if (s.hits.has(ds)) {
         cls = 'hit';
         tip = `${fmtD(ds)} · ${s.log.filter(e => e.d === ds).map(e => PROGRAM[e.di]?.label).join(', ') || 'session'}`;
       }
-      else if (!sched)                           cls = 'rest',   tip = `${fmtD(ds)} · rest day`;
-      /* A made-up day is a done day, all the way down. The grid answers one
-         question — did the work happen — and work that moved to Wednesday
-         still happened, so Tuesday reads as trained and says so on hover
-         exactly the way a session done on the day would. */
+      /* A made-up day is a done day, all the way down: Tuesday reads as
+         trained and says so on hover exactly the way a session done on the
+         day would. */
       else if (made)                             cls = 'hit',    tip = `${fmtD(ds)} · ${label}`;
       else if (ds === today)                     cls = 'open',   tip = `Today · ${label}`;
       else if (s.firstDate && ds >= s.firstDate) cls = 'miss',   tip = `${fmtD(ds)} · missed`;
