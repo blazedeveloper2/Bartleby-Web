@@ -91,8 +91,6 @@ export const LIFTS = {
                                    note:'Published carry standards are per hand against a 20 m reference carry (the site found 10–50 m all matched), from a far smaller dataset than the big lifts. Your carries run to failure rather than a fixed distance, so read this row loosely.' },
 
   /* ── no published dumbbell data; converted from a barbell lift ── */
-  'B-Stance RDLs':               { r:[0.25,0.50,0.75,1.25,1.50], src:'est', mult:2, base:'Single-leg Romanian deadlift (barbell, total load)',
-                                   note:'Your two dumbbells are summed and compared with the single-leg barbell standard. A B-stance rear foot takes some of the load, so this reads generous.' },
   'B-Stance Hip Thrusts':        { r:[0.25,0.63,0.88,1.38,1.88], src:'est', base:'Barbell hip thrust, halved for one-leg-dominant work',
                                    note:'Barbell hip-thrust standards (0.50/1.25/1.75/2.75/3.75× bodyweight) halved, since a B-stance thrust loads roughly one leg. A rough estimate, not published data.' },
 };

@@ -17,9 +17,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/tokens.css?v=consistency-3">
-<link rel="stylesheet" href="assets/css/themes.css?v=consistency-3">
-<link rel="stylesheet" href="assets/css/shell.css?v=consistency-3">
+<link rel="stylesheet" href="assets/css/tokens.css?v=program-sep26">
+<link rel="stylesheet" href="assets/css/themes.css?v=program-sep26">
+<link rel="stylesheet" href="assets/css/shell.css?v=program-sep26">
 <script>
 /* Set the theme before first paint so there's no flash of the wrong palette.
    Kept inline and dependency-free on purpose — assets/js/theme.js owns the
@@ -59,11 +59,11 @@
   </main>
 </div>
 
-<script type="module" src="assets/js/shell.js?v=consistency-3"></script>
+<script type="module" src="assets/js/shell.js?v=program-sep26"></script>
 
 <script>
 /* ═══ Self-update ═══
-   Every script and stylesheet below carries a ?v= build tag, which handles
+   Every script and stylesheet below carries a ?v=program-sep26 build tag, which handles
    caching for all of them. The one file that can't carry a tag is this one,
    and GitHub Pages serves it with max-age=600 — so for ten minutes after a
    deploy, and indefinitely in an installed PWA that never gets reloaded, the
@@ -76,14 +76,14 @@
    That fetch is the whole trick — the fresh HTML then pulls the fresh files.
    Guarded by sessionStorage so a surprise can never become a reload loop. */
 (function(){
-  var here = (document.querySelector('script[src*="?v="]') || {}).src || '';
-  here = (here.match(/\?v=([a-z0-9-]+)/) || [])[1];
+  var here = (document.querySelector('script[src*="?v=program-sep26"]') || {}).src || '';
+  here = (here.match(/\?v=program-sep26([a-z0-9-]+)/) || [])[1];
   if (!here) return;
   fetch('index.html', { cache:'no-store' })
     .then(function(r){ return r.ok ? r.text() : null; })
     .then(function(t){
       if (!t) return;
-      var live = (t.match(/\?v=([a-z0-9-]+)/) || [])[1];
+      var live = (t.match(/\?v=program-sep26([a-z0-9-]+)/) || [])[1];
       if (!live || live === here) return;
       if (sessionStorage.getItem('bs_build') === live) return;   // already tried
       sessionStorage.setItem('bs_build', live);

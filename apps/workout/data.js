@@ -23,7 +23,15 @@ export const PROGRAM = [
       {n:'Dumbbell Flyes',m:'Chest (stretch focus), Front Delts',s:'2×F',b:'Flat 0°',bc:'bench-flat'},
       {n:'Overhead Tricep Extensions',m:'Triceps Long Head, Lateral Head',s:'2×F',b:'85°',bc:'bench-85'},
       {n:'Preacher Curls',m:'Biceps Short Head, Brachialis',s:'2×F',b:'45°',bc:'bench-30'},
-      {n:'Lateral Raises',m:'Side Delts',s:'2×F'},
+      /* Four sets, not the program's usual two. Pressing hammers the front
+         head and barely touches the side one — a lateral raise reads ~30%
+         MVIC at the medial delt against ~28% for an overhead press, and the
+         press needs far more load, and more triceps and traps, to get there.
+         Six to twelve direct weekly sets is the common recommendation; the
+         trial that actually measured side-delt growth used ten. Two days at
+         four lands on eight. Failure is not a substitute for the sets —
+         that trial's sets were to momentary failure too. */
+      {n:'Lateral Raises',m:'Side Delts',s:'4×F'},
     ]},
   ]},
   {day:'tue',label:'Lower · Quad Focus',sections:[
@@ -37,7 +45,18 @@ export const PROGRAM = [
       {n:'Standing Calf Raises',m:'Gastrocnemius, Soleus',s:'2×F'},
     ]},
     {tag:'Core',ex:[
-      {n:'Dumbbell Crunch',m:'Upper Abs, Rectus Abdominis, Obliques',s:'2×8-15',b:'Hips On Bench',bc:'bench-flat'},
+      /* The rollout, not the crunch, anchors this block. It tops the EMG
+         tables for upper and lower rectus abdominis, both obliques and the
+         lats at once, and loads all of that at long muscle length with the
+         arms overhead — which a crunch, short-range and short-muscle-length,
+         never does. It also progresses without a heavier dumbbell: further
+         out, then standing. It runs first because it is the set that
+         deserves the least fatigue. Friday keeps the crunch: that core block
+         sits behind four consecutive hip hinges, and a rollout on cooked
+         erectors is exactly how the pelvis untucks into lumbar extension.
+         No wheel swaps the crunch straight back in. */
+      {n:'Ab Wheel Rollouts',m:'Rectus Abdominis, Obliques, TVA, Lats, Serratus Anterior',s:'3×5-8',b:'From Knees',
+       req:'wheel', alt:{n:'Dumbbell Crunch',m:'Upper Abs, Rectus Abdominis, Obliques',s:'2×8-15',b:'Hips On Bench',bc:'bench-flat'}},
       {n:'Weighted Hanging Leg Raises',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',b:'DB Between Feet',bc:'grip',
        req:'bar', alt:{n:'Weighted Reverse Crunches',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',b:'Flat 0°',bc:'bench-flat'}},
       {n:'Weighted Side Plank w/ Reach-Through',m:'Obliques, TVA, Core',s:'2×F /side',b:'DB On Top Hip',bc:'grip'},
@@ -51,10 +70,17 @@ export const PROGRAM = [
       {n:'Dumbbell Pullovers',m:'Lats, Chest, Serratus Anterior',s:'2×F',b:'Flat 0°',bc:'bench-flat'},
     ]},
     {tag:'Isolation',ex:[
-      {n:'Reverse Flyes',m:'Rear Delts, Rhomboids, Mid Traps',s:'2×F',b:'30°',bc:'bench-30'},
+      /* Same reasoning as Monday's raises, and starker: the rear delt had
+         two direct sets a week against ten-plus for the chest. Rows do feed
+         it, but they split the work with lats, biceps and grip, and an
+         overhead press reaches it at ~11% MVIC. Four is the bottom of the
+         recommended 4-12, not the middle. Stacked on one day rather than
+         split because volume, not frequency, is what moves hypertrophy once
+         weekly sets are equated. */
+      {n:'Reverse Flyes',m:'Rear Delts, Rhomboids, Mid Traps',s:'4×F',b:'30°',bc:'bench-30'},
       {n:'Hammer Curls',m:'Brachialis, Brachioradialis, Biceps',s:'2×F'},
       {n:'Incline Curls',m:'Biceps Long Head, Short Head',s:'2×F',b:'55°',bc:'bench-55'},
-      {n:'Lateral Raises',m:'Side Delts',s:'2×F'},
+      {n:'Lateral Raises',m:'Side Delts',s:'4×F'},
     ]},
   ]},
   {day:'fri',label:'Lower · Ham & Glute Focus',sections:[
@@ -62,7 +88,18 @@ export const PROGRAM = [
       {n:'Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'2×F'},
       {n:'B-Stance Hip Thrusts',m:'Glutes, Hamstrings',s:'2×F /leg',b:'Flat 0°',bc:'bench-flat'},
       {n:'Bulgarian Split Squats',m:'Quads, Glutes, Adductors',s:'2×F /leg',b:'Flat 0°',bc:'bench-flat'},
-      {n:'B-Stance RDLs',m:'Hamstrings, Glutes, Core',s:'2×F /leg'},
+      /* Was a second RDL. A B-stance RDL is a unilateral version of the lift
+         that already opened this day, so the slot spent four sets on a hinge
+         the session had covered. Every other hamstring movement here is hip
+         extension, and the short head of the biceps femoris never crosses
+         the hip — it only flexes the knee, so no hinge reaches it. This does.
+         The tradeoff is the resistance curve: at the top the shin is vertical
+         and the dumbbell sits over the knee, so the moment arm nearly
+         vanishes where a machine's cam would hold tension. Unscored in
+         rank.js on purpose — published leg-curl standards are for a loaded
+         stack (~0.9× bodyweight at Intermediate), nothing like what a pair
+         of feet can clamp. */
+      {n:'Prone Dumbbell Leg Curl',m:'Hamstrings, Gastrocnemius',s:'2×F',b:'Prone, DB Between Feet',bc:'bench-flat'},
     ]},
     {tag:'Accessories',ex:[
       {n:'Standing Calf Raises',m:'Gastrocnemius, Soleus',s:'2×F'},
@@ -122,8 +159,10 @@ export const PROGRAM = [
       {n:'Bench Dips',m:'Triceps, Chest, Front Delts',s:'3×8-12',b:'Hands On Bench',bc:'bench-flat'},
     ]},
     /* The rollout takes the hollow hold's slot rather than adding to it —
-       Tuesday and Friday already carry six loaded core sets each, and a
-       fourth core day is past the point of useful. It is the same body line
+       Tuesday and Friday already carry a full core block each, and a
+       fourth core day is past the point of useful. This is the week's
+       second rollout, not its only one; Tuesday opens its core block with
+       the same movement. It is the same body line
        the hold trains, but moving and loaded, with the arms overhead: that
        shoulder position is what a handstand asks for, which is why this sits
        on the day that builds toward one. Progress by rolling further out,
