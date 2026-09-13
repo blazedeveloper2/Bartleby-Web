@@ -41,7 +41,7 @@ export const PROGRAM = [
     {tag:null,ex:[
       {n:'Bulgarian Split Squats',m:'Quads, Glutes, Adductors',s:'2×F /leg',b:'Flat 0°',bc:'bench-flat'},
       {n:'Heel-Elevated Goblet Squats',m:'Quads, Glutes, Core',s:'2×F'},
-      {n:'Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'2×F'},
+      {n:'Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'2×8-12 @1-2 RIR'},
       {n:'Standing Calf Raises',m:'Gastrocnemius, Soleus',s:'2×F'},
     ]},
     {tag:'Core',ex:[
@@ -84,8 +84,26 @@ export const PROGRAM = [
     ]},
   ]},
   {day:'fri',label:'Lower · Ham & Glute Focus',sections:[
+    /* Friday opened cold on a loaded hinge, and it was the only day that
+       did. The bird dog is the dead bug's mirror: same neutral spine, same
+       contralateral pattern, but it loads the erectors and glutes holding
+       that position instead of the abs resisting extension -- which is the
+       demand the hinge below actually makes.
+       The light single is the half that matters. Both RDLs came off
+       failure at the same time, for a reason that is not about hypertrophy:
+       what fails on an RDL is spinal position, not the hamstrings, so the
+       last rep before failure is the one where the lumbar rounds -- a
+       technique failure bought at the price of a real one. Four failure
+       sets a week of that is also what leaves the erectors cooked, which
+       this program already guards against twice: once in the core block
+       below, and again in Saturday's rollout ~24h later. Guarding the
+       downstream and creating the condition upstream was the inconsistency. */
+    {tag:'Warm-Up',ex:[
+      {n:'Bird Dogs',m:'Erectors, Glutes, TVA, Rectus Abdominis',s:'1× easy /side'},
+      {n:'Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'1× light'},
+    ]},
     {tag:null,ex:[
-      {n:'Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'2×F'},
+      {n:'Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'2×8-12 @1-2 RIR'},
       {n:'B-Stance Hip Thrusts',m:'Glutes, Hamstrings',s:'2×F /leg',b:'Flat 0°',bc:'bench-flat'},
       {n:'Bulgarian Split Squats',m:'Quads, Glutes, Adductors',s:'2×F /leg',b:'Flat 0°',bc:'bench-flat'},
       /* Was a second RDL. A B-stance RDL is a unilateral version of the lift
@@ -106,7 +124,22 @@ export const PROGRAM = [
       {n:"Farmer's Carries",m:'Traps, Forearms, Core',s:'2×F'},
     ]},
     {tag:'Core',ex:[
-      {n:'Dumbbell Crunch',m:'Upper Abs, Rectus Abdominis, Obliques',s:'2×8-15',b:'Hips On Bench',bc:'bench-flat'},
+      /* Was a dumbbell crunch, and the crunch was the weakest thing in the
+         week's core work: short range, short muscle length, and capped by
+         the largest dumbbell that will sit on a chest. The decline start
+         puts the trunk below horizontal, so the abs load out of a stretch
+         rather than from neutral, and a plate adds weight in increments the
+         dumbbell rack doesn't have.
+         It stays off Tuesday and Saturday. The rollout beats it outright
+         there, and past the first 30-40° of trunk travel a sit-up is hip
+         flexion, not spinal flexion -- work the hanging leg raise below
+         already pays the psoas for twice a week. Friday is the one block
+         that can afford it: it sits behind four hip hinges, and unlike a
+         rollout a sit-up asks the cooked erectors for no anti-extension
+         isometric at all. Unscored in rank.js, same as the crunch it
+         replaces -- no usable published standard exists for a loaded
+         sit-up either. */
+      {n:'Weighted Decline Sit-Up',m:'Upper Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×F',b:'Decline, DB On Chest',bc:'bench-decline'},
       {n:'Weighted Hanging Leg Raises',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',b:'DB Between Feet',bc:'grip',
        req:'bar', alt:{n:'Weighted Reverse Crunches',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',b:'Flat 0°',bc:'bench-flat'}},
       {n:'Weighted Side Plank w/ Reach-Through',m:'Obliques, TVA, Core',s:'2×F /side',b:'DB On Top Hip',bc:'grip'},
@@ -156,7 +189,14 @@ export const PROGRAM = [
          floor → feet up on the bench → chest-to-wall. Elevate the feet only
          once 3×8 on the floor is clean. */
       {n:'Pike Push-Ups',m:'Front Delts, Side Delts, Triceps, Upper Chest',s:'3×5-8',b:'Feet On Bench = Harder',bc:'bench-flat'},
-      {n:'Bench Dips',m:'Triceps, Chest, Front Delts',s:'3×8-12',b:'Hands On Bench',bc:'bench-flat'},
+      /* Bench dips are gone. This day already ran nine pressing sets
+         against no loaded pull -- there is no bar here, so the pull slot
+         spends itself on scapular control instead. Dips were the redundant
+         end of that: the triceps take Monday's overhead extensions plus
+         every pressing set above, and shoulder-extension dips at depth are
+         the one shape this program asks the front of the shoulder to hold
+         nowhere else. Cutting them takes the day to six pressing sets
+         without touching the handstand line, which is what the day is for. */
     ]},
     /* The rollout takes the hollow hold's slot rather than adding to it —
        Tuesday and Friday already carry a full core block each, and a
