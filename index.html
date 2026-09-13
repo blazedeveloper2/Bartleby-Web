@@ -60,5 +60,37 @@
 </div>
 
 <script type="module" src="assets/js/shell.js?v=consistency-3"></script>
+
+<script>
+/* ═══ Self-update ═══
+   Every script and stylesheet below carries a ?v= build tag, which handles
+   caching for all of them. The one file that can't carry a tag is this one,
+   and GitHub Pages serves it with max-age=600 — so for ten minutes after a
+   deploy, and indefinitely in an installed PWA that never gets reloaded, the
+   browser keeps handing out the previous index.html. That old copy asks for
+   the old tagged files, which it also still has. The result is a deploy that
+   succeeds and changes nothing on screen, with nothing anywhere saying so.
+
+   So: ask the network what the current tag is, and if this page came from
+   cache and the server has moved on, jump to a URL the cache has never seen.
+   That fetch is the whole trick — the fresh HTML then pulls the fresh files.
+   Guarded by sessionStorage so a surprise can never become a reload loop. */
+(function(){
+  var here = (document.querySelector('script[src*="?v="]') || {}).src || '';
+  here = (here.match(/\?v=([a-z0-9-]+)/) || [])[1];
+  if (!here) return;
+  fetch('index.html', { cache:'no-store' })
+    .then(function(r){ return r.ok ? r.text() : null; })
+    .then(function(t){
+      if (!t) return;
+      var live = (t.match(/\?v=([a-z0-9-]+)/) || [])[1];
+      if (!live || live === here) return;
+      if (sessionStorage.getItem('bs_build') === live) return;   // already tried
+      sessionStorage.setItem('bs_build', live);
+      location.replace(location.pathname + '?b=' + live);
+    })
+    .catch(function(){});                 /* offline is not an error here */
+})();
+</script>
 </body>
 </html>

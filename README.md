@@ -171,5 +171,11 @@ Pick any new name you like in place of `may-2027`:
 git grep -l "?v=" -- ':!README.md' | xargs sed -i "s/?v=[a-z0-9-]*/?v=may-2027/g"
 ```
 
-Then commit and push as usual. If you ever want to check what the live site is
-actually serving, open it and hard-reload with **Ctrl+Shift+R**.
+Then commit and push as usual.
+
+The one file that can't carry a tag is `index.html` itself, and GitHub Pages
+lets browsers hold onto it for ten minutes — longer in an installed app that
+never gets reloaded. So the page checks itself: on load it asks the network
+what the current tag is, and if it's running an older one it jumps to a URL
+the cache has never seen, which pulls the fresh copy. You shouldn't have to
+clear anything. If you ever want to check by hand, **Ctrl+Shift+R**.
