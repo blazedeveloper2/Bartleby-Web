@@ -23,10 +23,11 @@
    Source: https://strengthlevel.com/strength-standards (per-lift
    pages, lb, male, "Bodyweight Ratio" table). Retrieved Jul 2026,
    re-verified against the live pages Aug 2026 — every ratio-table
-   entry matched, and Pull-Ups, Chin-Ups, Chest-Supported Rows and
-   Farmer's Carries were corrected to the published data (see each
-   entry). Datasets run from ~18k lifts (farmers walk) to ~5M per
-   exercise.
+   entry matched, and Pull-Ups, Chin-Ups and Chest-Supported Rows were
+   corrected to the published data (see each entry). The two wrist
+   curls were read off the live pages Sep 2026, when they took the
+   farmer's carry's slot. Datasets run from ~58k lifts (dumbbell
+   reverse wrist curl) to ~5M per exercise.
 
    Known approximation, carried on purpose: the site's headline
    ratios track its ~140–160 lb table rows, and its full tables
@@ -71,13 +72,11 @@ export const LIFTS = {
   /* ── reps overrides. Epley reads a working weight as a 1RM through the
         rep count it was taken to, and one global dial cannot be right for a
         press that fails in the high single digits and a calf raise that
-        fails in the high teens. Left on the dial, these four read low --
+        fails in the high teens. Left on the dial, these five read low --
         a lift genuinely failed at 20 is being scored as if it stopped at
         10, which is roughly 25% light. The numbers below are the middle of
         each movement's honest failure range, not measurements; move them
-        if yours sit elsewhere. The carry is the odd one: it is held to
-        failure rather than repped, so the weight on it already IS about a
-        1RM, and running it through Epley at 10 was inflating it by a third. ── */
+        if yours sit elsewhere. ── */
   /* ── published standard for the exact movement ── */
   'Incline Dumbbell Press':      { r:[0.25,0.35,0.50,0.65,0.85], src:'exact', base:'Incline dumbbell bench press' },
   'Dumbbell Bench Press':        { r:[0.20,0.35,0.50,0.70,0.90], src:'exact', base:'Dumbbell bench press' },
@@ -94,6 +93,9 @@ export const LIFTS = {
   'Romanian Deadlifts':          { r:[0.20,0.35,0.55,0.80,1.05], src:'exact', base:'Dumbbell Romanian deadlift' },
   'Bulgarian Split Squats':      { r:[0.15,0.25,0.40,0.60,0.85], src:'exact', base:'Dumbbell Bulgarian split squat' },
   'Standing Calf Raises':        { r:[0.10,0.25,0.45,0.75,1.10], src:'exact', reps:15, base:'Dumbbell calf raise' },
+  'Dumbbell Wrist Curls':        { r:[0.10,0.20,0.35,0.55,0.75], src:'exact', reps:15, base:'Dumbbell wrist curl' },
+  'Dumbbell Reverse Wrist Curls':{ r:[0.05,0.10,0.20,0.35,0.55], src:'exact', reps:15, base:'Dumbbell reverse wrist curl',
+                                   note:'Read off a thinner dataset than the rest of this section — 3,783 qualifying results against 12,434 for the flexion version — so the tier boundaries are softer than they look.' },
 
   /* ── weighted pull-up / chin-up: the standard is ADDED weight ÷
         bodyweight, and the Beginner anchors are negative (assisted).
@@ -112,8 +114,6 @@ export const LIFTS = {
                                    note:'Heel elevation makes the movement slightly easier than the published version.' },
   'Preacher Curls':              { r:[0.10,0.15,0.25,0.35,0.45], src:'proxy', base:'Incline dumbbell curl',
                                    note:'No dumbbell preacher-curl data exists — the published preacher curl is the barbell version. Incline curl is the closest dumbbell match: both are strict, elbow-isolated curls, though the pad shortens the long head where the incline stretches it.' },
-  "Farmer's Carries":            { r:[0.10,0.25,0.45,0.70,1.05], src:'proxy', reps:1, base:'Farmers walk, per hand, 20 m reference',
-                                   note:'Published carry standards are per hand against a 20 m reference carry (the site found 10–50 m all matched), from a far smaller dataset than the big lifts. Your carries run to failure rather than a fixed distance, so read this row loosely.' },
 
 };
 

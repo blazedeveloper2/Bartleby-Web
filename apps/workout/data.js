@@ -121,7 +121,39 @@ export const PROGRAM = [
     ]},
     {tag:'Accessories',ex:[
       {n:'Standing Calf Raises',m:'Gastrocnemius, Soleus',s:'2×F'},
-      {n:"Farmer's Carries",m:'Traps, Forearms, Core',s:'2×F'},
+      /* Was a farmer's carry -- the only exercise in this file that never had
+         a reason written down. Unchanged since the first commit, carried
+         through every audit by not being looked at.
+         It claimed three muscles and delivered one. On a bilateral dumbbell
+         carry the grip fails first, so the set ends before the traps see a
+         hypertrophic stimulus. The load is symmetric, so there is no
+         anti-lateral-flexion demand either -- and the side plank below
+         already owns that one. What was left was an isometric grip hold, in
+         a program where 28 of 40 movements already put a load in the hands.
+         Redundancy is the standard that cut the second RDL and the bench
+         dips; this was the same call, never made.
+         It was also on the wrong day by this file's own argument. A loaded
+         standing carry is an axial anti-flexion isometric for the erectors --
+         the exact demand the core block below drops the rollout to avoid --
+         and it sat upstream of the block it would have compromised.
+         And it could not progress. A carry advances through distance and
+         time; the log holds one number per exercise, and that number is
+         weight. Taken to failure it reads 'the heaviest pair I own', forever.
+         What none of those 28 movements do is move the wrist under load.
+         Every one of them grips isometrically and incidentally -- grip is
+         not the limiting factor on a goblet squat, the hand is just holding
+         on. That gap is the only thing these are here for. Let the dumbbell
+         roll down to the fingers on the way out and flex the fingers back
+         before the wrist: that trains the finger flexors the carry was
+         gripping with, through a range the carry never had.
+         Both directions, because a wrist curl does nothing for the extensors
+         and nothing else here loads them dynamically -- against Monday's
+         preacher curls, Thursday's hammer and incline curls, and every hang.
+         Neither reaches the brachioradialis, which does not cross the wrist;
+         Thursday's hammer curls are what pay it. High reps on purpose: this
+         musculature is endurance-biased and answers to metabolic stress. */
+      {n:'Dumbbell Wrist Curls',m:'Wrist Flexors',s:'2×12-20',b:'Forearms On Bench, Roll To Fingers',bc:'bench-flat'},
+      {n:'Dumbbell Reverse Wrist Curls',m:'Wrist Extensors',s:'2×12-20',b:'Forearms On Bench',bc:'bench-flat'},
     ]},
     {tag:'Core',ex:[
       /* Was a dumbbell crunch, and the crunch was the weakest thing in the
@@ -246,8 +278,12 @@ export const MMAP = {
   'brachialis':['f-brach-l','f-brach-r'],
   'brachioradialis':['f-brad-l','f-brad-r'],
   /* the flexor mass is on the front, the extensor mass on the back —
-     a loaded grip works both, so 'forearms' lights all four */
+     a loaded grip works both, so 'forearms' lights all four. The two wrist
+     curls split them: each direction trains one mass, and should light that
+     one rather than claim the whole forearm. */
   'forearms':['f-fore-l','f-fore-r','b-fore-l','b-fore-r'],
+  'wrist flexors':['f-fore-l','f-fore-r'],
+  'wrist extensors':['b-fore-l','b-fore-r'],
   'lats':['b-lat-l','b-lat-r'],
   'rhomboids':['b-rhom'],
   'traps':['f-trap-l','f-trap-r','b-trap-u-l','b-trap-u-r','b-trap-m'],
