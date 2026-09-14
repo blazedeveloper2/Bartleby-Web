@@ -7,10 +7,10 @@
    To add a new app: import it and drop it into the APPS array.
    ═══════════════════════════════════════════════════════════ */
 
-import workout from '../../apps/workout/index.js?v=ranks-sep26';
-import finance from '../../apps/finance/index.js?v=ranks-sep26';
-import { toast } from './ui.js?v=ranks-sep26';
-import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=ranks-sep26';
+import workout from '../../apps/workout/index.js?v=paint-sep26';
+import finance from '../../apps/finance/index.js?v=paint-sep26';
+import { toast } from './ui.js?v=paint-sep26';
+import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=paint-sep26';
 
 // Scripture is parked in archive/ for now — to bring it back, move
 // archive/apps/scripture and archive/assets/data back to their old paths,
@@ -40,6 +40,14 @@ let current = null;
 /* ── styles ── */
 function loadStyles(href) {
   if (!href || loadedStyles.has(href)) return;
+  /* index.html carries a render-blocking <link> for every app shipped today,
+     so this normally finds one already there and does nothing. It stays for
+     an app added later whose <link> nobody remembered: that app loads its
+     CSS late and flashes once, rather than rendering with no styles at all. */
+  if (document.querySelector('link[rel="stylesheet"][href="' + href + '"]')) {
+    loadedStyles.add(href);
+    return;
+  }
   const link = document.createElement('link');
   link.rel = 'stylesheet';
   link.href = href;
