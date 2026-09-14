@@ -15,6 +15,9 @@
      mult  logged weight × this = the weight the standard refers to
            (default 1 = one dumbbell, which is how the source measures)
      mode  'added' → the logged number is weight ADDED to bodyweight
+     reps  score this lift at this many reps instead of the global
+           setting, for movements whose failure point sits nowhere
+           near it
      base  which published movement the numbers came from
 
    Source: https://strengthlevel.com/strength-standards (per-lift
@@ -45,6 +48,17 @@
    these log their weight and read as unscored — which still gives the
    progressive-overload trail, which is the point of loading them.
 
+   B-Stance Hip Thrusts left for a third reason: reachability. It was the
+   file's only 'est' row -- barbell hip-thrust ratios halved for
+   one-leg-dominant work -- and both halves of that were wrong. A B-stance
+   thrust is not a one-leg thrust; the kickstand leg carries perhaps a fifth
+   of the load, so halving asks for less than the tier should. And the number
+   it produced was unreachable regardless: at 170 lb bodyweight Intermediate
+   wanted a 112 lb dumbbell balanced on the hips, and Elite 240 lb. A lift
+   pinned to the floor of its scale still averages into the overall rank,
+   which is exactly why the B-Stance RDL standard was dropped in ce2a0c7. It
+   now logs weight and reads unscored, like the prone leg curl.
+
    Saturday's calisthenics work is absent for the same reason: Strength
    Level scores push-ups, dips and bodyweight chin-ups in REPS, and the
    holds (wall handstand, hollow, arch) in seconds, neither of which this
@@ -53,14 +67,25 @@
    ═══════════════════════════════════════════════════════════ */
 
 export const LIFTS = {
+
+  /* ── reps overrides. Epley reads a working weight as a 1RM through the
+        rep count it was taken to, and one global dial cannot be right for a
+        press that fails in the high single digits and a calf raise that
+        fails in the high teens. Left on the dial, these four read low --
+        a lift genuinely failed at 20 is being scored as if it stopped at
+        10, which is roughly 25% light. The numbers below are the middle of
+        each movement's honest failure range, not measurements; move them
+        if yours sit elsewhere. The carry is the odd one: it is held to
+        failure rather than repped, so the weight on it already IS about a
+        1RM, and running it through Epley at 10 was inflating it by a third. ── */
   /* ── published standard for the exact movement ── */
   'Incline Dumbbell Press':      { r:[0.25,0.35,0.50,0.65,0.85], src:'exact', base:'Incline dumbbell bench press' },
   'Dumbbell Bench Press':        { r:[0.20,0.35,0.50,0.70,0.90], src:'exact', base:'Dumbbell bench press' },
   'Dumbbell Shoulder Press':     { r:[0.15,0.25,0.40,0.55,0.70], src:'exact', base:'Dumbbell shoulder press' },
   'Dumbbell Flyes':              { r:[0.10,0.20,0.30,0.45,0.60], src:'exact', base:'Dumbbell fly' },
   'Overhead Tricep Extensions':  { r:[0.05,0.15,0.25,0.45,0.60], src:'exact', base:'Dumbbell tricep extension' },
-  'Lateral Raises':              { r:[0.05,0.10,0.20,0.30,0.45], src:'exact', base:'Dumbbell lateral raise' },
-  'Reverse Flyes':               { r:[0.05,0.10,0.20,0.35,0.55], src:'exact', base:'Dumbbell reverse fly' },
+  'Lateral Raises':              { r:[0.05,0.10,0.20,0.30,0.45], src:'exact', reps:15, base:'Dumbbell lateral raise' },
+  'Reverse Flyes':               { r:[0.05,0.10,0.20,0.35,0.55], src:'exact', reps:15, base:'Dumbbell reverse fly' },
   'Hammer Curls':                { r:[0.10,0.20,0.30,0.40,0.55], src:'exact', base:'Hammer curl' },
   'Incline Curls':               { r:[0.10,0.15,0.25,0.35,0.45], src:'exact', base:'Incline dumbbell curl' },
   'Dumbbell Pullovers':          { r:[0.15,0.30,0.45,0.65,0.85], src:'exact', base:'Dumbbell pullover' },
@@ -68,7 +93,7 @@ export const LIFTS = {
   'Chest-Supported Rows':        { r:[0.15,0.30,0.45,0.70,0.95], src:'exact', base:'Chest-supported dumbbell row' },
   'Romanian Deadlifts':          { r:[0.20,0.35,0.55,0.80,1.05], src:'exact', base:'Dumbbell Romanian deadlift' },
   'Bulgarian Split Squats':      { r:[0.15,0.25,0.40,0.60,0.85], src:'exact', base:'Dumbbell Bulgarian split squat' },
-  'Standing Calf Raises':        { r:[0.10,0.25,0.45,0.75,1.10], src:'exact', base:'Dumbbell calf raise' },
+  'Standing Calf Raises':        { r:[0.10,0.25,0.45,0.75,1.10], src:'exact', reps:15, base:'Dumbbell calf raise' },
 
   /* ── weighted pull-up / chin-up: the standard is ADDED weight ÷
         bodyweight, and the Beginner anchors are negative (assisted).
@@ -87,12 +112,9 @@ export const LIFTS = {
                                    note:'Heel elevation makes the movement slightly easier than the published version.' },
   'Preacher Curls':              { r:[0.10,0.15,0.25,0.35,0.45], src:'proxy', base:'Incline dumbbell curl',
                                    note:'No dumbbell preacher-curl data exists — the published preacher curl is the barbell version. Incline curl is the closest dumbbell match: both are strict, elbow-isolated curls, though the pad shortens the long head where the incline stretches it.' },
-  "Farmer's Carries":            { r:[0.10,0.25,0.45,0.70,1.05], src:'proxy', base:'Farmers walk, per hand, 20 m reference',
+  "Farmer's Carries":            { r:[0.10,0.25,0.45,0.70,1.05], src:'proxy', reps:1, base:'Farmers walk, per hand, 20 m reference',
                                    note:'Published carry standards are per hand against a 20 m reference carry (the site found 10–50 m all matched), from a far smaller dataset than the big lifts. Your carries run to failure rather than a fixed distance, so read this row loosely.' },
 
-  /* ── no published dumbbell data; converted from a barbell lift ── */
-  'B-Stance Hip Thrusts':        { r:[0.25,0.63,0.88,1.38,1.88], src:'est', base:'Barbell hip thrust, halved for one-leg-dominant work',
-                                   note:'Barbell hip-thrust standards (0.50/1.25/1.75/2.75/3.75× bodyweight) halved, since a B-stance thrust loads roughly one leg. A rough estimate, not published data.' },
 };
 
 /* Back-compat alias: the ratio-only view of LIFTS. */

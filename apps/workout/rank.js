@@ -36,9 +36,9 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js?v=decline-sep26';
-import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=decline-sep26';
-import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=decline-sep26';
+import { PROGRAM } from './data.js?v=ranks-sep26';
+import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=ranks-sep26';
+import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=ranks-sep26';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -328,15 +328,23 @@ function pctFor(ratio, tiers) {
   return Math.min(99.9, TIER_PCT[4] + (ratio / tiers[4] - 1) * 60);
 }
 
+/* Reps to read this lift at. The dial in the Rank tab is one number for the
+   whole sheet, which cannot be true of both a press that fails in the high
+   single digits and a calf raise that fails in the high teens — so a lift
+   whose failure point sits nowhere near the dial carries its own `reps` in
+   LIFTS and ignores it. */
+const repsFor = (spec, r) => spec.reps || r;
+
 /* The ratio a lift scores at, and the inverse: what working weight would
    be needed to hit a target ratio. Both branch on how the source measures
    the lift — per dumbbell, summed across two, or added onto bodyweight. */
 function ratioOf(spec, wv, bw, r) {
-  if (spec.mode === 'added') return (est1RM(bw + wv, r) - bw) / bw;
-  return est1RM(wv * (spec.mult || 1), r) / bw;
+  const n = repsFor(spec, r);
+  if (spec.mode === 'added') return (est1RM(bw + wv, n) - bw) / bw;
+  return est1RM(wv * (spec.mult || 1), n) / bw;
 }
 function weightFor(spec, targetRatio, bw, r) {
-  const e = 1 + r / 30;
+  const e = 1 + repsFor(spec, r) / 30;
   if (spec.mode === 'added') return (bw + targetRatio * bw) / e - bw;
   return (targetRatio * bw) / (e * (spec.mult || 1));
 }
@@ -379,7 +387,7 @@ function scoreAll(w, bodyweight, r, reach) {
     out.lifts.push({
       name, w: wv, ratio, pct, rank: rk, need,
       /* the 1RM the ratio was actually derived from */
-      oneRM: spec.mode === 'added' ? ratio * bodyweight : est1RM(wv * (spec.mult || 1), r),
+      oneRM: spec.mode === 'added' ? ratio * bodyweight : est1RM(wv * (spec.mult || 1), repsFor(spec, r)),
       oneRMLabel: spec.mode === 'added' ? 'est. 1RM added' : 'est. 1RM',
       src: spec.src, srcLabel: SRC_LABEL[spec.src],
       /* only worth a tooltip when the standard isn't a direct match or there's
