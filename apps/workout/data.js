@@ -189,7 +189,7 @@ export const PROGRAM = [
          cooked erectors for no anti-extension isometric at all. Unscored in
          rank.js, same as every crunch here -- no usable published standard
          exists for one. */
-      {n:'Long-Lever Dumbbell Crunch',m:'Upper Abs, Rectus Abdominis, Obliques',s:'2×F',b:'Flat 0°',bc:'bench-flat'},
+      {n:'Dumbbell Crunch',m:'Upper Abs, Rectus Abdominis, Obliques',s:'2×F',b:'Flat 0°',bc:'bench-flat'},
       {n:'Weighted Hanging Leg Raises',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',
        req:'bar', alt:{n:'Weighted Reverse Crunches',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',b:'Flat 0°',bc:'bench-flat'}},
       {n:'Weighted Side Plank w/ Reach-Through',m:'Obliques, TVA, Core',s:'2×F /side'},

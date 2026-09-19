@@ -36,9 +36,9 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js?v=roller-sep26';
-import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=roller-sep26';
-import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=roller-sep26';
+import { PROGRAM } from './data.js?v=crunch-sep26';
+import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=crunch-sep26';
+import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=crunch-sep26';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
