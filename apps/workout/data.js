@@ -164,9 +164,12 @@ export const PROGRAM = [
       {n:'Dumbbell Reverse Wrist Curls',m:'Wrist Extensors',s:'2×12-20',b:'Flat 0°',bc:'bench-flat'},
     ]},
     {tag:'Core',ex:[
-      /* Was a weighted decline sit-up, for one afternoon: the bench has no
-         decline stop, so the trunk-below-horizontal start it was picked for
-         never existed. Before that it was a dumbbell crunch, dropped as the
+      /* Was a weighted decline sit-up, for one afternoon. The bench does
+         decline, but it has no roller to hook the legs under, and a sit-up
+         from below horizontal with a plate on the chest is a slide down the
+         pad without one -- the load pulls exactly the way the anchor was
+         needed to resist. So the start it was picked for is not available
+         on this bench. Before that it was a dumbbell crunch, dropped as the
          weakest thing in the week's core work -- short range, short muscle
          length, and capped by the largest dumbbell that will sit on a
          chest.
