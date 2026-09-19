@@ -84,26 +84,8 @@ export const PROGRAM = [
     ]},
   ]},
   {day:'fri',label:'Lower · Ham & Glute Focus',sections:[
-    /* Friday opened cold on a loaded hinge, and it was the only day that
-       did. The bird dog is the dead bug's mirror: same neutral spine, same
-       contralateral pattern, but it loads the erectors and glutes holding
-       that position instead of the abs resisting extension -- which is the
-       demand the hinge below actually makes.
-       The light single is the half that matters. Both RDLs came off
-       failure at the same time, for a reason that is not about hypertrophy:
-       what fails on an RDL is spinal position, not the hamstrings, so the
-       last rep before failure is the one where the lumbar rounds -- a
-       technique failure bought at the price of a real one. Four failure
-       sets a week of that is also what leaves the erectors cooked, which
-       this program already guards against twice: once in the core block
-       below, and again in Saturday's rollout ~24h later. Guarding the
-       downstream and creating the condition upstream was the inconsistency. */
-    {tag:'Warm-Up',ex:[
-      {n:'Bird Dogs',m:'Erectors, Glutes, TVA, Rectus Abdominis',s:'1× easy /side'},
-      {n:'Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'1× light'},
-    ]},
     {tag:null,ex:[
-      {n:'Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'2×8-12 @1-2 RIR'},
+      {n:'Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'2×F'},
       {n:'B-Stance Hip Thrusts',m:'Glutes, Hamstrings',s:'2×F /leg',b:'Flat 0°',bc:'bench-flat'},
       {n:'Bulgarian Split Squats',m:'Quads, Glutes, Adductors',s:'2×F /leg',b:'Flat 0°',bc:'bench-flat'},
       /* Was a second RDL. A B-stance RDL is a unilateral version of the lift
