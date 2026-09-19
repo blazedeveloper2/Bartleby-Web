@@ -2,11 +2,20 @@
    WORKOUT — program definition + muscle-map lookup table.
    ═══════════════════════════════════════════════════════════ */
 
-/* An exercise with an `alt` names the kit it needs in `req` ('bar', 'wheel').
-   Turn that piece of equipment off in Settings and the whole app — rendering,
-   scoring, badge counts — reads the `alt` version instead, so
+/* An exercise with an `alt` names the kit it needs in `req` ('bar', 'wheel',
+   'barbell'). Turn that piece of equipment off in Settings and the whole app
+   — rendering, scoring, badge counts — reads the `alt` version instead, so
    the program still works for anyone without a pull-up bar or an ab wheel.
    An `alt` with no `req` never swaps; name the equipment.
+
+   'barbell' runs the same mechanism from the other side. The program is
+   written for dumbbells and a bench, so the flag defaults OFF (see OWNED in
+   rank.js) and the dumbbell movement is the `alt` that shows by default; the
+   barbell version is the main entry that appears once a bar is owned. It is
+   only ever used where a bar changes what the slot can do — the hinge, the
+   squat pattern and the hip thrust, the three places a pair of dumbbells
+   runs out first. Everything else in the program is a dumbbell movement on
+   purpose and stays one.
 
    A day carrying a `since` date was added to the program on that date.
    Streaks, the heatmap and perfect weeks in rank.js honour it, so the
@@ -40,8 +49,19 @@ export const PROGRAM = [
     ]},
     {tag:null,ex:[
       {n:'Bulgarian Split Squats',m:'Quads, Glutes, Adductors',s:'2×F /leg',b:'Flat 0°',bc:'bench-flat'},
-      {n:'Heel-Elevated Goblet Squats',m:'Quads, Glutes, Core',s:'2×F'},
-      {n:'Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'2×F'},
+      /* A goblet squat is capped by what one dumbbell lets you hold at the
+         chest; a bar in the front rack isn't. There is no rack here, so the
+         bar is cleaned from the floor -- fine at the loads a dumbbell-to-
+         barbell converter is rated for, and the reason this is a front squat
+         and not a back squat, which would mean pressing it overhead and
+         behind the neck. Heels stay elevated either way. */
+      {n:'Heel-Elevated Front Squats',m:'Quads, Glutes, Core, Erectors',s:'2×F',b:'Cleaned From Floor',
+       req:'barbell', alt:{n:'Heel-Elevated Goblet Squats',m:'Quads, Glutes, Core',s:'2×F'}},
+      /* The lift where a pair of dumbbells runs out first: the published
+         per-hand tiers pass any adjustable set before Advanced. A bar takes
+         whatever plates get bought later and moves in single-plate steps. */
+      {n:'Barbell Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'2×F',
+       req:'barbell', alt:{n:'Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'2×F'}},
       {n:'Standing Calf Raises',m:'Gastrocnemius, Soleus',s:'2×F'},
     ]},
     {tag:'Core',ex:[
@@ -85,8 +105,14 @@ export const PROGRAM = [
   ]},
   {day:'fri',label:'Lower · Ham & Glute Focus',sections:[
     {tag:null,ex:[
-      {n:'Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'2×F'},
-      {n:'B-Stance Hip Thrusts',m:'Glutes, Hamstrings',s:'2×F /leg',b:'Flat 0°',bc:'bench-flat'},
+      {n:'Barbell Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'2×F',
+       req:'barbell', alt:{n:'Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'2×F'}},
+      /* A bar is what makes a bilateral thrust loadable. A dumbbell on the
+         hips tops out at whatever will balance there, which is why the slot
+         went B-stance and why that version is unscored; a padded bar across
+         the hips has no such ceiling and a published standard. */
+      {n:'Barbell Hip Thrusts',m:'Glutes, Hamstrings',s:'2×F',b:'Shoulders On Bench',bc:'bench-flat',
+       req:'barbell', alt:{n:'B-Stance Hip Thrusts',m:'Glutes, Hamstrings',s:'2×F /leg',b:'Flat 0°',bc:'bench-flat'}},
       {n:'Bulgarian Split Squats',m:'Quads, Glutes, Adductors',s:'2×F /leg',b:'Flat 0°',bc:'bench-flat'},
       /* Was a second RDL. A B-stance RDL is a unilateral version of the lift
          that already opened this day, so the slot spent four sets on a hinge

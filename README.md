@@ -41,7 +41,9 @@ Archived (parked in `archive/`, not loaded by the shell — see
   text and commentary data are archived alongside it.
 
 **Settings** (gear, bottom of the sidebar) holds the theme picker, the
-pull-up-bar toggle, and backup.
+equipment toggles, and backup. Pull-up bar and ab wheel default on; the
+barbell defaults off, and turning it on swaps the RDLs, the goblet squat and
+the hip thrust for their barbell versions, each scored on its own standard.
 
 All data is stored locally in your browser (`localStorage`). Nothing is sent
 anywhere. Use **Settings → Export Backup** to save a `.json` file before
@@ -165,10 +167,13 @@ otherwise the site deploys fine and nobody sees it, which is a genuinely
 confusing way to lose an afternoon.
 
 Every file shares one tag, so bumping it is one command from this folder.
-Pick any new name you like in place of `may-2027`:
+Put the current tag in place of `old-tag` and any new name in place of
+`new-tag`. Replace the literal old tag, never `?v=` plus a wildcard: the
+self-update check in `index.html` contains `?v=` inside its own regexes, and a
+wildcard replace rewrites those too and silently switches the check off.
 
 ```
-git grep -l "?v=" -- ':!README.md' | xargs sed -i "s/?v=[a-z0-9-]*/?v=may-2027/g"
+git grep -l "?v=old-tag" -- ':!README.md' | xargs sed -i "s/?v=old-tag/?v=new-tag/g"
 ```
 
 Then commit and push as usual.

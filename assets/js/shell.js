@@ -7,10 +7,10 @@
    To add a new app: import it and drop it into the APPS array.
    ═══════════════════════════════════════════════════════════ */
 
-import workout from '../../apps/workout/index.js?v=wrist-sep26';
-import finance from '../../apps/finance/index.js?v=wrist-sep26';
-import { toast } from './ui.js?v=wrist-sep26';
-import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=wrist-sep26';
+import workout from '../../apps/workout/index.js?v=barbell-sep26';
+import finance from '../../apps/finance/index.js?v=barbell-sep26';
+import { toast } from './ui.js?v=barbell-sep26';
+import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=barbell-sep26';
 
 // Scripture is parked in archive/ for now — to bring it back, move
 // archive/apps/scripture and archive/assets/data back to their old paths,
@@ -209,8 +209,11 @@ function pickTheme(id) {
    must not pull an app module in just to paint a toggle. Adding kit here
    plus a `req` there is the whole job.
 
-   Both default ON, so the program reads as written for a first-time visitor
-   and turning a toggle off is what changes it — not the other way round. */
+   The pull-up bar and ab wheel default ON, so the program reads as written
+   for a first-time visitor and turning a toggle off is what changes it — not
+   the other way round. The barbell defaults OFF (`def:false`) by the same
+   logic from the other side: the program is written for dumbbells, and the
+   bar is the upgrade. Its default must match OWNED in apps/workout/rank.js. */
 const EQUIP = [
   { id:'bar', key:'bp_bar', name:'Pull-Up Bar', on:'Have One', off:'No Bar',
     subOn:'Pull-Ups, Chin-Ups, Scap Pulls & Leg Raises need one.',
@@ -220,12 +223,19 @@ const EQUIP = [
     subOn:"Saturday's rollouts need one.",
     subOff:'Swapped back to the hollow body hold.',
     toastOn:'Ab wheel rollouts on', toastOff:'Swapped to the hollow body hold' },
+  { id:'barbell', key:'bp_barbell', def:false, name:'Barbell', on:'Have One', off:'No Barbell',
+    subOn:'RDLs, front squats & hip thrusts run on the bar.',
+    subOff:'Dumbbell versions, as the program is written.',
+    toastOn:'Barbell lifts on', toastOff:'Back to the dumbbell versions' },
 ];
-const eqOn = k => { try { return JSON.parse(localStorage.getItem(k)) ?? true; } catch { return true; } };
+const eqOn = eq => {
+  const d = eq.def ?? true;
+  try { return JSON.parse(localStorage.getItem(eq.key)) ?? d; } catch { return d; }
+};
 
 function pickEquip(id, v) {
   const eq = EQUIP.find(e => e.id === id);
-  if (!eq || v === eqOn(eq.key)) return;
+  if (!eq || v === eqOn(eq)) return;
   localStorage.setItem(eq.key, JSON.stringify(v));
   syncSettings();
   broadcast();
@@ -248,7 +258,7 @@ function syncSettings() {
     </button>`).join('');
 
   el.querySelector('#sx-eq').innerHTML = EQUIP.map(eq => {
-    const on = eqOn(eq.key);
+    const on = eqOn(eq);
     return `
     <div class="sx-row">
       <div class="sx-row-l">

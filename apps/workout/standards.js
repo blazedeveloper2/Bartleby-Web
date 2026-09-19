@@ -13,7 +13,9 @@
              'est'    no published data; converted from a related
                       barbell lift with the stated rule
      mult  logged weight × this = the weight the standard refers to
-           (default 1 = one dumbbell, which is how the source measures)
+           (default 1 = one dumbbell, which is how the source measures
+           dumbbell lifts; the barbell rows log the whole bar, which is
+           also how the source measures those, so they stay at 1 too)
      mode  'added' → the logged number is weight ADDED to bodyweight
      reps  score this lift at this many reps instead of the global
            setting, for movements whose failure point sits nowhere
@@ -58,7 +60,9 @@
    wanted a 112 lb dumbbell balanced on the hips, and Elite 240 lb. A lift
    pinned to the floor of its scale still averages into the overall rank,
    which is exactly why the B-Stance RDL standard was dropped in ce2a0c7. It
-   now logs weight and reads unscored, like the prone leg curl.
+   now logs weight and reads unscored, like the prone leg curl. With the
+   Barbell toggle on, that slot runs a bilateral barbell hip thrust instead,
+   and that one does have a published standard -- see the barbell rows below.
 
    Saturday's calisthenics work is absent for the same reason: Strength
    Level scores push-ups, dips and bodyweight chin-ups in REPS, and the
@@ -108,6 +112,21 @@ export const LIFTS = {
                                    note:'Logged weight is read as weight ADDED on a belt. Beginner is negative because that tier is still using assistance.' },
   'Chin-Ups':                    { r:[-0.01,0.20,0.45,0.73,1.01], src:'exact', mode:'added', base:'Chin-up, 1RM added weight',
                                    note:'Logged weight is read as weight ADDED on a belt — bodyweight-only reps stay unscored. Beginner is negative because that tier is still using assistance.' },
+
+  /* ── barbell versions, in play only with the Barbell toggle on (off by
+        default — see OWNED in rank.js and EQUIP in shell.js). The logged
+        number is the whole bar, plates and all, which is also how the source
+        measures these, so mult stays 1 and each ratio reads as total load ÷
+        bodyweight. Read off the live pages Sep 2026 (~1.15M lifts for the
+        RDL, ~1.22M for the hip thrust, ~1.6M for the front squat). The front
+        squat is a proxy for the same reason the goblet is: the published
+        movement is flat-footed. ── */
+  'Barbell Romanian Deadlifts':  { r:[0.75,1.00,1.50,2.00,2.75], src:'exact', base:'Romanian deadlift (barbell)',
+                                   note:'Logged weight is the whole bar, plates included — not per hand.' },
+  'Barbell Hip Thrusts':         { r:[0.50,1.25,1.75,2.75,3.75], src:'exact', base:'Hip thrust (barbell)',
+                                   note:'Logged weight is the whole bar, plates included.' },
+  'Heel-Elevated Front Squats':  { r:[0.75,1.00,1.25,1.75,2.25], src:'proxy', base:'Front squat',
+                                   note:'Heel elevation makes the movement slightly easier than the published version. Logged weight is the whole bar, plates included.' },
 
   /* ── closest published movement ── */
   'Heel-Elevated Goblet Squats': { r:[0.20,0.35,0.55,0.75,1.05], src:'proxy', base:'Goblet squat',

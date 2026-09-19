@@ -36,9 +36,9 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js?v=wrist-sep26';
-import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=wrist-sep26';
-import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=wrist-sep26';
+import { PROGRAM } from './data.js?v=barbell-sep26';
+import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=barbell-sep26';
+import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=barbell-sep26';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -57,10 +57,16 @@ const sortByDate = l => [...l].sort((a, b) => a.d.localeCompare(b.d));
 
    An unknown or absent `req` resolves as owned — a new `alt` added without
    naming its equipment shows the main movement rather than silently hiding
-   it behind a flag nothing can turn on. */
+   it behind a flag nothing can turn on.
+
+   The barbell is the one flag that defaults OFF: the program is written for
+   dumbbells, and the bar versions are the upgrade, not the baseline. Its
+   default here and in shell.js's EQUIP must agree, or Settings will paint
+   one thing while the program renders another. */
 const OWNED = {
-  bar:   () => load('bp_bar', true),
-  wheel: () => load('bp_wheel', true),
+  bar:     () => load('bp_bar', true),
+  wheel:   () => load('bp_wheel', true),
+  barbell: () => load('bp_barbell', false),
 };
 export const owns = k => (OWNED[k] || (() => true))();
 export const resEx = ex => (ex.alt && !owns(ex.req)) ? ex.alt : ex;
