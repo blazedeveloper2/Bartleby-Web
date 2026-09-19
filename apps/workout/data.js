@@ -55,7 +55,7 @@ export const PROGRAM = [
          barbell converter is rated for, and the reason this is a front squat
          and not a back squat, which would mean pressing it overhead and
          behind the neck. Heels stay elevated either way. */
-      {n:'Heel-Elevated Front Squats',m:'Quads, Glutes, Core, Erectors',s:'2×F',b:'Cleaned From Floor',
+      {n:'Heel-Elevated Front Squats',m:'Quads, Glutes, Core, Erectors',s:'2×F',
        req:'barbell', alt:{n:'Heel-Elevated Goblet Squats',m:'Quads, Glutes, Core',s:'2×F'}},
       /* The lift where a pair of dumbbells runs out first: the published
          per-hand tiers pass any adjustable set before Advanced. A bar takes
@@ -75,16 +75,16 @@ export const PROGRAM = [
          sits behind four consecutive hip hinges, and a rollout on cooked
          erectors is exactly how the pelvis untucks into lumbar extension.
          No wheel swaps the crunch straight back in. */
-      {n:'Ab Wheel Rollouts',m:'Rectus Abdominis, Obliques, TVA, Lats, Serratus Anterior',s:'3×5-8',b:'From Knees',
-       req:'wheel', alt:{n:'Dumbbell Crunch',m:'Upper Abs, Rectus Abdominis, Obliques',s:'2×8-15',b:'Hips On Bench',bc:'bench-flat'}},
-      {n:'Weighted Hanging Leg Raises',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',b:'DB Between Feet',bc:'grip',
+      {n:'Ab Wheel Rollouts',m:'Rectus Abdominis, Obliques, TVA, Lats, Serratus Anterior',s:'3×5-8',
+       req:'wheel', alt:{n:'Dumbbell Crunch',m:'Upper Abs, Rectus Abdominis, Obliques',s:'2×8-15',b:'Flat 0°',bc:'bench-flat'}},
+      {n:'Weighted Hanging Leg Raises',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',
        req:'bar', alt:{n:'Weighted Reverse Crunches',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',b:'Flat 0°',bc:'bench-flat'}},
-      {n:'Weighted Side Plank w/ Reach-Through',m:'Obliques, TVA, Core',s:'2×F /side',b:'DB On Top Hip',bc:'grip'},
+      {n:'Weighted Side Plank w/ Reach-Through',m:'Obliques, TVA, Core',s:'2×F /side'},
     ]},
   ]},
   {day:'thu',label:'Upper · Pull Focus',sections:[
     {tag:null,ex:[
-      {n:'Pull-Ups',m:'Lats, Biceps, Rhomboids, Forearms',s:'2×F',b:'Pronated Grip',bc:'grip',
+      {n:'Pull-Ups',m:'Lats, Biceps, Rhomboids, Forearms',s:'2×F',
        req:'bar', alt:{n:'Single-Arm Rows',m:'Lats, Rhomboids, Rear Delts, Biceps',s:'2×F /arm',b:'Flat 0°',bc:'bench-flat'}},
       {n:'Chest-Supported Rows',m:'Lats, Rhomboids, Traps, Rear Delts, Biceps',s:'2×F',b:'30-45°',bc:'bench-30'},
       {n:'Dumbbell Pullovers',m:'Lats, Chest, Serratus Anterior',s:'2×F',b:'Flat 0°',bc:'bench-flat'},
@@ -111,7 +111,7 @@ export const PROGRAM = [
          hips tops out at whatever will balance there, which is why the slot
          went B-stance and why that version is unscored; a padded bar across
          the hips has no such ceiling and a published standard. */
-      {n:'Barbell Hip Thrusts',m:'Glutes, Hamstrings',s:'2×F',b:'Shoulders On Bench',bc:'bench-flat',
+      {n:'Barbell Hip Thrusts',m:'Glutes, Hamstrings',s:'2×F',b:'Flat 0°',bc:'bench-flat',
        req:'barbell', alt:{n:'B-Stance Hip Thrusts',m:'Glutes, Hamstrings',s:'2×F /leg',b:'Flat 0°',bc:'bench-flat'}},
       {n:'Bulgarian Split Squats',m:'Quads, Glutes, Adductors',s:'2×F /leg',b:'Flat 0°',bc:'bench-flat'},
       /* Was a second RDL. A B-stance RDL is a unilateral version of the lift
@@ -125,7 +125,7 @@ export const PROGRAM = [
          rank.js on purpose — published leg-curl standards are for a loaded
          stack (~0.9× bodyweight at Intermediate), nothing like what a pair
          of feet can clamp. */
-      {n:'Prone Dumbbell Leg Curl',m:'Hamstrings, Gastrocnemius',s:'2×F',b:'Prone, DB Between Feet',bc:'bench-flat'},
+      {n:'Prone Dumbbell Leg Curl',m:'Hamstrings, Gastrocnemius',s:'2×F',b:'Flat 0°',bc:'bench-flat'},
     ]},
     {tag:'Accessories',ex:[
       {n:'Standing Calf Raises',m:'Gastrocnemius, Soleus',s:'2×F'},
@@ -160,8 +160,8 @@ export const PROGRAM = [
          Neither reaches the brachioradialis, which does not cross the wrist;
          Thursday's hammer curls are what pay it. High reps on purpose: this
          musculature is endurance-biased and answers to metabolic stress. */
-      {n:'Dumbbell Wrist Curls',m:'Wrist Flexors',s:'2×12-20',b:'Forearms On Bench, Roll To Fingers',bc:'bench-flat'},
-      {n:'Dumbbell Reverse Wrist Curls',m:'Wrist Extensors',s:'2×12-20',b:'Forearms On Bench',bc:'bench-flat'},
+      {n:'Dumbbell Wrist Curls',m:'Wrist Flexors',s:'2×12-20',b:'Flat 0°',bc:'bench-flat'},
+      {n:'Dumbbell Reverse Wrist Curls',m:'Wrist Extensors',s:'2×12-20',b:'Flat 0°',bc:'bench-flat'},
     ]},
     {tag:'Core',ex:[
       /* Was a dumbbell crunch, and the crunch was the weakest thing in the
@@ -179,10 +179,10 @@ export const PROGRAM = [
          isometric at all. Unscored in rank.js, same as the crunch it
          replaces -- no usable published standard exists for a loaded
          sit-up either. */
-      {n:'Weighted Decline Sit-Up',m:'Upper Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×F',b:'Decline, DB On Chest',bc:'bench-decline'},
-      {n:'Weighted Hanging Leg Raises',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',b:'DB Between Feet',bc:'grip',
+      {n:'Weighted Decline Sit-Up',m:'Upper Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×F',b:'Decline -15°',bc:'bench-decline'},
+      {n:'Weighted Hanging Leg Raises',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',
        req:'bar', alt:{n:'Weighted Reverse Crunches',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',b:'Flat 0°',bc:'bench-flat'}},
-      {n:'Weighted Side Plank w/ Reach-Through',m:'Obliques, TVA, Core',s:'2×F /side',b:'DB On Top Hip',bc:'grip'},
+      {n:'Weighted Side Plank w/ Reach-Through',m:'Obliques, TVA, Core',s:'2×F /side'},
     ]},
   ]},
   /* Upper-body + core only, on purpose: Friday's RDLs and thrusts are ~24h
@@ -197,13 +197,13 @@ export const PROGRAM = [
   {day:'sat',since:'2026-08-18',label:'Upper · Calisthenics',sections:[
     {tag:'Skill',ex:[
       {n:'Wrist Prep Rocks',m:'Forearms',s:'2× easy'},
-      {n:'Wall Handstand Hold',m:'Front Delts, Side Delts, Traps, Triceps, Core',s:'3×15-30s',b:'Chest To Wall'},
+      {n:'Wall Handstand Hold',m:'Front Delts, Side Delts, Traps, Triceps, Core',s:'3×15-30s'},
       /* The first hand-balance a beginner can actually hold: squat, knees
          on bent elbows, lean until the feet float. It teaches the forward
          lean and finger-pressure balance every inversion runs on. Start at
          3-5s holds; at a clean 20-30s, move to crow (arms straighter) and
          start taking one foot off the wall in the handstand. */
-      {n:'Frog Stand',m:'Front Delts, Triceps, Forearms, Core',s:'3×5-20s',b:'Knees On Elbows'},
+      {n:'Frog Stand',m:'Front Delts, Triceps, Forearms, Core',s:'3×5-20s'},
       /* No-bar alts on this day stay bodyweight — a dumbbell row would keep
          the pull muscles fed but trains none of the straight-arm scapular
          control the skill work is for. Scapular push-ups need no kit at all:
@@ -211,8 +211,8 @@ export const PROGRAM = [
          blades, then push the floor away until the upper back rounds —
          elbows never bend. Protraction instead of the pull's retraction,
          which is exactly the shape a handstand loads. */
-      {n:'Scapular Pulls',m:'Lats, Mid Traps, Rhomboids, Forearms',s:'3×5-8',b:'Dead Hang',bc:'grip',
-       req:'bar', alt:{n:'Scapular Push-Ups',m:'Serratus Anterior, Traps, Core',s:'3×8-12',b:'Plank, Arms Locked'}},
+      {n:'Scapular Pulls',m:'Lats, Mid Traps, Rhomboids, Forearms',s:'3×5-8',
+       req:'bar', alt:{n:'Scapular Push-Ups',m:'Serratus Anterior, Traps, Core',s:'3×8-12'}},
     ]},
     {tag:null,ex:[
       /* With no bar and no table there is no anchor, and with no anchor
@@ -222,13 +222,13 @@ export const PROGRAM = [
          not abandoned, just relocated — Thursday's rows and curls carry
          them, and the wheel rollout below is a straight-arm lat pull in
          disguise. */
-      {n:'Chin-Ups',m:'Lats, Biceps, Rhomboids, Forearms',s:'3×5-8',b:'Supinated Grip',bc:'grip',
-       req:'bar', alt:{n:'Reverse Snow Angels',m:'Rear Delts, Mid Traps, Rhomboids',s:'3×10-15',b:'Prone On Bench',bc:'bench-flat'}},
-      {n:'Push-Ups',m:'Chest, Triceps, Front Delts, Serratus Anterior, Core',s:'3×5-8',b:'Full ROM, Elbows ~45°'},
+      {n:'Chin-Ups',m:'Lats, Biceps, Rhomboids, Forearms',s:'3×5-8',
+       req:'bar', alt:{n:'Reverse Snow Angels',m:'Rear Delts, Mid Traps, Rhomboids',s:'3×10-15',b:'Flat 0°',bc:'bench-flat'}},
+      {n:'Push-Ups',m:'Chest, Triceps, Front Delts, Serratus Anterior, Core',s:'3×5-8'},
       /* The strength line that ends at the handstand push-up: pike on the
          floor → feet up on the bench → chest-to-wall. Elevate the feet only
          once 3×8 on the floor is clean. */
-      {n:'Pike Push-Ups',m:'Front Delts, Side Delts, Triceps, Upper Chest',s:'3×5-8',b:'Feet On Bench = Harder',bc:'bench-flat'},
+      {n:'Pike Push-Ups',m:'Front Delts, Side Delts, Triceps, Upper Chest',s:'3×5-8'},
       /* Bench dips are gone. This day already ran nine pressing sets
          against no loaded pull -- there is no bar here, so the pull slot
          spends itself on scapular control instead. Dips were the redundant
@@ -251,7 +251,7 @@ export const PROGRAM = [
        Friday's RDLs left the erectors ~24h old. No wheel swaps it straight
        back to the hollow hold. */
     {tag:'Core',ex:[
-      {n:'Ab Wheel Rollouts',m:'Rectus Abdominis, Obliques, TVA, Lats, Serratus Anterior',s:'3×5-8',b:'From Knees',
+      {n:'Ab Wheel Rollouts',m:'Rectus Abdominis, Obliques, TVA, Lats, Serratus Anterior',s:'3×5-8',
        req:'wheel', alt:{n:'Hollow Body Hold',m:'Rectus Abdominis, TVA, Hip Flexors',s:'3×15-30s'}},
       {n:'Arch Hold',m:'Erectors, Glutes, Rear Delts, Traps',s:'3×15-30s'},
     ]},
