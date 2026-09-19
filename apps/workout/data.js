@@ -41,7 +41,7 @@ export const PROGRAM = [
     {tag:null,ex:[
       {n:'Bulgarian Split Squats',m:'Quads, Glutes, Adductors',s:'2×F /leg',b:'Flat 0°',bc:'bench-flat'},
       {n:'Heel-Elevated Goblet Squats',m:'Quads, Glutes, Core',s:'2×F'},
-      {n:'Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'2×8-12 @1-2 RIR'},
+      {n:'Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'2×F'},
       {n:'Standing Calf Raises',m:'Gastrocnemius, Soleus',s:'2×F'},
     ]},
     {tag:'Core',ex:[
