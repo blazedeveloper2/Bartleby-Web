@@ -164,22 +164,29 @@ export const PROGRAM = [
       {n:'Dumbbell Reverse Wrist Curls',m:'Wrist Extensors',s:'2×12-20',b:'Flat 0°',bc:'bench-flat'},
     ]},
     {tag:'Core',ex:[
-      /* Was a dumbbell crunch, and the crunch was the weakest thing in the
-         week's core work: short range, short muscle length, and capped by
-         the largest dumbbell that will sit on a chest. The decline start
-         puts the trunk below horizontal, so the abs load out of a stretch
-         rather than from neutral, and a plate adds weight in increments the
-         dumbbell rack doesn't have.
-         It stays off Tuesday and Saturday. The rollout beats it outright
-         there, and past the first 30-40° of trunk travel a sit-up is hip
-         flexion, not spinal flexion -- work the hanging leg raise below
-         already pays the psoas for twice a week. Friday is the one block
-         that can afford it: it sits behind four hip hinges, and unlike a
-         rollout a sit-up asks the cooked erectors for no anti-extension
-         isometric at all. Unscored in rank.js, same as the crunch it
-         replaces -- no usable published standard exists for a loaded
-         sit-up either. */
-      {n:'Weighted Decline Sit-Up',m:'Upper Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×F',b:'Decline -15°',bc:'bench-decline'},
+      /* Was a weighted decline sit-up, for one afternoon: the bench has no
+         decline stop, so the trunk-below-horizontal start it was picked for
+         never existed. Before that it was a dumbbell crunch, dropped as the
+         weakest thing in the week's core work -- short range, short muscle
+         length, and capped by the largest dumbbell that will sit on a
+         chest.
+         A flat sit-up would not buy the stretch back: from horizontal, the
+         first 30-40° of trunk travel is the spinal flexion and everything
+         past it is hip flexion, which the hanging leg raise below already
+         pays the psoas for twice a week. So the slot keeps the crunch's
+         range and fixes its ceiling instead. Holding the dumbbell at arm's
+         length past the head, not on the chest, roughly doubles the moment
+         arm on the same weight -- the rack's biggest dumbbell is no longer
+         the cap, and the lever progresses in inches before the weight has
+         to. Lying along the bench rather than the floor lets the head start
+         just past its end, which is as much pre-stretch as a flat bench can
+         give.
+         Friday is still the one block that can afford loaded flexion: it
+         sits behind four hip hinges, and unlike a rollout a crunch asks the
+         cooked erectors for no anti-extension isometric at all. Unscored in
+         rank.js, same as every crunch here -- no usable published standard
+         exists for one. */
+      {n:'Long-Lever Dumbbell Crunch',m:'Upper Abs, Rectus Abdominis, Obliques',s:'2×F',b:'Flat 0°',bc:'bench-flat'},
       {n:'Weighted Hanging Leg Raises',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',
        req:'bar', alt:{n:'Weighted Reverse Crunches',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',b:'Flat 0°',bc:'bench-flat'}},
       {n:'Weighted Side Plank w/ Reach-Through',m:'Obliques, TVA, Core',s:'2×F /side'},

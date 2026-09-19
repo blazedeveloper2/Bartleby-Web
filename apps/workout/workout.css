@@ -51,7 +51,7 @@
   padding:3px 7px;border-radius:2px;white-space:nowrap;box-shadow:inset 0 0 0 1px var(--green-d)}
 .wk .ex-wt::after{content:' lb';font-size:8px;font-weight:600;opacity:.6}
 .wk .bench-tag{font-size:9.5px;font-weight:700;letter-spacing:.3px;padding:3px 7px;border-radius:2px;white-space:nowrap}
-.wk .bench-flat,.wk .bench-55{background:var(--blue-d);color:var(--blue)}.wk .bench-30{background:var(--red-d);color:var(--pink)}.wk .bench-85{background:var(--green-d);color:var(--amber)}.wk .bench-decline{background:var(--red-d);color:var(--purple)}
+.wk .bench-flat,.wk .bench-55{background:var(--blue-d);color:var(--blue)}.wk .bench-30{background:var(--red-d);color:var(--pink)}.wk .bench-85{background:var(--green-d);color:var(--amber)}
 /* A finished row dims but stays legible â€” the ticked box is the real signal,
    so this only needs to be enough to tell done from not-done at a glance. */
 .wk .ex-row.off .ex-name{opacity:.62}
