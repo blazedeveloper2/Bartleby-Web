@@ -54,7 +54,10 @@
 /* Per-app inner container keeps the mobile-first 640px column feel */
 .app-wrap{max-width:640px;margin:0 auto;padding:20px 16px 100px}
 
-/* Generic in-app header used by apps that want a title strip */
+/* Title strip. No live app uses it — the workout and finance tabs sit at
+   the top of their own content now, and a name repeated under a sidebar
+   that already names the app was two lines of chrome per screen. Kept
+   for the archived Scripture app, which still renders one. */
 .app-head{padding:34px 24px 18px;text-align:center}
 .app-head h1{font-size:18px;font-weight:700;letter-spacing:8px;text-transform:uppercase;margin-bottom:4px}
 .app-head p{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--text-3)}
