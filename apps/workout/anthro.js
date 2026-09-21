@@ -179,11 +179,18 @@ export function standing(key, inches, age) {
   pct = Math.max(1, Math.min(99, pct));
   const score = spec.dir === -1 ? 100 - pct : pct;
 
-  /* The sentence the row actually shows. Only the waist gets a value
-     judgment, because it is the only one where a tape alone earns one. */
-  const phrase = spec.dir === -1 ? `Leaner than ${Math.round(score)}% of ${group}`
-               : spec.dir === 1  ? `Bigger than ${Math.round(pct)}% of ${group}`
-               :                   `Bigger than ${Math.round(pct)}% of ${group}`;
+  /* The sentence the row actually shows, and every one of them describes a
+     SIZE, because size is all a tape measures.
+
+     The waist row used to say "Leaner than X%", which is a claim the
+     measurement cannot support: waist circumference tracks leanness, but it
+     also tracks height, frame and where you carry weight, so a man with a
+     smaller waist than 80% of the population is not thereby leaner than 80%
+     of it. The body fat estimate on the same tab is the figure that speaks
+     to leanness, and it has its own error bars. `score` still flips the
+     direction so the bar reads high for a small waist — that part was
+     right, it was only the word that overreached. */
+  const phrase = `${spec.dir === -1 ? 'Smaller waist' : 'Bigger'} than ${Math.round(spec.dir === -1 ? score : pct)}% of ${group}`;
 
   return { key, lbl: spec.lbl, pct, score, dir: spec.dir, group, phrase,
            src: spec.src, srcLabel: SRC_LABEL[spec.src], pop: spec.pop, note: spec.note };

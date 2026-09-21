@@ -208,12 +208,25 @@ export function within(list, days) {
 
      BF% = 86.010·log10(waist − neck) − 70.041·log10(height) + 36.76
 
-   It is a tape measure standing in for a DEXA scan, and it lands within
-   about ±3 points of one — worse at the extremes, worse again if you
-   measure in a different spot each time. Which is the real point: the
-   absolute number is an estimate, the *change* in it is the measurement.
+   It is a tape measure standing in for a DEXA scan. The circumference
+   equations carry a standard error around 3–4 points against a reference
+   scan, which means individual estimates land further out than that fairly
+   often — it is a standard error, not a ±3 guarantee, and it widens at
+   both extremes and again if you measure in a different spot each time.
+
+   The change is on firmer ground than the absolute number, but only just:
+   the method reproduces to about a point in trained hands, and a study of
+   eight weeks of military training found circumference-based assessment
+   did not accurately capture the composition change that actually
+   happened. So read a small movement as "possibly nothing" rather than as
+   fat gained or lost.
+
    Waist at the navel, neck below the larynx, first thing, same spots
-   every time, and the trend is worth more than the figure. */
+   every time.
+
+   Male equation. The constants are fitted to men, and there is no sex
+   term to flip — a female estimate needs a hip measurement and its own
+   coefficients. The Body tab says so on screen rather than only here. */
 export function navyBF(waist, neck, height) {
   if (!num(waist) || !num(neck) || !num(height)) return null;
   const girth = waist - neck;
@@ -279,15 +292,53 @@ export const ageOffset = age => (ageBandFor(age)?.off ?? 0);
 export const bmiOf  = (w, h) => (num(w) && num(h) ? 703 * w / (h * h) : null);
 export const whtrOf = (waist, h) => (num(waist) && num(h) ? waist / h : null);
 
+/* Waist-to-height, banded as NICE NG246 bands it rather than as one
+   threshold with "lower is better" on the good side of it.
+
+   "Under 0.5" is the half of the guidance everyone quotes, and on its own
+   it implies the ratio keeps improving all the way down, which the
+   guidance does not say — it puts the healthy range at 0.4 to 0.49 and
+   treats below 0.4 as its own thing to look at rather than as a prize.
+
+   PROTOCOL CAVEAT, and it is a real one: NICE specifies the waist at the
+   midpoint between the lowest rib and the top of the hip bone. This app
+   measures at the navel, because that is what the Navy body fat equation
+   requires, and the two sites differ by a centimetre or two on most men —
+   enough to move this ratio by about 0.01 and to shift a borderline
+   reading across a band edge. Read the band as indicative and the trend
+   as the useful part, same as everything else on this tab. */
+export const WHTR_BANDS = [
+  { max: 0.40, n:'Below the healthy range', tone:'warn' },
+  { max: 0.50, n:'Healthy range',           tone:'good' },
+  { max: 0.60, n:'Increased central adiposity', tone:'mid' },
+  { max: Infinity, n:'High central adiposity',  tone:'warn' },
+];
+export const whtrBand = r => (num(r) ? WHTR_BANDS.find(b => r < b.max) : null);
+
 /* Fat-free mass index: lean mass normalised for height, which is what BMI
    would be if it could tell muscle from fat. The normalised variant scales
    everyone to 1.8 m so two people of different heights are comparable.
-   ~25 is roughly the drug-free ceiling, and most lifters live at 19–22. */
+   Most lifters live at 19–22.
+
+   The coefficient is 6.3, which is what Kouri et al. actually printed —
+   "a slight correction of 6.3 × (1.80 m − height)". 6.1 is a transcription
+   that got copied across most of the calculator sites and stuck; this file
+   used it too. The difference is under 0.03 FFMI points at any human
+   height, so nothing on screen moves. It is corrected because citing a
+   paper and then not using its number is the kind of small wrongness that
+   makes the rest of the file harder to trust.
+
+   What 25 is NOT: a natural ceiling, or a test for anything. Kouri's own
+   authors proposed it as an initial screen for further testing, their raw
+   data had a non-user above it, and pre-steroid-era Mr. America winners
+   ran to 28. It is a research benchmark from one 1995 sample of 157 men,
+   and the tile says so. A tape-derived FFMI also inherits every bit of the
+   body-fat estimate's error, which is several points wide. */
 export function ffmiOf(lean, h) {
   if (!num(lean) || !num(h)) return null;
   const kg = lean / LB_PER_KG, m = h * M_PER_IN;
   const ffmi = kg / (m * m);
-  return { ffmi, norm: ffmi + 6.1 * (1.8 - m) };
+  return { ffmi, norm: ffmi + 6.3 * (1.8 - m) };
 }
 
 /* Katch-McArdle, which runs off lean mass rather than age and sex — the
@@ -406,13 +457,23 @@ export function snapshot() {
    The bands are the ordinary lifting consensus — bulk from the low teens,
    stop around eighteen, cut if you are past twenty. The reason is
    partitioning: the leaner you are, the larger the share of a surplus that
-   goes to muscle rather than fat, and that share degrades as body fat
-   climbs. So a bulk started at 12% buys more per pound gained than the same
-   bulk started at 20%, and the fix for being at 20% is not a better
-   surplus, it is being at 14% first.
+   is thought to go to muscle rather than fat, and that share is believed to
+   degrade as body fat climbs. So a bulk started at 12% is expected to buy
+   more per pound gained than the same bulk started at 20%.
 
-   Nothing here knows your training age, your sleep, or what you are training
-   for. It reads one number and applies a rule of thumb to it. */
+   What that is NOT is a medical rule, or a set of thresholds any paper
+   establishes. The off-season review this file cites supports individual
+   adjustment and a broadly similar range; it does not put the line at 15
+   or at 22, and nobody has shown that a specific body fat percentage
+   determines the right phase for a specific person. These are round
+   numbers drawn from a consensus, and the boundaries are soft enough that
+   a point either side of one should not change what you do.
+
+   Body fat is also not the only input that matters, and it is the only one
+   this reads. Your training age, your goal, your sleep, how long you have
+   already been in a deficit, and how much you trust the tape all belong in
+   the decision — which is why the card offers a call rather than issuing
+   one, and why the override is there. Prefer your own reading of it. */
 /* `max` is the threshold for a man in his twenties or thirties; the age
    offset slides all of them up together. `why` takes the offset so the
    numbers it quotes stay the numbers actually being used — a card that
@@ -428,24 +489,42 @@ const CALLS = [
   { max: 22, v:'CUT',    tone:'cut',
     why: o => `Far enough up that a bulk from here buys fat faster than muscle. A short cut back toward ${12 + o}% makes the next one worth more.` },
   { max: Infinity, v:'CUT', tone:'cut',
-    why: () => 'Cut first. Partitioning gets worse the higher this goes, so a month spent bulking at this level costs two cutting back down.' },
+    why: () => 'Cut first. How much worse a surplus partitions up here is not something anyone can put a number on, but nothing about it argues for bulking from this body fat.' },
 ];
 
-/* Target rates, as a share of bodyweight per week, both taken from
-   Helms, Aragon & Schoenfeld (2014), "Evidence-based recommendations for
-   natural bodybuilding contest preparation", J Int Soc Sports Nutr 11:20 —
+/* Target rates, as a share of bodyweight per week.
+
+   The cut comes from Helms, Aragon & Fitschen (2014), "Evidence-based
+   recommendations for natural bodybuilding contest preparation: nutrition
+   and supplementation", J Int Soc Sports Nutr 11:20 —
    https://pmc.ncbi.nlm.nih.gov/articles/PMC4033492/
+   0.5–1%/wk "to maximize muscle retention", so the target sits in the
+   middle of it and WARN_CUT below marks the ceiling.
 
-   The cut is theirs directly: 0.5–1%/wk "to maximize muscle retention", so
-   the target sits in the middle of it and WARN_CUT below marks the ceiling.
+   (Third author is Fitschen, not Schoenfeld. This file said Schoenfeld
+   for a long time and was simply wrong.)
 
-   The bulk needs a caveat the app cannot resolve. Their gain rates are per
-   training age — 0.25–0.5%/wk for novices, 0.1–0.2% for intermediates,
-   0.05–0.1% for advanced — and nothing here knows which you are. 0.25% is
-   the floor of the novice band and the nearest thing to a rate that is
-   merely conservative rather than wrong for everyone: at a typical
-   bodyweight it also lands the surplus inside Helms' separate 5–10%-of-TDEE
-   guidance. If you have been training for years, read it as an upper bound.
+   That paper is about contest preparation — about getting lean — so the
+   bulk rate does NOT come from it, and this file used to imply it did.
+   The surplus side is Iraki, Fitschen, Espinar & Helms (2019), "Nutrition
+   Recommendations for Bodybuilders in the Off-Season: A Narrative
+   Review", Sports 7(7):154 —
+   https://pmc.ncbi.nlm.nih.gov/articles/PMC6680710/
+   which is the one that actually addresses gaining.
+
+   It puts the target at ~0.25–0.5%/wk for novice and intermediate
+   lifters, with advanced lifters advised to be more conservative than
+   that, inside a surplus of roughly 10–20% over maintenance. 0.25% is the
+   floor of that band, chosen because nothing here knows your training age
+   and the floor is the only value in the range that is merely
+   conservative rather than wrong for someone. If you have been training
+   for years, read it as an upper bound and not a target.
+
+   The finer tiering people quote — novice 0.25–0.5%/wk, intermediate
+   0.1–0.2%, advanced 0.05–0.1% — is a rule of thumb from the coaching
+   literature rather than a finding of either paper, and this comment used
+   to present it as the review's. It is a reasonable heuristic. It is not
+   a citation, and the app does not act on it.
 
    An earlier draft used 0.35%, which is a novice-only rate wearing no
    label — roughly double what an intermediate should run. */
@@ -505,24 +584,46 @@ export function advise(s) {
    side of zero, and only one of them is a pace problem. */
 const FLAT = 0.1;                                // %/wk either side of nothing
 
+/* How much trend there has to be before it is worth acting on. A slope
+   fitted to four weigh-ins over nine days is a real number and almost no
+   evidence: scale weight carries several pounds of water noise, so a short
+   window resolves the noise and not the trend. Under either floor the same
+   readings are still shown — they are what the data says — but they are
+   framed as "so far" rather than as instructions, because telling somebody
+   to add food on the strength of ten days is how you get them chasing
+   water weight. */
+const TREND_DAYS = 21, TREND_N = 5;
+const thinTrend = rate => rate.span < TREND_DAYS || rate.n < TREND_N;
+
+/* The trend line measures the scale. It does not measure your intake, your
+   metabolism or your adherence, and every sentence below has to stay on the
+   right side of that: "the scale has not moved" is an observation, "the
+   deficit isn't there" is a claim about your kitchen drawn from six data
+   points. Same for the projections — a rate is what happened, not what
+   will happen, and static calorie arithmetic is exactly what Helms et al.
+   spend a section explaining does not hold as a diet runs. */
 function paceOf(verdict, rate) {
   if (!rate) return null;
   const r = rate.pctWk, mag = Math.abs(r).toFixed(2), flat = Math.abs(r) < FLAT;
+  const thin = thinTrend(rate);
+  /* Appended to anything that would otherwise read as an instruction. */
+  const soft = thin ? ` Only ${rate.n} weigh-ins over ${rate.span} days — too short to act on yet.` : '';
+  const tone = t => (thin && t === 'warn' ? 'mid' : t);
 
   if (verdict === 'BULK') {
-    if (r <= -FLAT) return { tone:'warn', t:`Losing ${mag}%/wk while the call is to bulk. Whatever you are eating, it is not a surplus.` };
-    if (flat)       return { tone:'warn', t:`Weight is flat at ${r.toFixed(2)}%/wk. A bulk that isn't gaining isn't a bulk — add food.` };
-    if (r > WARN_BULK) return { tone:'warn', t:`Gaining ${mag}%/wk — faster than a bulk needs. Most of anything past ~0.5%/wk is fat. Pull the surplus back.` };
-    return { tone:'good', t:`Gaining ${mag}%/wk, which is the right side of the line. Hold it here.` };
+    if (r <= -FLAT) return { tone: tone('warn'), t:`Losing ${mag}%/wk while the call is to bulk — trend is pointing the wrong way.${soft}` };
+    if (flat)       return { tone: tone('warn'), t:`Trend is flat at ${r.toFixed(2)}%/wk, so it does not yet show a gain.${soft || ' If it stays here, add food.'}` };
+    if (r > WARN_BULK) return { tone: tone('warn'), t:`Gaining ${mag}%/wk — faster than a bulk needs, and past ~0.5%/wk more of it tends to be fat.${soft || ' Pull the surplus back.'}` };
+    return { tone:'good', t:`Gaining ${mag}%/wk, the right side of the line.${soft || ' Hold it here.'}` };
   }
   if (verdict === 'CUT') {
-    if (r >= FLAT) return { tone:'warn', t:`Gaining ${mag}%/wk while the call is to cut — the wrong direction, and it gets more expensive the longer it runs.` };
-    if (flat)      return { tone:'warn', t:`Weight isn't moving (${r.toFixed(2)}%/wk). The deficit isn't there yet.` };
-    if (r < WARN_CUT) return { tone:'warn', t:`Dropping ${mag}%/wk — fast enough to start costing lean mass. Ease the deficit.` };
-    return { tone:'good', t:`Dropping ${mag}%/wk, which is a clean rate. Keep going.` };
+    if (r >= FLAT) return { tone: tone('warn'), t:`Gaining ${mag}%/wk while the call is to cut — trend is pointing the wrong way.${soft}` };
+    if (flat)      return { tone: tone('warn'), t:`Trend is flat at ${r.toFixed(2)}%/wk, so it does not yet show weight loss.${soft || ' Worth checking the intake estimate.'}` };
+    if (r < WARN_CUT) return { tone: tone('warn'), t:`Dropping ${mag}%/wk — past the rate the guidance stays inside, where lean mass starts coming off too.${soft || ' Ease the deficit.'}` };
+    return { tone:'good', t:`Dropping ${mag}%/wk, a clean rate.${soft || ' Keep going.'}` };
   }
-  if (Math.abs(r) > 0.3) return { tone:'warn', t:`Weight is moving ${r > 0 ? 'up' : 'down'} ${mag}%/wk. A recomp wants it flat — steer back toward maintenance.` };
-  return { tone:'good', t:`Weight is holding at ${r.toFixed(2)}%/wk, which is what a recomp should look like.` };
+  if (Math.abs(r) > 0.3) return { tone: tone('warn'), t:`Trend is moving ${r > 0 ? 'up' : 'down'} ${mag}%/wk. A recomp wants it flat.${soft || ' Steer back toward maintenance.'}` };
+  return { tone:'good', t:`Holding at ${r.toFixed(2)}%/wk, which is what a recomp should look like.${soft}` };
 }
 
 /* ═══════════════════ WHEN TO MEASURE AGAIN ═══════════════════ */
@@ -581,10 +682,25 @@ export function tapeStatus(s, verdict) {
    a pound or two of lean.
 
    Bulking, the question is "how far can this run before I'm back at 18%",
-   and the answer depends on what share of the gain is muscle. Half is the
-   honest long-run figure for anyone past their first year; beginners do
-   better, and nobody does better for long. Solving (fat + 0.5G)/(w + G) =
-   0.18 for G gives the gain, and the target weight with it. */
+   and the answer depends on what share of the gain is muscle. Half is a
+   commonly used long-run figure for anyone past their first year;
+   beginners do better, and nobody does better for long. Solving
+   (fat + 0.5G)/(w + G) = 0.18 for G gives the gain, and the target weight
+   with it.
+
+   Both numbers are SCENARIOS, and the cards say so. The arithmetic is
+   exact and its inputs are assumptions: nobody can tell you in advance
+   what share of your next ten pounds will be muscle, and a cut that gives
+   back no lean mass at all is the best case rather than the expected one.
+   The right way to read either target is "if it goes like this, here is
+   where it lands" — which is also why MAX_RUN exists, so you re-measure
+   and redraw the target from what actually happened rather than riding
+   one projection for a year.
+
+   And fat-free mass is not muscle. Every "lean" figure here is weight
+   minus estimated fat, which is water, bone, organs and glycogen as well
+   as muscle — so a scenario about lean mass is not a promise about
+   muscle, and the goal note avoids claiming otherwise. */
 const CUT_TARGET = 0.12, BULK_CEILING = 0.18, LEAN_SHARE = 0.5;
 
 /* And then clamped, because a goal has to be near enough to steer by. Run
@@ -625,10 +741,10 @@ export function goalFor(s, verdict) {
   const endPct = Math.round((cut ? cutTarget : bulkCeiling) * 100);
 
   const note = staged
-    ? `A full ${cut ? 'cut' : 'bulk'} to ${endPct}% is ${Math.abs(full - s.w).toFixed(0)} lbs away — further than one run should plan. This is the next ${Math.round(MAX_RUN * 100)}% of bodyweight, landing you near ${pct.toFixed(0)}%. Re-measure there and the next target is drawn from that.`
+    ? `Scenario: the next ${Math.round(MAX_RUN * 100)}% of bodyweight, landing near ${pct.toFixed(0)}%. A full ${cut ? 'cut' : 'bulk'} to ${endPct}% is ${Math.abs(full - s.w).toFixed(0)} lbs off — re-measure here and redraw.`
     : cut
-      ? `Your current lean mass at ${endPct}% body fat — where you land if the cut costs you no muscle. Treat it as the near edge, not the promise.`
-      : `Where this bulk should stop: ${endPct}% body fat, assuming half of what you gain is muscle. That is a long run, not a month.`;
+      ? `Scenario: your fat-free mass at ${endPct}% body fat, if the cut costs you none of it. Real cuts give back a pound or two, so this is the near edge.`
+      : `Scenario: where this reaches ${endPct}% body fat if half the gain is fat-free mass — an assumption, and fat-free mass is not muscle.`;
 
   return { w, pct, dir: cut ? 'down' : 'up', staged, full, note };
 }

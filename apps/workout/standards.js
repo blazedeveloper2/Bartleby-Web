@@ -144,15 +144,22 @@ export const SRC_LABEL = { exact:'', proxy:'Proxy', est:'Estimate' };
 /* Percentile anchors for the five tiers, used to interpolate a score. */
 export const TIER_PCT = [5, 20, 50, 80, 95];
 
-/* Letter ranks. `min` is the percentile floor. Blunt on purpose. */
+/* Letter ranks. `min` is the score floor. Blunt on purpose.
+
+   On a single lift the score IS a percentile and the letters mean what
+   they look like. On the composite it is an average of percentiles, which
+   is not itself one — so the blurbs describe the standard you are meeting
+   ("the band where the published tables put an advanced lifter") rather
+   than a slice of a population ("top fifth of people who log lifts"). The
+   distinction is small in words and total in what is being claimed. */
 export const RANKS = [
-  { l:'F',  min:0,    name:'Untrained',    c:'--rk-f', blurb:'Below the weakest bracket that gets logged. Nothing here yet.' },
+  { l:'F',  min:0,    name:'Untrained',    c:'--rk-f', blurb:'Below the weakest bracket the published tables cover. Nothing here yet.' },
   { l:'D',  min:5,    name:'Beginner',     c:'--rk-d',    blurb:'You have started. That is the entire compliment.' },
-  { l:'C',  min:20,   name:'Novice',       c:'--rk-c',  blurb:'Stronger than a beginner, weaker than the average gym-goer.' },
-  { l:'B',  min:50,   name:'Intermediate', c:'--rk-b',   blurb:'Average. Years of consistent work separate this from strong.' },
-  { l:'A',  min:80,   name:'Advanced',     c:'--rk-a', blurb:'Genuinely strong. Top fifth of people who log lifts.' },
-  { l:'S',  min:95,   name:'Elite',        c:'--rk-s',  blurb:'Top 5%. Very few get here without years of hard training.' },
-  { l:'SS', min:99.5, name:'Freak',        c:'--rk-ss',   blurb:'Beyond the published standards entirely.' },
+  { l:'C',  min:20,   name:'Novice',       c:'--rk-c',  blurb:'Past beginner on the tables, short of where they put the average gym-goer.' },
+  { l:'B',  min:50,   name:'Intermediate', c:'--rk-b',   blurb:'The middle of the published standards. Years of consistent work separate this from strong.' },
+  { l:'A',  min:80,   name:'Advanced',     c:'--rk-a', blurb:'Genuinely strong — the band the tables call advanced.' },
+  { l:'S',  min:95,   name:'Elite',        c:'--rk-s',  blurb:'The elite band of the published standards. Very few get here without years of hard training.' },
+  { l:'SS', min:99.5, name:'Freak',        c:'--rk-ss',   blurb:'Above the published elite benchmark, which is where the data stops rather than where people do.' },
 ];
 
 export function rankFor(pct) {

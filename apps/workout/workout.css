@@ -171,6 +171,27 @@
 .mm-wt-in::placeholder{color:var(--text-3)}
 .mm-wt-u{font-size:12px;color:var(--text-3);font-weight:600}
 
+/* Reps per set. Stacked rather than sharing the weight row, because the
+   box count follows the prescription — two for most of this program,
+   four for the lateral raises — and a row that changes width as you move
+   between exercises reads as a layout bug. */
+.mm-reps-row{padding:14px 20px;border-bottom:1px solid var(--border)}
+.mm-reps-lbl{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-3)}
+.mm-reps-lbl>span{display:block;font-size:10px;letter-spacing:0;text-transform:none;font-weight:400;margin-top:3px;opacity:.85}
+.mm-sets{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.mm-set{display:flex;align-items:center;gap:7px;background:var(--bg);border:1px solid var(--border);
+  border-radius:var(--rs);padding:6px 10px;transition:border-color .15s}
+.mm-set:focus-within{border-color:var(--green)}
+.mm-set>span{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-3)}
+.mm-set-in{width:42px;background:transparent;border:none;color:var(--text);font-family:var(--mono);
+  font-size:16px;font-weight:700;text-align:right;outline:none;-webkit-appearance:none}
+.mm-set-in::placeholder{color:var(--text-3)}
+.mm-reps-note{margin-top:9px;font-size:11px;line-height:1.55;color:var(--text-3);
+  border-left:2px solid var(--border-lt);padding-left:9px}
+.mm-reps-note b{color:var(--text-2);font-weight:700;font-family:var(--mono)}
+/* Counted: the one state where the estimate rests on something measured. */
+.mm-reps-row.on .mm-reps-note{border-left-color:var(--green)}
+
 /* â”€â”€ Where this lift stands, right under the input that changes it â”€â”€ */
 .mm-rank{display:flex;align-items:center;gap:13px;padding:13px 20px;border-bottom:1px solid var(--border)}
 .mm-rank-l{font-family:var(--mono);font-size:23px;font-weight:800;letter-spacing:-1px;line-height:1;min-width:30px;text-align:center}
@@ -329,6 +350,10 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 .bd-pace{font-size:12px;line-height:1.5;padding:9px 11px;border-radius:var(--rs);margin-bottom:12px;border-left:2px solid var(--text-3)}
 .bd-pace.good{background:var(--green-d);border-left-color:var(--green);color:var(--text-2)}
 .bd-pace.warn{background:var(--red-d);border-left-color:var(--red);color:var(--text-2)}
+/* Same finding as .warn, on too little data to act on yet. Amber rather
+   than red, because the reading is provisional and the colour should not
+   argue harder than the sentence does. */
+.bd-pace.mid{border-left-color:var(--amber);color:var(--text-2)}
 
 .bd-targets{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
 .bd-t{background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px}
@@ -479,6 +504,10 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 .rk-blurb b{color:var(--text-2)}
 .rk-hero-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;font-size:11px;color:var(--text-3)}
 .rk-hero-foot b{color:var(--text-2);font-weight:600}
+/* What the number above is and is not. Quiet on purpose — it is a
+   standing caveat, not a warning, and it should read once and then
+   recede rather than compete with the letter every time the tab opens. */
+.rk-hero-note{margin-top:10px;font-size:10.5px;line-height:1.55;color:var(--text-3);opacity:.9}
 .rk-foot-pct{font-family:var(--mono);font-weight:700;color:var(--rc);flex-shrink:0}
 
 /* an estimate that hasn't been trained yet says so, in the same breath as the letter */
@@ -527,6 +556,7 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 .rk-reps{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
   background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:9px 11px;margin-bottom:12px}
 .rk-reps-l{font-size:11px;color:var(--text-3);font-weight:600}
+.rk-reps-sub{display:block;font-weight:400;opacity:.78;margin-top:2px}
 .rk-reps-seg{display:flex;gap:3px}
 .rk-rep{width:32px;padding:5px 0;border-radius:5px;background:var(--bg-card);border:1px solid var(--border);
   color:var(--text-3);font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer;transition:all .12s}
@@ -553,6 +583,17 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 .rk-lift-src.est{color:var(--amber);border-color:var(--amber);opacity:.85}
 .rk-lift-src.pend{color:var(--amber);border-color:var(--amber);background:transparent}
 .rk-lift-src.info{width:14px;padding:2px 0;text-align:center;letter-spacing:0;text-transform:none}
+/* Where the rep count came from. Green is the only one that is a
+   measurement; the rest are the app saying it filled something in. */
+.rk-lift-src.counted{color:var(--green);border-color:var(--green);background:transparent}
+.rk-lift-src.assumed,.rk-lift-src.approx{color:var(--text-3);border-style:dashed}
+.rk-lift-src.stale{color:var(--amber);border-color:var(--amber);border-style:dashed;background:transparent}
+.rk-lift-src.off{color:var(--text-3);border-style:dashed;opacity:.8}
+/* Scored and kept, but not in the average — dimmed so the eye reads the
+   sheet first and finds the rest when it goes looking. */
+.rk-lift.off-sheet{opacity:.62}
+.rk-lift-drop{margin-top:8px;font-size:11px;line-height:1.55;color:var(--text-3);
+  border-left:2px solid var(--border-lt);padding-left:9px}
 .rk-lift-r{font-family:var(--mono);font-size:17px;font-weight:700;line-height:1;flex-shrink:0}
 .rk-lift-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:9px;font-size:10px;color:var(--text-3);font-family:var(--mono);flex-wrap:wrap}
 .rk-lift-foot b{color:var(--text-2);font-weight:700}
@@ -797,6 +838,9 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 .wk .mm-title{font-size:20px;line-height:1.25;letter-spacing:-.5px}.wk .mm-close{width:40px;height:40px;flex-shrink:0;border:1px solid var(--border);background:var(--bg);border-radius:10px;color:var(--text-2)}
 .wk .mm-info{padding:12px 22px;gap:8px}.wk .mm-tag{font-family:var(--mono);font-size:12px;padding:6px 10px;border:1px solid var(--border);background:var(--bg);color:var(--text-2)}
 .wk .mm-wt-row{padding:18px 22px;gap:16px}.wk .mm-wt-lbl{font-size:14px;letter-spacing:0;text-transform:none;color:var(--text);font-weight:600}
+.wk .mm-reps-row{padding:18px 22px}.wk .mm-reps-lbl{font-size:14px;letter-spacing:0;text-transform:none;color:var(--text);font-weight:600}
+.wk .mm-reps-lbl>span{font-size:11px}.wk .mm-set-in{font-size:19px;width:50px;color:var(--blue)}
+.wk .mm-set{border-color:var(--sel-bd);background:var(--blue-d);padding:8px 12px}
 .wk .mm-wt-lbl>span{display:block;font-size:11px;color:var(--text-3);font-weight:400;margin-top:4px;max-width:155px}
 .wk .mm-wt-box{padding:10px 12px;border-color:var(--sel-bd);background:var(--blue-d)}.wk .mm-wt-in{font-size:26px;width:78px;color:var(--blue)}.wk .mm-wt-u{font-size:13px}
 .wk .mm-rank{padding:14px 22px}.wk .mm-rank.none{font-size:13px;line-height:1.6}.wk .mm-rank-s{font-size:12px}.wk .mm-rank-n{font-size:14px}
@@ -823,7 +867,7 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 .wk .mm-muscle-chip[aria-pressed="true"]{background:var(--blue-d);border-color:var(--blue);color:var(--blue)}
 @media(max-width:480px){
  .wk .mm-overlay{padding:10px}.wk .mm-card{max-height:calc(100dvh - 20px)}.wk .mm-head{padding:16px}.wk .mm-title{font-size:18px}
- .wk .mm-info,.wk .mm-wt-row,.wk .mm-rank{padding:12px 16px}.wk .mm-anatomy{margin:12px 12px 0}.wk .mm-map{min-height:248px;padding:12px 14px 8px;gap:10px}.wk .m-fig{height:235px}
+ .wk .mm-info,.wk .mm-wt-row,.wk .mm-rank,.wk .mm-reps-row{padding:12px 16px}.wk .mm-anatomy{margin:12px 12px 0}.wk .mm-map{min-height:248px;padding:12px 14px 8px;gap:10px}.wk .m-fig{height:235px}
  .wk .mm-muscles{padding:4px 12px 16px}.wk .mm-map-toolbar{padding:9px 10px}.mm-views button{padding:6px 8px}.wk .mm-wt-lbl>span{max-width:130px}
 }
 html[data-theme] .wk .mm-card{overflow-x:hidden;overflow-y:auto;min-height:0;max-height:calc(100dvh - 32px);scroll-padding-top:92px;padding-bottom:8px}

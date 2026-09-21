@@ -76,10 +76,102 @@ const OWNED = {
 export const owns = k => (OWNED[k] || (() => true))();
 export const resEx = ex => (ex.alt && !owns(ex.req)) ? ex.alt : ex;
 
-/* Reps-to-failure assumption behind the 1RM estimate. */
+/* Reps-to-failure ASSUMPTION behind the 1RM estimate — the fallback for a
+   lift whose reps have not been counted. See RECORDED REPS below. */
 export const REP_OPTS = [5, 8, 10, 12, 15];
 const reps  = () => { const r = load('bp_reps', 10); return REP_OPTS.includes(r) ? r : 10; };
 const sReps = r => save('bp_reps', r);
+
+/* ═══════════════════ RECORDED REPS ═══════════════════
+
+   bp_xreps  { [lift]: { s:[15,13], w:50, d:'YYYY-MM-DD' } }
+
+   What you actually counted, per set, at the weight you counted it at.
+
+   The dial above is one number for the whole sheet and the `reps` field in
+   LIFTS is a second guess layered on top of it, and Epley cannot tell the
+   difference between a guess and a count: at 50 lbs it returns 58 at five
+   reps and 75 at fifteen, and both are printed with the same confidence.
+   Counting the set is the only thing that turns that number into a
+   measurement of anything.
+
+   THE BEST SET SCORES, and the others are deliberately ignored.
+
+   Epley is calibrated on one set taken to failure in a fresh state. A
+   second set at the same load comes in lower because of accumulated
+   fatigue, not because you got weaker between them — 15 then 13 is one
+   performance with a rest interval in the middle, not two measurements
+   that disagree. Averaging them would produce a 1RM belonging to nobody,
+   and taking the last would let the rank fall every time you added a set.
+   So: max.
+
+   `w` is what makes a recording expire. Reps counted at 50 lbs say nothing
+   about the same lift at 60, so a recording whose weight no longer matches
+   is stale and scoring falls back to the assumption rather than carrying
+   the old count forward onto a new load. Stale is shown, not silently
+   dropped — it is the prompt to count again.
+
+   The spread between sets is not strength data, but it is data: see
+   dropOff() for what it is worth and what it is not. */
+const xrepsAll = () => load('bp_xreps', {});
+const xrepsSv  = m => save('bp_xreps', m);
+
+/* Sets a recording, or clears it when nothing usable is passed. `w` is
+   stamped at write time so staleness is decidable later. */
+export function setExReps(name, sets, w) {
+  const m = xrepsAll();
+  const clean = (sets || []).map(n => (Number.isFinite(+n) && +n > 0 ? Math.round(+n) : null));
+  if (!clean.some(n => n !== null) || !(w > 0)) delete m[name];
+  else m[name] = { s: clean, w, d: todayStr() };
+  xrepsSv(m);
+}
+export const exReps = name => xrepsAll()[name] || null;
+
+/* How many reps to read one lift at, and how much that number is worth.
+   `logged` is the flag every label on the tab hangs off: it is the
+   difference between "your 1RM" and "your 1RM if the dial is right". */
+export function repsRead(name, spec, wv, dial, all) {
+  const e = (all || xrepsAll())[name];
+  const counted = e && Array.isArray(e.s) ? e.s.filter(n => n > 0) : [];
+  if (counted.length && e.w === wv)
+    return { n: Math.max(...counted), logged: true, stale: false, sets: e.s, d: e.d };
+  return { n: spec.reps || dial, logged: false, stale: counted.length > 0,
+           sets: counted.length ? e.s : null, staleW: counted.length ? e.w : null,
+           d: counted.length ? e.d : null };
+}
+
+/* Above this, Epley is extrapolating rather than interpolating and the
+   error grows with every rep — a 15-rep set implies a 1.5× multiplier off
+   a single linear term. The lifts carrying reps:15 in LIFTS live here by
+   design, so the flag is common rather than exceptional, and it marks the
+   1RM approximate rather than hiding it. */
+const EPLEY_SOFT_MAX = 12;
+
+/* What the spread between sets says. Not strength — the drop is fatigue,
+   and fatigue is what the second set is for. What it does say is whether
+   the FIRST set was the honest max the 1RM is being read off:
+
+     no drop at all  a set that repeats exactly is usually a set that
+                     stopped short of failure on the way, so the best set
+                     understates and so does the rank
+     a huge drop     either the first set went well past failure or the
+                     rest between them was too short to call them the same
+                     effort; either way the pair is not one clean reading
+
+   Both are reasons to trust the estimate less. Neither is a reason to
+   change the number, so this only ever annotates. */
+export function dropOff(sets) {
+  const s = (sets || []).filter(n => n > 0);
+  if (s.length < 2) return null;
+  const best = Math.max(...s), worst = Math.min(...s);
+  const lost = (best - worst) / best;
+  if (best - worst === 0) return { kind:'flat', best, worst,
+    t:'Identical sets usually mean the first stopped short — the estimate is probably low.' };
+  if (lost > 0.4) return { kind:'steep', best, worst,
+    t:`${best}→${worst} is a steep fall: too little rest, or a first set taken past failure. Trust the estimate less.` };
+  return { kind:'normal', best, worst,
+    t:`${best}→${worst} is ordinary fatigue. Only the ${best} scores.` };
+}
 
 /* What the standards get divided by. 'bw' is the published basis and stays
    the default: switching it silently would move every letter on the tab
@@ -179,13 +271,17 @@ const BADGES = [
   { id:'liftSS',    cat:1, ico:'crown',  n:'Off The Table',    req:'Any single lift to SS',          t:s => s.bestLift >= 6 },
   { id:'rankSS',    cat:1, ico:'crown',  n:'Freak',            req:'Reach rank SS overall',          t:s => s.rankIdx >= 6 },
 
-  /* -- Volume -- */
-  { id:'sets100',   cat:2, ico:'bolt',   n:'First Hundred',    req:'Complete 100 hard sets',         t:s => s.sets >= 100 },
-  { id:'sets250',   cat:2, ico:'bolt',   n:'Getting Somewhere',req:'Complete 250 hard sets',         t:s => s.sets >= 250 },
-  { id:'sets500',   cat:2, ico:'star',   n:'500 Hard Sets',    req:'Complete 500 hard sets',         t:s => s.sets >= 500 },
-  { id:'sets1500',  cat:2, ico:'star',   n:'1,500 Hard Sets',  req:'Complete 1,500 hard sets',       t:s => s.sets >= 1500 },
-  { id:'sets4000',  cat:2, ico:'trophy', n:'4,000 Hard Sets',  req:'Complete 4,000 hard sets',       t:s => s.sets >= 4000 },
-  { id:'sets10k',   cat:2, ico:'crown',  n:'Five Figures',     req:'Complete 10,000 hard sets',      t:s => s.sets >= 10000 },
+  /* -- Volume --
+     "Prescribed" rather than "hard", because that is what a checkmark
+     records: the sets the program asked for on an exercise you ticked
+     off, warm-ups included, and unilateral work counted once per side.
+     It does not know what effort any of them were taken at. */
+  { id:'sets100',   cat:2, ico:'bolt',   n:'First Hundred',    req:'Tick off 100 prescribed sets',    t:s => s.sets >= 100 },
+  { id:'sets250',   cat:2, ico:'bolt',   n:'Getting Somewhere',req:'Tick off 250 prescribed sets',    t:s => s.sets >= 250 },
+  { id:'sets500',   cat:2, ico:'star',   n:'500 Sets',         req:'Tick off 500 prescribed sets',    t:s => s.sets >= 500 },
+  { id:'sets1500',  cat:2, ico:'star',   n:'1,500 Sets',       req:'Tick off 1,500 prescribed sets',  t:s => s.sets >= 1500 },
+  { id:'sets4000',  cat:2, ico:'trophy', n:'4,000 Sets',       req:'Tick off 4,000 prescribed sets',  t:s => s.sets >= 4000 },
+  { id:'sets10k',   cat:2, ico:'crown',  n:'Five Figures',     req:'Tick off 10,000 prescribed sets', t:s => s.sets >= 10000 },
 
   /* -- Progression -- */
   { id:'pr1',       cat:3, ico:'target', n:'Stronger',         req:'Raise a working weight',         t:s => s.prs >= 1 },
@@ -211,11 +307,16 @@ const BADGES = [
    `st` is always the PROVEN view — a weight you typed but have not trained
    unlocks nothing, which is what lets a back-off roll cleanly back. */
 export function earned(cs, st) {
-  const pcts = st.lifts.map(l => l.pct);
+  /* The balance badges ask about the sheet, so they read the same set the
+     letter does — otherwise "every scored lift at C or above" could be
+     failed by a weight sitting on an alternate that is not on screen and
+     cannot be raised. Best-lift and max-ratio stay over everything: a lift
+     you genuinely hit counts whether or not it is currently displayed. */
+  const pcts = st.counted.map(l => l.pct);
   const flat = {
     ...cs,
-    rankIdx: st.scored ? st.rank.i : 0,
-    scored: st.scored,
+    rankIdx: st.counted.length ? st.rank.i : 0,
+    scored: st.counted.length,
     bestLift: st.lifts.reduce((a, l) => Math.max(a, l.rank.i), 0),
     minPct: pcts.length ? Math.min(...pcts) : 0,
     spread: pcts.length ? Math.max(...pcts) - Math.min(...pcts) : 999,
@@ -260,10 +361,29 @@ function eachDate(fromStr, toStr, fn) {
 const fmtD = ds => dOf(ds).toLocaleDateString('en-US', { month:'short', day:'numeric' });
 const fmtN = n => n.toLocaleString('en-US');
 
+/* How many sets the program PRESCRIBES for this exercise — the leading
+   number, exactly as written, never doubled. This is the count of times
+   you set up and lift, which is what a rep log needs one row per. */
+export const setCountOf = ex => { const m = /^(\d+)/.exec(ex.s || ''); return m ? +m[1] : 2; };
+export const isUnilateral = ex => /\/\s*(leg|side|arm)/i.test(ex.s || '');
+
+/* Hard sets for the volume tally, where a unilateral exercise counts twice
+   because you do perform the work twice.
+
+   What that number is NOT is a per-muscle training dose, and the badge
+   copy has to stay on the right side of it. "2×F /side" doubled to 4 is
+   four sets of WORK, but each side received two — so an exercise counted
+   as four sets here delivers the same stimulus to a given limb as an
+   exercise counted as two. Reading the total as per-muscle volume
+   overstates unilateral work by exactly a factor of two.
+
+   It also counts what was prescribed, not what was done: the checkmark
+   says you finished the exercise, not that every set reached the effort
+   the program asked for, and warm-up sets in the tally are still sets.
+   The number is an attendance-weighted volume proxy. Treated as that it
+   is useful, and the badges that read it say so. */
 export function setsOf(ex) {
-  const m = /^(\d+)/.exec(ex.s || '');
-  const n = m ? +m[1] : 2;
-  return /\/\s*(leg|side|arm)/i.test(ex.s || '') ? n * 2 : n;
+  return isUnilateral(ex) ? setCountOf(ex) * 2 : setCountOf(ex);
 }
 
 /* ═══════════════════ WEIGHT HISTORY ═══════════════════ */
@@ -368,7 +488,17 @@ const est1RM = (w, r) => w * (1 + r / 30);
 
 /* Where `ratio` sits on this lift's tier ladder, as a percentile.
    Linear between the published anchors; tapered above Elite so a huge
-   number can't run away to 100. */
+   number can't run away to 100.
+
+   Two kinds of number come out of this and they are not worth the same.
+   Between the anchors it interpolates, which assumes the distribution is
+   locally straight between two published points — close enough, and the
+   anchors themselves are real. Above the top anchor there is no data at
+   all: the 60 in the last line is a taper chosen so the scale stays
+   monotonic and bounded, not a measurement of how rare a lift that size
+   is. A 99.4 from up there means "past the published elite benchmark",
+   and `beyond` is set on the lift so the UI can say that instead of
+   printing an invented decimal with a straight face. */
 function pctFor(ratio, tiers) {
   if (ratio <= tiers[0]) {
     /* Below the Beginner anchor. Guard against anchors that are zero or
@@ -386,12 +516,17 @@ function pctFor(ratio, tiers) {
   return Math.min(99.9, TIER_PCT[4] + (ratio / tiers[4] - 1) * 60);
 }
 
-/* Reps to read this lift at. The dial in the Rank tab is one number for the
-   whole sheet, which cannot be true of both a press that fails in the high
-   single digits and a calf raise that fails in the high teens — so a lift
-   whose failure point sits nowhere near the dial carries its own `reps` in
-   LIFTS and ignores it. */
-const repsFor = (spec, r) => spec.reps || r;
+/* Reps to read this lift at, as a resolved number. Three sources, in
+   descending order of how much they are worth:
+
+     1. counted    what you logged for this lift at this weight (repsRead)
+     2. spec.reps  a per-lift assumption, for movements whose failure point
+                   sits nowhere near the dial — a calf raise does not fail
+                   where a press does
+     3. the dial   one number for the whole sheet
+
+   Only the first is a measurement. Everything downstream carries `logged`
+   alongside the number so the UI can keep saying which one it got. */
 
 /* The ratio a lift scores at, and the inverse: what working weight would
    be needed to hit a target ratio. Both branch on how the source measures
@@ -403,13 +538,12 @@ const repsFor = (spec, r) => spec.reps || r;
    haul your actual mass over the bar whatever the tab has been told to
    score against. So `bw` stays real on the load side and `ref` takes the
    denominator. */
-function ratioOf(spec, wv, bw, ref, r) {
-  const n = repsFor(spec, r);
+function ratioOf(spec, wv, bw, ref, n) {
   if (spec.mode === 'added') return (est1RM(bw + wv, n) - bw) / ref;
   return est1RM(wv * (spec.mult || 1), n) / ref;
 }
-function weightFor(spec, targetRatio, bw, ref, r) {
-  const e = 1 + repsFor(spec, r) / 30;
+function weightFor(spec, targetRatio, bw, ref, n) {
+  const e = 1 + n / 30;
   if (spec.mode === 'added') return (bw + targetRatio * ref) / e - bw;
   return (targetRatio * ref) / (e * (spec.mult || 1));
 }
@@ -431,15 +565,18 @@ function reachableLifts() {
    set, once with what you have proven — so the two views can never drift
    apart in their maths. */
 function scoreAll(w, bodyweight, ref, r, reach) {
-  const out = { lifts: [], overall: 0, rank: rankFor(0),
-                scored: 0, scoredReachable: 0, totalScorable: reach.size };
+  const out = { lifts: [], counted: [], overall: 0, rank: rankFor(0),
+                scored: 0, scoredReachable: 0, totalScorable: reach.size,
+                offSheet: 0, loggedReps: 0 };
   if (!bodyweight) return out;
 
+  const xr = xrepsAll();
   Object.keys(LIFTS).forEach(name => {
     const wv = w[name];
     if (!(wv > 0)) return;
     const spec = LIFTS[name], tiers = spec.r;
-    const ratio = ratioOf(spec, wv, bodyweight, ref, r);
+    const rr = repsRead(name, spec, wv, r, xr);
+    const ratio = ratioOf(spec, wv, bodyweight, ref, rr.n);
     const pct = pctFor(ratio, tiers);
     const rk = rankFor(pct);
     /* lbs of working weight still needed for the next letter */
@@ -447,13 +584,22 @@ function scoreAll(w, bodyweight, ref, r, reach) {
     if (rk.next) {
       const ti = TIER_PCT.indexOf(rk.next.min);
       const targetRatio = ti >= 0 ? tiers[ti] : tiers[tiers.length - 1] * 1.08;
-      need = Math.max(0, weightFor(spec, targetRatio, bodyweight, ref, r) - wv);
+      need = Math.max(0, weightFor(spec, targetRatio, bodyweight, ref, rr.n) - wv);
     }
     out.lifts.push({
       name, w: wv, ratio, pct, rank: rk, need,
       /* the 1RM the ratio was actually derived from */
-      oneRM: spec.mode === 'added' ? ratio * ref : est1RM(wv * (spec.mult || 1), repsFor(spec, r)),
+      oneRM: spec.mode === 'added' ? ratio * ref : est1RM(wv * (spec.mult || 1), rr.n),
       oneRMLabel: spec.mode === 'added' ? 'est. 1RM added' : 'est. 1RM',
+      /* how that 1RM was arrived at — counted, or assumed and from where */
+      reps: rr.n, repsLogged: rr.logged, repsStale: rr.stale, repsStaleW: rr.staleW,
+      repSets: rr.sets, repsDate: rr.d, drop: rr.logged ? dropOff(rr.sets) : null,
+      /* Epley past ~12 reps is a long extrapolation off one linear term,
+         so the number is printed with a qualifier rather than a decimal. */
+      approx: rr.n > EPLEY_SOFT_MAX,
+      /* past the top published anchor, where the percentile is a taper
+         rather than a reading — see pctFor */
+      beyond: ratio > tiers[tiers.length - 1],
       src: spec.src, srcLabel: SRC_LABEL[spec.src],
       /* only worth a tooltip when the standard isn't a direct match or there's
          a genuine caveat — otherwise every row grows a badge and says nothing */
@@ -462,15 +608,32 @@ function scoreAll(w, bodyweight, ref, r, reach) {
   });
 
   out.scored = out.lifts.length;
-  /* A weight left over on the hidden alternate still scores, but it can't
-     count toward finishing the sheet you can currently see. */
-  out.scoredReachable = out.lifts.filter(l => reach.has(l.name)).length;
-  if (out.scored) {
-    out.lifts.sort((a, b) => b.pct - a.pct);
-    out.overall = out.lifts.reduce((a, l) => a + l.pct, 0) / out.scored;
+  out.lifts.sort((a, b) => b.pct - a.pct);
+
+  /* THE SCORE IS THE SHEET YOU CAN SEE.
+
+     Pull-Ups and Single-Arm Rows are alternates: exactly one of the two is
+     ever on screen, decided by whether you own a bar. Both can still carry
+     a weight from whenever the setting was last the other way, and the old
+     average counted every lift with a weight on it — so the hidden one
+     went on moving the letter, and toggling a piece of equipment in
+     Settings changed the grade without anybody lifting anything.
+
+     `reach` already knows which lifts are actually in play, and
+     scoredReachable was already computed from it for the completion
+     count; the average simply was not using it. It is now, so the letter
+     answers one question with one set of lifts. The off-sheet weights are
+     kept, still listed, and still scored individually — they are history,
+     not input. */
+  out.counted = out.lifts.filter(l => reach.has(l.name));
+  out.scoredReachable = out.counted.length;
+  out.offSheet = out.scored - out.counted.length;
+  out.loggedReps = out.counted.filter(l => l.repsLogged).length;
+  if (out.counted.length) {
+    out.overall = out.counted.reduce((a, l) => a + l.pct, 0) / out.counted.length;
     out.rank = rankFor(out.overall);
-    out.strongest = out.lifts[0];
-    out.weakest = out.lifts[out.lifts.length - 1];
+    out.strongest = out.counted[0];
+    out.weakest = out.counted[out.counted.length - 1];
   }
   return out;
 }
@@ -1020,49 +1183,70 @@ function heroHTML(st) {
         <div class="rk-blurb">Strength standards are relative to bodyweight. Log yours in the <b>Body</b> tab and this fills in immediately.</div></div></div>
     </div>`;
   }
-  if (!st.scored) {
+  if (!st.counted.length) {
+    /* Two different nothings. Usually there are no weights at all; rarely
+       every weight sits on a movement the current equipment setting has
+       swapped off the sheet, and telling that user to go and log a weight
+       they already logged would be nonsense. */
     return `<div class="rk-hero" style="--rc:var(--text-3)"><span class="rk-scan"></span>
       <div class="rk-kicker">No Rank</div>
       <div class="rk-hero-row"><div class="rk-badge"><span class="rk-letter">?</span></div>
-        <div class="rk-hero-txt"><div class="rk-name">No weights logged</div>
-        <div class="rk-blurb">Tap any exercise in the <b>Program</b> tab and set its working weight. Rank is computed from what you actually lift — nothing else moves it.</div></div></div>
+        <div class="rk-hero-txt"><div class="rk-name">${st.scored ? 'Nothing on your current sheet' : 'No weights logged'}</div>
+        <div class="rk-blurb">${st.scored
+          ? `Your ${st.scored} logged weight${st.scored === 1 ? ' is' : 's are'} all on movements the current equipment setting has swapped out, so there is nothing on the sheet to score. They are kept and listed below — change the equipment back in <b>Settings</b>, or log a weight on a movement you can reach.`
+          : 'Tap any exercise in the <b>Program</b> tab and set its working weight. Rank is computed from what you actually lift — nothing else moves it.'}</div></div></div>
     </div>`;
   }
   const rk = st.rank;
   const beat = Math.round(st.overall);
+  const n = st.counted.length;
   const nx = rk.next;
   const pv = st.proven, pend = st.pending.length;
+  /* WHY THIS DOES NOT SAY "STRONGER THAN X% OF LIFTERS".
+
+     It used to, and that was the one claim on the tab that the maths could
+     not support. Each lift's percentile is real: it comes from a published
+     table of that movement at your bodyweight. The average of several of
+     them is not a percentile of anything, because no population has ever
+     been measured on this particular battery of lifts and ranked by their
+     mean. You cannot average your way from per-exercise percentiles to a
+     population standing; that would need a reference sample scored the
+     same way, and none exists.
+
+     So the composite keeps its letter, its number and its bar — all of
+     which are useful for tracking yourself — and drops the sentence that
+     placed you among other people. The per-lift rows below still say
+     "percentile", because there it is true. */
   return `<div class="rk-hero" style="--rc:var(${rk.c})"><span class="rk-scan"></span>
     <div class="rk-hero-top">
-      <div class="rk-kicker">Strength Rank</div>
-      <div class="rk-kicker">${st.scored} lift${st.scored === 1 ? '' : 's'} scored · ${st.usingLean
+      <div class="rk-kicker">Strength Score</div>
+      <div class="rk-kicker">${n} lift${n === 1 ? '' : 's'} · ${st.usingLean
         ? `${Math.round(st.lean)} lb lean mass` : `${st.bodyweight} lb bodyweight`}</div>
     </div>
     <div class="rk-hero-row">
       <div class="rk-badge"><span class="rk-letter">${rk.l}</span></div>
       <div class="rk-hero-txt">
         <div class="rk-name">${rk.name}</div>
-        <div class="rk-pct">Stronger than <b>${beat}%</b> of lifters at your ${st.usingLean ? 'lean mass' : 'bodyweight'}</div>
+        <div class="rk-pct">Bartleby score <b>${beat}</b> — the average of your ${n} lift percentile${n === 1 ? '' : 's'}</div>
         <div class="rk-blurb">${rk.blurb}</div>
       </div>
     </div>
     ${bandTrack(st.overall, true)}
     <div class="rk-hero-foot">
-      <span>${nx ? `Next: <b>${nx.l} · ${nx.name}</b> at the ${nx.min}th percentile` : 'Off the top of the published data.'}</span>
+      <span>${nx ? `Next: <b>${nx.l} · ${nx.name}</b> at a score of ${nx.min}` : 'Off the top of the published data.'}</span>
       <span class="rk-foot-pct" data-cnt="${st.overall.toFixed(1)}" data-dec="1">0.0</span>
     </div>
-    ${pend ? `<div class="rk-pending">
-      <b>${pend} lift${pend === 1 ? '' : 's'}</b> sitting at a weight you haven't trained yet, so the letter above is
-      an estimate of what you'd rank if ${pend === 1 ? 'it holds' : 'they hold'}.
-      ${pv.scored ? `Confirmed right now: <b style="color:var(${pv.rank.c})">${pv.rank.l}</b> at the ${Math.round(pv.overall)}th percentile.`
+    <div class="rk-hero-note"><span title="Each lift is compared to a published table for that movement at your bodyweight. Averaging those comparisons gives a number for tracking yourself against yourself — but no population has been measured on this set of lifts, so the average is not itself a percentile among lifters.">An average of published per-lift comparisons — a Bartleby number, not a percentile among lifters.</span>${st.offSheet ? ` ${st.offSheet} off-sheet weight${st.offSheet === 1 ? '' : 's'} listed below, excluded.` : ''}</div>
+    ${pend ? `<div class="rk-pending" title="Milestones and rank-ups land when you finish a session that trains the untested weight. Until then the letter above is what you would rank if it holds.">
+      <b>${pend} untested lift${pend === 1 ? '' : 's'}</b>, so this is an estimate.
+      ${pv.counted.length ? `Confirmed: <b style="color:var(${pv.rank.c})">${pv.rank.l}</b> at ${Math.round(pv.overall)}.`
                   : 'Nothing confirmed yet.'}
-      Milestones and rank-ups land when you finish a session that uses ${pend === 1 ? 'it' : 'them'}.
     </div>` : ''}
   </div>`;
 }
 
 function verdictHTML(st) {
-  if (!st.scored) return '';
+  if (!st.counted.length) return '';
   const w = st.weakest, s = st.strongest;
   const gap = s.pct - w.pct;
   let line;
@@ -1086,28 +1270,53 @@ function verdictHTML(st) {
   </div>`;
 }
 
+/* The chip on each row saying where its rep count came from, which is the
+   difference between an estimate and a guess and is worth one word. */
+function repChip(l) {
+  if (l.repsLogged) {
+    const sets = l.repSets.filter(n => n > 0);
+    return `<span class="rk-lift-src counted" title="Counted ${sets.join(', ')} at ${l.w} lbs on ${l.repsDate}. The best set (${l.reps}) is what the estimate is read off — the later ones are lower because of fatigue, not because you got weaker mid-session.">${l.reps} reps</span>`;
+  }
+  if (l.repsStale)
+    return `<span class="rk-lift-src stale" title="Your counted reps were logged at ${l.repsStaleW} lbs and this lift is at ${l.w} now, so they no longer apply. Assuming ${l.reps} until you count a set at the new weight.">reps stale</span>`;
+  return `<span class="rk-lift-src assumed" title="No reps counted for this lift, so the estimate assumes ${l.reps}. Open it from the Program tab and log what you actually hit — it is the single biggest thing separating this number from a guess.">assumes ${l.reps}</span>`;
+}
+
 function liftsHTML(st) {
   if (!st.bodyweight) return '';
   const rows = st.lifts.map(l => `
-    <div class="rk-lift">
+    <div class="rk-lift${st.counted.includes(l) ? '' : ' off-sheet'}">
       <div class="rk-lift-top">
         <div class="rk-lift-n">${l.name}${l.srcLabel
             ? `<span class="rk-lift-src ${l.src}" title="${l.note || ''}">${l.srcLabel}</span>`
-            : (l.note ? `<span class="rk-lift-src info" title="${l.note}">i</span>` : '')}${l.pending
-            ? `<span class="rk-lift-src pend" title="No completed session at ${l.w} lbs yet${l.provenW ? ` — last trained at ${l.provenW} lbs` : ''}. This row is an estimate until there is one.">Untested</span>` : ''}</div>
+            : (l.note ? `<span class="rk-lift-src info" title="${l.note}">i</span>` : '')}${repChip(l)}${l.pending
+            ? `<span class="rk-lift-src pend" title="No completed session at ${l.w} lbs yet${l.provenW ? ` — last trained at ${l.provenW} lbs` : ''}. This row is an estimate until there is one.">Untested</span>` : ''}${st.counted.includes(l)
+            ? '' : `<span class="rk-lift-src off" title="Not on your current sheet — the alternate movement is the one showing, so this weight is kept and scored but left out of the average.">off sheet</span>`}</div>
         <div class="rk-lift-r" style="color:var(${l.rank.c})">${l.rank.l}</div>
       </div>
       ${bandTrack(l.pct, false)}
       <div class="rk-lift-foot">
-        <span><b>${l.w}</b> lbs · <b>${Math.round(l.oneRM)}</b> ${l.oneRMLabel} · ${l.ratio.toFixed(2)}× ${st.usingLean ? 'ref' : 'bw'}</span>
-        <span class="rk-lift-need">${l.need !== null && l.rank.next
-            ? `+${l.need < 1 ? l.need.toFixed(1) : Math.round(l.need)} lbs → ${l.rank.next.l}`
-            : 'maxed'}</span>
+        <span><b>${l.w}</b> lbs · <b>${l.approx ? '~' : ''}${Math.round(l.oneRM)}</b> ${l.oneRMLabel}${l.approx
+            ? ` <span class="rk-lift-src approx" title="Read off a ${l.reps}-rep set. Every 1RM formula loses accuracy as the rep count climbs, and past about 12 it is extrapolating a long way off one linear term — so this is the right order of magnitude rather than a figure to hold to the pound. The ratio and the letter carry the same looseness.">approx</span>`
+            : ''} · ${l.ratio.toFixed(2)}× ${st.usingLean ? 'ref' : 'bw'}</span>
+        <span class="rk-lift-need">${l.beyond
+            ? 'past the top of the table'
+            : l.need !== null && l.rank.next
+              ? `+${l.need < 1 ? l.need.toFixed(1) : Math.round(l.need)} lbs → ${l.rank.next.l}`
+              : 'maxed'}</span>
       </div>
+      ${l.drop && l.drop.kind !== 'normal' ? `<div class="rk-lift-drop">${l.drop.t}</div>` : ''}
     </div>`).join('');
 
   const repBtns = REP_OPTS.map(r =>
     `<button class="rk-rep ${r === st.reps ? 'sel' : ''}" data-act="rk-reps" data-r="${r}">${r}</button>`).join('');
+
+  /* The dial is now a fallback, and saying so is the point: it stops being
+     the thing you tune to move your rank and becomes the thing you stop
+     needing. */
+  const repNote = `<div class="rk-basis-note" title="At 50 lbs, assuming five reps gives a 58 lb 1RM and assuming fifteen gives 75 — same entry, same arithmetic, different guess. Counting the set is what turns it into a measurement. Open a lift from the Program tab to log its sets; the best one scores.">${st.loggedReps
+    ? `<b>${st.loggedReps} of ${st.counted.length}</b> lifts use counted reps. The dial fills in for the rest.`
+    : `No reps counted yet — every estimate here is running on this dial. Log sets from the <b>Program</b> tab.`}</div>`;
 
   const basisBtns = BASES.map(b =>
     `<button class="rk-opt ${b.k === st.basis ? 'sel' : ''}" data-act="rk-basis" data-b="${b.k}" title="${b.d}">${b.n}</button>`).join('');
@@ -1118,10 +1327,10 @@ function liftsHTML(st) {
      both directions: bodyweight has the precise input and the wrong
      concept, lean mass has the right concept and a noisier input. */
   const basisNote = st.wantLean && !st.usingLean
-    ? `<div class="rk-basis-note">Lean scoring needs a body fat estimate — log a waist and neck on the <b>Body</b> tab. Scoring against bodyweight until then.</div>`
+    ? `<div class="rk-basis-note">Lean scoring needs a body fat estimate — log a waist and neck on the <b>Body</b> tab. Using bodyweight until then.</div>`
     : st.usingLean
-      ? `<div class="rk-basis-note">Dividing by <b>${Math.round(st.ref)} lb</b>: your ${Math.round(st.lean)} lb of lean mass carried at ${Math.round(REF_BF * 100)}% body fat. At that body fat the two modes agree, so the gap between them is your composition rather than your strength. Read this one while your weight is deliberately moving — it is the honest progress signal, and the price is that it inherits the tape's few points of error, which the scale does not have.</div>`
-      : `<div class="rk-basis-note">Bodyweight is how the standards are published, so this is the letter that compares to anyone else's — and the scale is a precise input. Its blind spot is that losing fat lifts every ratio whether or not you got stronger. Mid-cut or mid-bulk, <b>Lean mass</b> is the better read.</div>`;
+      ? `<div class="rk-basis-note" title="Set at ${Math.round(REF_BF * 100)}% body fat, where the two modes agree — so any gap between them is composition rather than strength. This is the better read mid-cut or mid-bulk. An app-specific adjustment, not a validated comparison against lifters of equal lean mass, and it inherits the tape's few points of error.">Dividing by <b>${Math.round(st.ref)} lb</b> — your ${Math.round(st.lean)} lb lean mass at ${Math.round(REF_BF * 100)}% body fat. A composition-adjusted score, not a population comparison.</div>`
+      : `<div class="rk-basis-note" title="The scale is a precise input, and this is the basis the standards are published on. Its blind spot: losing fat lifts every ratio whether or not you got stronger.">How the standards are published. Mid-cut or mid-bulk, <b>Lean mass</b> is the better read.</div>`;
 
   const unscored = st.unscored.length ? `<div class="rk-unscored">
       <div class="rk-unscored-t">Not scored — no published standard to score these against</div>
@@ -1131,12 +1340,13 @@ function liftsHTML(st) {
   return `<div class="pg-card">
     <div class="pg-card-head">
       <div class="pg-card-title">Every Lift</div>
-      <div class="pg-card-note">${st.scored} scored</div>
+      <div class="pg-card-note">${st.counted.length} in the score${st.offSheet ? ` · ${st.offSheet} off sheet` : ''}</div>
     </div>
     <div class="rk-reps">
-      <span class="rk-reps-l">Reps to failure per set</span>
+      <span class="rk-reps-l">Assume this many reps<span class="rk-reps-sub">when a lift has none counted</span></span>
       <div class="rk-reps-seg">${repBtns}</div>
     </div>
+    ${repNote}
     <div class="rk-reps">
       <span class="rk-reps-l">Score against</span>
       <div class="rk-reps-seg">${basisBtns}</div>

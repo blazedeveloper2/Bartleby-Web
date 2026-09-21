@@ -9,19 +9,23 @@
 import { PROGRAM, MMAP } from './data.js?v=cascadia-sep26';
 import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=cascadia-sep26';
 import { toast } from '../../assets/js/ui.js?v=cascadia-sep26';
-import { pctColor, ord } from './standards.js?v=cascadia-sep26';
+import { pctColor, ord, LIFTS } from './standards.js?v=cascadia-sep26';
 import {
-  setsOf, syncDay, logWeight, delSession, setReps, setBasis, snapshot,
+  setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, setReps, setBasis, snapshot,
   isLoggedToday, celebrationHTML, renderRank, liftScores, standingOf, resEx,
   resetPanel, resetToggle, resetToggleAll, resetSelection, applyReset, resetDismiss,
-  rebaseline, hasHistory,
+  rebaseline, hasHistory, setExReps, exReps, dropOff,
 } from './rank.js?v=cascadia-sep26';
+
+/* Which movements have a published standard, so the rep boxes only appear
+   where there is an estimate for them to sharpen. */
+const LIFT_NAMES = new Set(Object.keys(LIFTS));
 import { MUSCLE_SVG } from './bodymap.js?v=cascadia-sep26';
 import { standingsFor } from './anthro.js?v=cascadia-sep26';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
-  UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor,
+  UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor, whtrBand,
   snapshot as bodySnap, advise, project,
 } from './body.js?v=cascadia-sep26';
 
@@ -250,6 +254,78 @@ function mmRankHTML(st) {
   </div>${pend}`;
 }
 
+/* ── reps per set ──
+
+   One box per set the program prescribes, which for most of this program
+   is two. The best of them is what the 1RM is read off; see the RECORDED
+   REPS block in rank.js for why that is the only defensible choice and
+   why the others are still worth having on screen.
+
+   Only offered on lifts that are actually scored and actually have a
+   weight — on anything else there is no estimate for a rep count to
+   improve, and an input that changes nothing is worse than no input. */
+function mmRepsHTML() {
+  if (!mmEx || !LIFT_NAMES.has(mmEx.n)) return '';
+  const wv = wts()[mmEx.n];
+  if (!(wv > 0)) return '';
+
+  const n = setCountOf(mmEx), rec = exReps(mmEx.n);
+  const fresh = rec && rec.w === wv;
+  const vals = fresh ? rec.s : [];
+  const per = isUnilateral(mmEx) ? ' per side' : '';
+
+  const boxes = Array.from({ length: n }, (_, i) =>
+    `<label class="mm-set"><span>Set ${i + 1}</span>
+      <input class="mm-set-in" data-set="${i}" type="number" min="1" max="100" step="1"
+             inputmode="numeric" placeholder="—" value="${vals[i] > 0 ? vals[i] : ''}">
+    </label>`).join('');
+
+  /* Read off the RECORD, not off the boxes — the boxes are deliberately
+     empty once a recording goes stale, which made the stale branch below
+     unreachable. */
+  const counted = rec && Array.isArray(rec.s) ? rec.s.filter(v => v > 0) : [];
+  const d = fresh && counted.length ? dropOff(rec.s) : null;
+  let note;
+  if (!counted.length)
+    note = `Best set scores${per}. A lower second set is fatigue, not a worse result — log it as it happened.`;
+  else if (!fresh)
+    note = `Counted at <b>${rec.w} lbs</b>, now <b>${wv}</b> — stale, so the estimate is assuming again. Count one at the new weight.`;
+  else
+    note = `Scoring off <b>${Math.max(...counted)}</b>, your best set${per}, counted ${fmtWhen(rec.d)}.${d && d.kind !== 'normal' ? ` ${d.t}` : ''}`;
+
+  return `<div class="mm-reps-row${fresh && counted.length ? ' on' : ''}">
+    <div class="mm-reps-lbl">Reps per set<span>${n} prescribed${per} · saved when you leave a box</span></div>
+    <div class="mm-sets">${boxes}</div>
+    <div class="mm-reps-note">${note}</div>
+  </div>`;
+}
+
+/* Calendar days between two dates, not elapsed milliseconds. Measuring
+   from `now` to midnight makes anything logged after lunch today round up
+   to "yesterday", which is a small lie the moment you notice it. */
+const fmtWhen = ds => {
+  if (!ds) return 'earlier';
+  const mid = d => new Date(d + 'T00:00:00').getTime();
+  const days = Math.round((mid(todayStr()) - mid(ds)) / 86400000);
+  return days <= 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`;
+};
+
+/* Reads every box at once rather than the one that changed, so a set left
+   blank clears correctly and the stored array always matches what is on
+   screen. */
+function setMMReps() {
+  if (!mmEx) return;
+  const wv = wts()[mmEx.n];
+  if (!(wv > 0)) return;
+  const sets = [...root.querySelectorAll('.mm-set-in')]
+    .sort((a, b) => +a.dataset.set - +b.dataset.set)
+    .map(el => (el.value === '' ? null : parseInt(el.value, 10)));
+  setExReps(mmEx.n, sets, wv);
+  paintMMStanding();
+  renderProg();
+  renderRank(root);
+}
+
 /* Derived from the weight in bp_wt, so it repaints on open and again after
    any save that leaves the editor on screen. */
 function paintMMStanding() {
@@ -258,6 +334,12 @@ function paintMMStanding() {
   /* carry the row's tint through, so the modal reads as the same lift */
   q('#mm-name').style.color = st.state === 'scored' ? pctColor(st.lift.pct) : '';
   q('#mm-rank').innerHTML = mmRankHTML(st) + rebaseHTML();
+  /* Rebuilt rather than patched: the box count follows the prescription
+     and the whole block disappears when the weight is cleared. Skipped
+     while a box has focus, so saving one does not yank the next out from
+     under the finger already reaching for it. */
+  const reps = q('#mm-reps');
+  if (!reps.contains(document.activeElement)) reps.innerHTML = mmRepsHTML();
 }
 
 /* Offered on any lift with a history, because the moment you need it is the
@@ -633,7 +715,7 @@ function callHTML(s, a) {
       <div class="bd-t"><div class="bd-t-v">${a.protein}<span>g protein</span></div>
         <div class="bd-t-l">${a.v === 'CUT' ? '1.2' : '1.0'} g per lb of lean mass</div></div>
     </div>
-    <div class="bd-est">Maintenance is Katch-McArdle off your lean mass at <b>${actOf(s.act).n.toLowerCase()}</b> activity — a starting point, not a measurement. If the scale doesn't do what the target says it should after a fortnight, trust the scale and move the number.</div>
+    <div class="bd-est" title="Katch-McArdle off your lean mass. It is an estimate of maintenance, not a measurement of it — if the scale disagrees after a fortnight, the scale is right.">Maintenance estimated from lean mass at <b>${actOf(s.act).n.toLowerCase()}</b> activity — a starting point. Trust the scale over it.</div>
 
     <div class="bd-goal">
       <div class="bd-goal-head"><span class="bd-goal-t">Goal weight</span>
@@ -677,7 +759,7 @@ function dueHTML(t, snap) {
       : '';
   if (t.due) {
     const over = t.overdueBy;
-    return `<div class="bd-caveat stale">Tape measurement due${over ? ` — <b>${over} day${over === 1 ? '' : 's'}</b> overdue` : ''}. Everything above still reads off the tape from <b>${snap.bfDate ? bwFmt(snap.bfDate) : 'before'}</b>, so it is that old too. Measuring every ${wk(t.every)} is enough at your current rate — more often and you mostly record the tape's own error.</div>`;
+    return `<div class="bd-caveat stale" title="Every ${wk(t.every)} is the right cadence at your current rate — measure more often and you mostly record the tape's own error.">Tape due${over ? ` — <b>${over} day${over === 1 ? '' : 's'}</b> overdue` : ''}. Everything above still reads off <b>${snap.bfDate ? bwFmt(snap.bfDate) : 'before'}</b>.</div>`;
   }
   return `<div class="bd-due">Last taped <b>${snap.bfDate ? bwFmt(snap.bfDate) : '—'}</b> · next due in <b>${t.dueIn} day${t.dueIn === 1 ? '' : 's'}</b>. Every ${wk(t.every)} is the right cadence ${t.every === 14 ? 'on a cut — composition moves fast enough that a fortnight clears the tape’s own error' : 'at this rate of change — measure more often and you mostly record the tape’s own error'}.</div>`;
 }
@@ -767,29 +849,46 @@ function renderBW() {
     : 'Needs a week of data';
   const bmiWord = s.bmi === null ? '·'
     : s.bmi < 18.5 ? 'Under' : s.bmi < 25 ? 'Normal' : s.bmi < 30 ? '"Overweight"' : '"Obese"';
+  const whtrB = whtrBand(s.whtr);
 
   h += `<div class="bw-stats">
     ${tile('Weight', fx(s.w,1), 'lbs', s.wDate ? bwRelLabel(s.wDate) : 'Not logged', 'flat')}
     ${tile('Body fat', fx(s.bf,1), '%', s.band ? s.band.n : 'Needs tape', 'flat')}
-    ${tile('Lean mass', fx(s.lean,1), 'lbs', s.lean !== null ? 'Fat-free' : '·', 'flat')}
-    ${tile('Fat mass', fx(s.fat,1), 'lbs', s.fat !== null ? 'Carried' : '·', 'flat')}
+    ${tile('Lean mass', fx(s.lean,1), 'lbs', s.lean !== null ? 'Est. fat-free' : '·', 'flat')}
+    ${tile('Fat mass', fx(s.fat,1), 'lbs', s.fat !== null ? 'Estimated' : '·', 'flat')}
   </div>`;
 
   h += `<div class="bw-stats second">
     ${tile('Trend', rate ? `${rate.lbsWk > 0 ? '+' : ''}${rate.lbsWk.toFixed(2)}` : '—', 'lb/wk', rateSub,
            rate ? (rate.lbsWk > 0.05 ? 'up' : rate.lbsWk < -0.05 ? 'dn' : 'flat') : 'flat')}
-    ${tile('FFMI', s.ffmi ? fx(s.ffmi.norm,1) : '—', '', s.ffmi ? 'Natural cap ~25' : 'Needs tape', 'flat')}
+    ${tile('FFMI', s.ffmi ? fx(s.ffmi.norm,1) : '—', '', s.ffmi ? 'Benchmark ~25' : 'Needs tape', 'flat')}
     ${tile('BMI', fx(s.bmi,1), '', bmiWord, 'flat')}
-    ${tile('Waist : height', s.whtr ? s.whtr.toFixed(2) : '—', '', s.whtr ? (s.whtr < 0.5 ? 'Under 0.50 ✓' : 'Aim under 0.50') : 'Needs tape',
-           s.whtr ? (s.whtr < 0.5 ? 'up' : 'dn') : 'flat')}
+    ${tile('Waist : height', s.whtr ? s.whtr.toFixed(2) : '—', '', whtrB ? whtrB.n : 'Needs tape',
+           whtrB ? (whtrB.tone === 'good' ? 'up' : whtrB.tone === 'mid' ? 'flat' : 'dn') : 'flat')}
   </div>`;
+
+  /* What produced the four numbers above, once, under them — rather than a
+     caveat on each tile, which would be four times the words and read as
+     hedging instead of as provenance.
+
+     Three things have to be said and none of them fit in a tile subtitle:
+     the equation is male-only, "lean mass" is fat-free mass and not muscle,
+     and the weight and the tape may be from different days. The last is
+     the one that quietly corrupts a comparison — today's scale weight
+     minus a fat percentage from three weeks ago is not a measurement of
+     anything that existed on either date — so both dates are printed
+     whenever they differ. */
+  if (s.bf !== null && s.lean !== null) {
+    const split = s.bfDate && s.wDate && s.bfDate !== s.wDate;
+    h += `<div class="bd-caveat"><span title="The Navy circumference equation is fitted to men and has no female form — that needs a hip measurement and its own constants. Its standard error against a reference scan is roughly 3–4 points, and everything derived from it inherits that.">Navy tape estimate, male formula, ±3–4 points</span> · <span title="Bodyweight minus estimated fat — water, bone, organs and glycogen as well as muscle. A change in it is not a measurement of muscle.">lean mass is fat-free mass, not muscle</span>${split ? ` · <span title="Combining measurements from different days describes neither of them exactly.">tape ${bwFmt(s.bfDate)}, weight ${bwFmt(s.wDate)}</span>` : ''}</div>`;
+  }
 
   /* BMI is in that row because it is free and people ask for it, not because
      it is worth much here — it cannot tell muscle from fat, which is the one
      distinction this whole tab exists to make. Hence the quotation marks
      above and the line below. */
   if (s.bmi !== null && s.lean !== null && s.bmi >= 25 && s.bf < 20)
-    h += `<div class="bd-caveat">BMI reads ${fx(s.bmi,1)} — "overweight" — at ${fx(s.bf,1)}% body fat. It is a height-and-weight ratio and cannot tell muscle from fat, which is exactly what the lean and fat mass figures above it are for. Ignore it.</div>`;
+    h += `<div class="bd-caveat">BMI reads ${fx(s.bmi,1)} — "overweight" — at an estimated ${fx(s.bf,1)}% body fat. <span title="NICE NG246 advises caution interpreting BMI in adults with high muscle mass. That makes the category unreliable here, not the number meaningless — and the body fat it is being weighed against is itself a tape estimate with a few points of error.">BMI cannot tell muscle from fat, so read it next to the figures above rather than on its own.</span></div>`;
 
   if (s.bf !== null) h += bfScaleHTML(s.bf, s.healthy);
   h += callHTML(s, a);
@@ -1122,6 +1221,7 @@ function onClick(e) {
 }
 function onChange(e) {
   if (e.target.id === 'mm-wt') setMMWeight(e.target);
+  else if (e.target.classList?.contains('mm-set-in')) setMMReps();
   /* Height and activity save on change rather than behind a button: they are
      set once and then never touched, and a Save you have to remember is a
      worse trade than a re-render you didn't ask for. */
@@ -1163,7 +1263,7 @@ function onKeydown(e) {
   if (e.key !== 'Enter') return;
   if (e.target.id === 'bw-weight' || TAPE_KEYS.some(k => e.target.id === 'bw-' + k)) bwSave();
   else if (e.target.id === 'bd-goal') bdGoalSave();
-  else if (e.target.id === 'mm-wt') e.target.blur();
+  else if (e.target.id === 'mm-wt' || e.target.classList?.contains('mm-set-in')) e.target.blur();
 }
 
 /* ═══════════════════ STATIC MARKUP ═══════════════════ */
@@ -1189,6 +1289,7 @@ function template() {
           <label class="mm-wt-lbl" for="mm-wt">Working weight<span>Saved when you leave the field</span></label>
           <div class="mm-wt-box"><input class="mm-wt-in" id="mm-wt" type="number" step="2.5" min="0" inputmode="decimal" placeholder="—"><span class="mm-wt-u">lbs</span></div>
         </div>
+        <div id="mm-reps"></div>
         <div id="mm-rank"></div>
         <section class="mm-anatomy">
         <div class="mm-map-toolbar"><span>Muscle map</span><div class="mm-views" aria-label="Body view">
