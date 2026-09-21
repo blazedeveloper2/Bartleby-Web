@@ -11,6 +11,20 @@
 .wk .tab:hover{color:var(--text-2)}
 .wk .tab.active{color:var(--text);border-bottom-color:var(--blue)}
 
+/* Tape measurement due. Tinted rather than shouted: it is a reminder to do
+   a two-minute thing, not a warning that something is wrong, so it reads at
+   a glance from the other tabs and stops there. The underline only shows on
+   the inactive tab — once you are on Body the card itself is saying it, and
+   two reds competing with the active-tab accent is one too many. */
+.wk .tab.due{color:var(--red);background:var(--red-d)}
+.wk .tab.due:not(.active){box-shadow:inset 0 -2px 0 var(--red)}
+.wk .tab.due:hover{color:var(--red)}
+
+.bd-due{font-size:11.5px;line-height:1.6;color:var(--text-3);background:var(--bg-card);
+  border-left:2px solid var(--border-lt);border-radius:0 var(--rs) var(--rs) 0;
+  padding:10px 13px;margin-bottom:14px}
+.bd-due b{color:var(--text-2);font-weight:700;font-family:var(--mono)}
+
 .wk .panel{display:none}
 .wk .panel.active{display:block;animation:panel-in .26s cubic-bezier(.22,.68,0,1.1) both}
 @keyframes panel-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}

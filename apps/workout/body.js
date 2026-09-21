@@ -26,7 +26,7 @@
    one means adding both, not flipping a sign here.
    ═══════════════════════════════════════════════════════════ */
 
-import { load, save, dateStr } from '../../assets/js/storage.js?v=stand-sep26';
+import { load, save, dateStr } from '../../assets/js/storage.js?v=due-sep26';
 
 const LB_PER_KG = 2.20462262;
 const M_PER_IN  = 0.0254;
@@ -470,7 +470,8 @@ const round5  = n => Math.round(n / 5) * 5;
 const round10 = n => Math.round(n / 10) * 10;
 
 export function advise(s) {
-  if (s.bf === null || s.lean === null || !s.energy) return { state: 'nodata' };
+  if (s.bf === null || s.lean === null || !s.energy)
+    return { state: 'nodata', tape: tapeStatus(s, 'NONE') };
 
   const off = ageOffset(s.age);
   const row = CALLS.find(c => s.bf < c.max + (isFinite(c.max) ? off : 0)) || CALLS[CALLS.length - 1];
@@ -490,7 +491,8 @@ export function advise(s) {
   /* goalFor reads s.age and derives the same offset itself rather than being
      handed this one — it is exported and gets called on its own too. */
   return { state:'ok', ...call, kcal, delta: Math.round(delta), protein,
-           pace: paceOf(call.v, s.rate), goal: goalFor(s, call.v) };
+           pace: paceOf(call.v, s.rate), goal: goalFor(s, call.v),
+           tape: tapeStatus(s, call.v) };
 }
 
 /* The call says which direction; this says whether the direction you are
@@ -521,6 +523,51 @@ function paceOf(verdict, rate) {
   }
   if (Math.abs(r) > 0.3) return { tone:'warn', t:`Weight is moving ${r > 0 ? 'up' : 'down'} ${mag}%/wk. A recomp wants it flat — steer back toward maintenance.` };
   return { tone:'good', t:`Weight is holding at ${r.toFixed(2)}%/wk, which is what a recomp should look like.` };
+}
+
+/* ═══════════════════ WHEN TO MEASURE AGAIN ═══════════════════ */
+
+/* How often the tape is worth getting out depends on how fast your
+   composition is actually moving, because the tape has its own error to
+   clear first: the circumference equations carry a standard error of 3–4
+   points of body fat and reproduce to within about 1 point even in trained
+   hands. Measure faster than the body changes and all you record is noise.
+
+   A cut moves fast. At the 0.75%/wk this file targets, a 180 lb man drops
+   roughly 3 points of body fat a month, so a fortnight shows about 1.5 —
+   clear of the reproducibility floor, and the usual recommendation for an
+   active fat-loss phase.
+
+   A lean bulk does not. At 0.25%/wk with half the gain as fat, body fat
+   climbs something like a third of a point a month, which is under the
+   noise floor however often you measure. Four weeks is the floor there,
+   and the answer to "why can't I see it moving" is that it barely is.
+
+   Same for a recomp, where the scale is meant to hold still and the change
+   is slow by definition. */
+export const TAPE_EVERY = { CUT: 14, BULK: 28, RECOMP: 28, NONE: 28 };
+
+/* Whether the tape is due, and when it next is.
+
+   `never` is its own case: somebody who has been logging weight for a
+   fortnight and has never taped is not overdue, they have not started —
+   worth the same nudge, but not the same sentence. A brand new user with
+   nothing logged gets no nudge at all, because the empty state on the tab
+   is already asking. */
+export function tapeStatus(s, verdict) {
+  const every = TAPE_EVERY[verdict] || TAPE_EVERY.NONE;
+  const list = load('bp_bw', []);
+  const W = weighed(list);
+  const span = W.length >= 2
+    ? Math.round((new Date(W[W.length - 1].d + 'T00:00:00') - new Date(W[0].d + 'T00:00:00')) / 86400000)
+    : 0;
+
+  if (s.tapeAge === null) {
+    return { every, never: true, due: span >= 14, age: null, dueIn: null, overdueBy: null };
+  }
+  const dueIn = every - s.tapeAge;
+  return { every, never: false, due: dueIn <= 0, age: s.tapeAge,
+           dueIn: Math.max(0, dueIn), overdueBy: Math.max(0, -dueIn) };
 }
 
 /* ═══════════════════ GOAL WEIGHT ═══════════════════ */

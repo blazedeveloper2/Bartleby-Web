@@ -51,8 +51,19 @@ Live apps:
   readings. Every figure is an estimate and the tab says so where it
   matters: the tape method lands within about ±3 points of a DEXA scan,
   which is why the change in the number is worth more than the number, and
-  an estimate more than three weeks old says so out loud rather than
-  quietly presenting itself as today's.
+  an estimate past its due date says so out loud rather than quietly
+  presenting itself as today's — **and the Body tab turns red when the tape
+  is due**, so the reminder reaches you from whichever tab you are on.
+
+  How often is worth measuring depends on how fast you are actually
+  changing, because the tape has its own error to clear first: the
+  circumference equations carry a standard error of 3–4 points of body fat
+  and reproduce to within about 1 point. On a cut at the rate this app
+  targets you shed roughly 3 points of body fat a month, so a **fortnight**
+  shows about 1.5 — clear of the noise. On a lean bulk body fat climbs
+  something like a third of a point a month, under the noise floor however
+  often you measure, so the interval there is **four weeks**. The app picks
+  whichever matches the call it is currently making and tells you the date.
 
   **Age** is optional and changes nothing the app calculates — the Navy
   formula has no age term, and Katch-McArdle runs off measured lean mass,

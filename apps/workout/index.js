@@ -6,23 +6,23 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, MMAP } from './data.js?v=stand-sep26';
-import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=stand-sep26';
-import { toast } from '../../assets/js/ui.js?v=stand-sep26';
-import { pctColor, ord } from './standards.js?v=stand-sep26';
+import { PROGRAM, MMAP } from './data.js?v=due-sep26';
+import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=due-sep26';
+import { toast } from '../../assets/js/ui.js?v=due-sep26';
+import { pctColor, ord } from './standards.js?v=due-sep26';
 import {
   setsOf, syncDay, logWeight, delSession, setReps, setBasis, snapshot,
   isLoggedToday, celebrationHTML, renderRank, liftScores, standingOf, resEx,
   resetPanel, resetToggle, resetToggleAll, resetSelection, applyReset, resetDismiss,
-} from './rank.js?v=stand-sep26';
-import { MUSCLE_SVG } from './bodymap.js?v=stand-sep26';
-import { standingsFor } from './anthro.js?v=stand-sep26';
+} from './rank.js?v=due-sep26';
+import { MUSCLE_SVG } from './bodymap.js?v=due-sep26';
+import { standingsFor } from './anthro.js?v=due-sep26';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=stand-sep26';
+} from './body.js?v=due-sep26';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -427,11 +427,7 @@ const metricOf = (k, u = 'in') => {
   return m.len ? { ...m, unit: unitOf(u).n } : m;
 };
 
-/* Three weeks. Short enough that the estimate can't drift a whole bulk out
-   of date before anyone says anything, long enough that measuring every
-   fortnight — which is often enough for a figure that moves this slowly —
-   never trips it. */
-const TAPE_STALE = 21;
+
 
 /* The chart's series for the current metric and range: {d, v}, oldest first,
    with every entry that has no value for this metric dropped rather than
@@ -630,6 +626,36 @@ function callHTML(s, a) {
   </div>`;
 }
 
+/* ── the reminder ──
+   Painted from renderBW, which runs on mount and on every data change
+   whichever tab is showing — so the tint is right before you look at it,
+   which is the entire point of putting it on the tab rather than inside
+   the card nobody has opened. */
+function paintBodyTab(t) {
+  const tab = q('.wk .tab[data-tab="bw"]');
+  if (!tab) return;
+  tab.classList.toggle('due', !!(t && t.due));
+  tab.title = !t ? ''
+    : t.never ? 'No tape measurement yet — waist and neck give you a body fat estimate'
+    : t.due   ? `Tape measurement due${t.overdueBy ? ` — ${t.overdueBy} day${t.overdueBy === 1 ? '' : 's'} overdue` : ''}`
+    : `Next tape measurement in ${t.dueIn} day${t.dueIn === 1 ? '' : 's'}`;
+}
+
+/* The line on the card that says the same thing in words. */
+function dueHTML(t, snap) {
+  if (!t) return '';
+  const wk = n => `${Math.round(n / 7)} week${Math.round(n / 7) === 1 ? '' : 's'}`;
+  if (t.never)
+    return t.due
+      ? `<div class="bd-caveat stale">You have been logging weight for a fortnight without a tape measurement. Waist and neck are what turn the scale into a body fat estimate — two minutes, once every ${wk(t.every)}.</div>`
+      : '';
+  if (t.due) {
+    const over = t.overdueBy;
+    return `<div class="bd-caveat stale">Tape measurement due${over ? ` — <b>${over} day${over === 1 ? '' : 's'}</b> overdue` : ''}. Everything above still reads off the tape from <b>${snap.bfDate ? bwFmt(snap.bfDate) : 'before'}</b>, so it is that old too. Measuring every ${wk(t.every)} is enough at your current rate — more often and you mostly record the tape's own error.</div>`;
+  }
+  return `<div class="bd-due">Last taped <b>${snap.bfDate ? bwFmt(snap.bfDate) : '—'}</b> · next due in <b>${t.dueIn} day${t.dueIn === 1 ? '' : 's'}</b>. Every ${wk(t.every)} is the right cadence ${t.every === 14 ? 'on a cut — composition moves fast enough that a fortnight clears the tape’s own error' : 'at this rate of change — measure more often and you mostly record the tape’s own error'}.</div>`;
+}
+
 /* ── measurements vs a population ── */
 /* The same job standards.js does for lifts, and it earns the same
    scepticism: each row wears where its comparison came from, because a
@@ -743,16 +769,16 @@ function renderBW() {
   h += callHTML(s, a);
   h += standingsHTML(s);
 
-  /* Two different complaints about the same measurement, and only ever one
-     of them at a time. Stale is the louder one — a body fat figure six weeks
-     old is being read as today's — so it wins, and the date-mismatch note is
-     redundant underneath it anyway. */
-  if (s.tapeAge !== null && s.tapeAge >= TAPE_STALE) {
-    const wks = Math.round(s.tapeAge / 7);
-    h += `<div class="bd-caveat stale">Your last tape was <b>${bwFmt(s.bfDate)}</b>, ${wks} week${wks===1?'':'s'} ago. Everything above still reads off it — body fat, lean mass, the calorie target and the call — so all of it is ${wks} week${wks===1?'':'s'} out of date. Take two minutes and measure again.</div>`;
-  } else if (s.bfDate && s.wDate && s.bfDate !== s.wDate) {
-    h += `<div class="bd-caveat">Body fat is from the tape on <b>${bwFmt(s.bfDate)}</b>, paired with your weight from <b>${bwFmt(s.wDate)}</b>. Measure again to bring them back together.</div>`;
-  }
+  /* One line about the tape, not three. There used to be a separate note
+     for "body fat is from the 5th, weight is from today", which fired on
+     almost every render — you weigh yourself far more often than you tape
+     yourself, so the two dates differing is the normal state of affairs
+     rather than a problem. What actually matters is whether the tape is old
+     enough to stop trusting, which is the question this answers, and it
+     names the date either way. */
+  const tape = a.tape;
+  h += dueHTML(tape, s);
+  paintBodyTab(tape);
 
   /* ── chart ── */
   const mu = unitFor(s.units, bwMetric);     // weight and body fat ignore it
@@ -1161,7 +1187,7 @@ export default {
   id: 'workout',
   name: 'Workout',
   storagePrefix: 'bp_',
-  styles: 'apps/workout/workout.css?v=stand-sep26',
+  styles: 'apps/workout/workout.css?v=due-sep26',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
