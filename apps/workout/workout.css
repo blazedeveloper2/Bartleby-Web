@@ -502,6 +502,16 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 .rk-rep:hover{color:var(--text-2)}
 .rk-rep.sel{background:var(--blue-d);border-color:var(--sel-bd);color:var(--blue)}
 
+/* The rep buttons are 32px boxes because they hold "10". These hold words,
+   so they size to their content — same visual language, different shape,
+   rather than one class pretending to do both jobs and clipping one. */
+.rk-opt{padding:7px 13px;border-radius:5px;background:var(--bg-card);border:1px solid var(--border);
+  color:var(--text-3);font-family:var(--font);font-size:12px;font-weight:600;cursor:pointer;
+  transition:all .12s;white-space:nowrap;line-height:1.25}
+.rk-opt:hover{color:var(--text-2);border-color:var(--border-lt)}
+.rk-opt.sel{background:var(--blue-d);border-color:var(--sel-bd);color:var(--blue)}
+.rk-reps-seg{flex-wrap:wrap}
+
 .rk-lift-list{display:flex;flex-direction:column;gap:2px;margin:0 -14px -14px;border-top:1px solid var(--border)}
 .rk-lift{padding:12px 14px;border-bottom:1px solid var(--border)}
 .rk-lift:last-child{border-bottom:none}

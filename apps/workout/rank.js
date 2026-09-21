@@ -36,13 +36,13 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js?v=due-sep26';
-import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=due-sep26';
-import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=due-sep26';
+import { PROGRAM } from './data.js?v=seg-sep26';
+import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=seg-sep26';
+import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=seg-sep26';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, snapshot as bodySnap, scoringRef, REF_BF } from './body.js?v=due-sep26';
+import { weighed, snapshot as bodySnap, scoringRef, REF_BF } from './body.js?v=seg-sep26';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -1004,14 +1004,18 @@ function liftsHTML(st) {
     `<button class="rk-rep ${r === st.reps ? 'sel' : ''}" data-act="rk-reps" data-r="${r}">${r}</button>`).join('');
 
   const basisBtns = BASES.map(b =>
-    `<button class="rk-rep ${b.k === st.basis ? 'sel' : ''}" data-act="rk-basis" data-b="${b.k}" title="${b.d}">${b.n}</button>`).join('');
+    `<button class="rk-opt ${b.k === st.basis ? 'sel' : ''}" data-act="rk-basis" data-b="${b.k}" title="${b.d}">${b.n}</button>`).join('');
   /* The setting can be on while the data it needs is missing. Say so on the
      tab rather than quietly scoring the other way. */
+  /* Always says something, because "which of these should I pick" is the
+     obvious question and neither button answers it. The trade is real in
+     both directions: bodyweight has the precise input and the wrong
+     concept, lean mass has the right concept and a noisier input. */
   const basisNote = st.wantLean && !st.usingLean
     ? `<div class="rk-basis-note">Lean scoring needs a body fat estimate — log a waist and neck on the <b>Body</b> tab. Scoring against bodyweight until then.</div>`
     : st.usingLean
-      ? `<div class="rk-basis-note">Dividing by <b>${Math.round(st.ref)} lb</b>: your ${Math.round(st.lean)} lb of lean mass carried at ${Math.round(REF_BF * 100)}% body fat. At that body fat the two modes agree — the gap between them is your composition, not your strength.</div>`
-      : '';
+      ? `<div class="rk-basis-note">Dividing by <b>${Math.round(st.ref)} lb</b>: your ${Math.round(st.lean)} lb of lean mass carried at ${Math.round(REF_BF * 100)}% body fat. At that body fat the two modes agree, so the gap between them is your composition rather than your strength. Read this one while your weight is deliberately moving — it is the honest progress signal, and the price is that it inherits the tape's few points of error, which the scale does not have.</div>`
+      : `<div class="rk-basis-note">Bodyweight is how the standards are published, so this is the letter that compares to anyone else's — and the scale is a precise input. Its blind spot is that losing fat lifts every ratio whether or not you got stronger. Mid-cut or mid-bulk, <b>Lean mass</b> is the better read.</div>`;
 
   const unscored = st.unscored.length ? `<div class="rk-unscored">
       <div class="rk-unscored-t">Not scored — no published standard to score these against</div>

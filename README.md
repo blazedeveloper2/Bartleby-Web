@@ -116,6 +116,15 @@ Live apps:
   weight held constant, moves the bodyweight score 15 percentile points and
   the lean score not at all. It's opt-in and defaults off, because a grade
   that moves because the app changed its mind is worth nothing.
+
+  Which to use is a real trade and the tab says so on both settings.
+  Bodyweight has the precise input and the wrong concept: the scale is exact,
+  but losing fat lifts every ratio whether or not you got stronger. Lean mass
+  has the right concept and a noisier input: it inherits the tape's few
+  points of error, which costs about ±3 percentile points of wobble. That is
+  a good trade only while your weight is deliberately moving — ±3 against the
+  15 it would otherwise drift. With your weight stable there is nothing to
+  correct for, so bodyweight is the better read and the comparable one.
 - **Finance** — where the money goes, and how much of it is left.
   **Add / History / Insights** track spending: log by category (add/delete your
   own categories) with a calendar date picker and notes, a filterable history
