@@ -6,22 +6,22 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, MMAP } from './data.js?v=units-sep26';
-import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=units-sep26';
-import { toast } from '../../assets/js/ui.js?v=units-sep26';
-import { pctColor, ord } from './standards.js?v=units-sep26';
+import { PROGRAM, MMAP } from './data.js?v=perunit2-sep26';
+import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=perunit2-sep26';
+import { toast } from '../../assets/js/ui.js?v=perunit2-sep26';
+import { pctColor, ord } from './standards.js?v=perunit2-sep26';
 import {
   setsOf, syncDay, logWeight, delSession, setReps, setBasis, snapshot,
   isLoggedToday, celebrationHTML, renderRank, liftScores, standingOf, resEx,
   resetPanel, resetToggle, resetToggleAll, resetSelection, applyReset, resetDismiss,
-} from './rank.js?v=units-sep26';
-import { MUSCLE_SVG } from './bodymap.js?v=units-sep26';
+} from './rank.js?v=perunit2-sep26';
+import { MUSCLE_SVG } from './bodymap.js?v=perunit2-sep26';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny,
-  UNITS, unitOf, toU, fromU,
+  UNITS, unitOf, toU, fromU, unitFor, setUnitFor,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=units-sep26';
+} from './body.js?v=perunit2-sep26';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -448,6 +448,17 @@ const lenStr = (inches, u, dec = 1) =>
   (typeof inches !== 'number' || !isFinite(inches)) ? '—'
     : u === 'cm' ? `${toU(inches, u).toFixed(dec)} cm` : `${inches.toFixed(dec)}"`;
 
+/* The unit itself, as the control that changes it. Two options means a tap
+   flips rather than picks, so the button shows the unit in force and says
+   what it would switch to. It sits inside the field's own label because
+   that is where you are looking when you realise the tape is metric. */
+const unitBtn = (key, u) => {
+  const other = u === 'in' ? 'cm' : 'in';
+  return `<button class="bw-unit" data-act="bd-unit" data-k="${key}" data-u="${other}"`
+    + ` title="Showing ${unitOf(u).full.toLowerCase()} — tap for ${unitOf(other).full.toLowerCase()}"`
+    + ` aria-label="Unit: ${unitOf(u).full}. Switch to ${unitOf(other).full}.">${unitOf(u).n}</button>`;
+};
+
 const fx = (v, d = 1) => (v === null || v === undefined || !isFinite(v)) ? '—' : v.toFixed(d);
 /* '12.4%' but '182.0 lbs' — a percent sign is part of the number, a unit isn't. */
 const withUnit = (v, m) => `${fx(v, m.dec)}${m.unit === '%' ? '' : ' '}${m.unit}`;
@@ -560,7 +571,7 @@ function callHTML(s, a) {
        a neck bigger than a waist has no estimate in it, and "log a waist and
        neck" is unhelpful advice to someone who just did. */
     const need = s.tapeBad
-      ? `Your last tape reads a ${lenStr(s.waist, s.units)} waist and a ${lenStr(s.neck, s.units)} neck, and no estimate comes out of that — the waist has to be the larger of the two. Check whether the two numbers went into the wrong boxes.`
+      ? `Your last tape reads a ${lenStr(s.waist, unitFor(s.units, 'wa'))} waist and a ${lenStr(s.neck, unitFor(s.units, 'nk'))} neck, and no estimate comes out of that — the waist has to be the larger of the two. Check whether the two numbers went into the wrong boxes.`
       : s.h === null
         ? 'Set your height above, then log a waist and neck measurement below.'
         : 'Log a waist and neck measurement below and this fills in immediately.';
@@ -607,17 +618,18 @@ function callHTML(s, a) {
 
 /* ── profile ── */
 function profileHTML(s) {
-  const u = s.units;
+  const u = unitFor(s.units, 'h');
   const opts = ACTIVITY.map(a => `<option value="${a.k}" ${a.k===s.act?'selected':''}>${a.n} — ${a.d}</option>`).join('');
-  const uBtns = UNITS.map(x =>
-    `<button class="rk-rep ${x.k===u?'sel':''}" data-act="bd-units" data-u="${x.k}" title="${x.full}">${x.n}</button>`).join('');
 
   /* Feet and inches is two boxes; centimetres is one. Splitting a height
-     into ft+in is a quirk of the imperial system, not a thing heights do. */
+     into ft+in is a quirk of the imperial system, not a thing heights do.
+     The imperial pair keeps its ft/in suffixes because they say which box
+     is which; the single metric box doesn't need one, since the toggle in
+     the label above it already reads "cm". */
   const ft   = s.h ? Math.floor(s.h / 12) : '';
   const inch = s.h ? +(s.h - Math.floor(s.h / 12) * 12).toFixed(1) : '';
   const htField = u === 'cm'
-    ? `<div class="bd-ht one"><input class="bw-in" id="bd-cm" type="number" min="90" max="250" step="0.5" inputmode="decimal" placeholder="—" value="${s.h ? toU(s.h, 'cm').toFixed(1) : ''}"><span>cm</span></div>`
+    ? `<div class="bd-ht one"><input class="bw-in" id="bd-cm" type="number" min="90" max="250" step="0.5" inputmode="decimal" placeholder="—" value="${s.h ? toU(s.h, 'cm').toFixed(1) : ''}"></div>`
     : `<div class="bd-ht">
         <input class="bw-in" id="bd-ft" type="number" min="3" max="8" step="1" inputmode="numeric" placeholder="—" value="${ft}"><span>ft</span>
         <input class="bw-in" id="bd-in" type="number" min="0" max="11.5" step="0.5" inputmode="decimal" placeholder="—" value="${inch}"><span>in</span>
@@ -625,14 +637,10 @@ function profileHTML(s) {
 
   return `<div class="bd-prof ${s.h === null ? 'unset' : ''}">
     <div class="bd-prof-f">
-      <div class="bw-add-lbl">Height</div>
+      <div class="bw-add-lbl">Height ${unitBtn('h', u)}</div>
       ${htField}
     </div>
     <div class="bd-prof-f">
-      <div class="bw-add-lbl">Measure in</div>
-      <div class="rk-reps-seg bd-units">${uBtns}</div>
-    </div>
-    <div class="bd-prof-f wide">
       <div class="bw-add-lbl">Daily activity</div>
       <select class="bw-in" id="bd-act">${opts}</select>
     </div>
@@ -694,8 +702,9 @@ function renderBW() {
   }
 
   /* ── chart ── */
-  const m = metricOf(bwMetric, s.units);
-  const series = bwSeries(bwMetric, s.h, s.units);
+  const mu = unitFor(s.units, bwMetric);     // weight and body fat ignore it
+  const m = metricOf(bwMetric, mu);
+  const series = bwSeries(bwMetric, s.h, mu);
   const mBtns = BW_METRICS.map(x => `<button class="bw-r-btn ${x.k===bwMetric?'sel':''}" data-act="bw-metric" data-k="${x.k}">${x.lbl}</button>`).join('');
   const rngBtns = BW_RANGES.map(r => `<button class="bw-r-btn ${r.k===bwRange?'sel':''}" data-act="bw-range" data-k="${r.k}">${r.lbl}</button>`).join('');
   h += `<div class="bw-chart-card">
@@ -712,11 +721,11 @@ function renderBW() {
   const extras = TAPE.filter(t => !t.core);
   const hasExtras = ee ? extras.some(t => typeof ee[t.k] === 'number') : false;
   const showMore = bwMore || hasExtras;
-  const uAb = unitOf(s.units).n;
   const fld = t => {
+    const tu = unitFor(s.units, t.k);
     const stored = val(t.k);
-    const shown = stored === '' ? '' : +toU(stored, s.units).toFixed(1);
-    return `<div class="bw-add-fld"><div class="bw-add-lbl" title="${t.how}">${t.lbl} <em>${uAb}</em></div>`
+    const shown = stored === '' ? '' : +toU(stored, tu).toFixed(1);
+    return `<div class="bw-add-fld"><div class="bw-add-lbl" title="${t.how}">${t.lbl} ${unitBtn(t.k, tu)}</div>`
       + `<input class="bw-in" type="number" step="0.1" min="0" id="bw-${t.k}" placeholder="—" value="${shown}" inputmode="decimal" title="${t.how}"></div>`;
   };
 
@@ -753,7 +762,7 @@ function renderBW() {
       const bf = navyBF(e.wa, e.nk, s.h);
       const chips = TAPE
         .filter(t => typeof e[t.k] === 'number' && e[t.k] > 0)
-        .map(t => `<span class="bw-h-chip" title="${t.lbl}">${t.ab} ${lenStr(e[t.k], s.units)}</span>`)
+        .map(t => `<span class="bw-h-chip" title="${t.lbl}">${t.ab} ${lenStr(e[t.k], unitFor(s.units, t.k))}</span>`)
         .concat(bf !== null ? [`<span class="bw-h-chip bf">${bf.toFixed(1)}% bf</span>`] : [])
         .join('');
       h += `<div class="bw-h-row">
@@ -773,6 +782,12 @@ function renderBW() {
 }
 
 function bwSetRange(k) { bwRange = k; renderBW(); }
+function bwToggleMore() {
+  const draft = bwFormDraft();
+  bwMore = !bwMore;
+  renderBW();
+  bwRestoreDraft(draft);
+}
 function bwSetMetric(k) { bwMetric = k; renderBW(); }
 
 /* A blank field means "don't record this", an entered one means record it.
@@ -789,7 +804,7 @@ function fieldVal(id) {
 function bwSave() {
   const d = q('#bw-date').value;
   if (!d) { toast('Pick a date'); return; }
-  const u = prof().units;
+  const units = prof().units;
   const raw = { w: fieldVal('#bw-weight') };          // pounds, always
   /* Only fields actually on the form. A hidden one contributes nothing —
      not a value and not a blank — so collapsing the disclosure can never
@@ -801,7 +816,7 @@ function bwSave() {
   TAPE.forEach(t => {
     if (!q('#bw-' + t.k)) return;
     const v = fieldVal('#bw-' + t.k);
-    raw[t.k] = typeof v === 'number' ? fromU(v, u) : v;
+    raw[t.k] = typeof v === 'number' ? fromU(v, unitFor(units, t.k)) : v;
   });
   if (Object.values(raw).includes(undefined)) { toast('Those numbers need to be above zero'); return; }
   const editing = bwEditDate !== null;
@@ -839,7 +854,7 @@ function bwDelete(d) {
 /* ── profile + goal writes ── */
 function bdHeight() {
   let h;
-  if (prof().units === 'cm') {
+  if (unitFor(prof().units, 'h') === 'cm') {
     const cm = parseFloat(q('#bd-cm')?.value);
     h = isNaN(cm) ? null : fromU(cm, 'cm');
   } else {
@@ -850,12 +865,50 @@ function bdHeight() {
   renderBW();
 }
 
-/* Display only — nothing in storage moves, so the tab just repaints. */
-function bdUnits(u) {
-  if (u === prof().units) return;
-  profSet({ units: u });
+/* What is typed into the log form but not yet saved, normalised to inches.
+
+   The form is rebuilt from storage on every render, so anything still in
+   flight has to be carried across by hand. Two things re-render it without
+   the user meaning to leave: flipping a unit and opening the disclosure.
+   Neither should cost you the numbers you already typed — and a unit flip
+   in particular must not leave a value sitting there unchanged while its
+   meaning quietly changes underneath it, 33.5 inches becoming 33.5
+   centimetres.
+
+   Inches is the currency here for the same reason it is in storage: the
+   draft has to survive a render that may have changed which unit the field
+   is being shown in. */
+function bwFormDraft() {
+  const units = prof().units, draft = {};
+  const put = (k, el, conv) => {
+    if (!el || el.value.trim() === '') return;
+    const n = parseFloat(el.value);
+    if (!isNaN(n)) draft[k] = conv ? conv(n) : n;
+  };
+  put('w', q('#bw-weight'));
+  TAPE.forEach(t => put(t.k, q('#bw-' + t.k), n => fromU(n, unitFor(units, t.k))));
+  return draft;
+}
+
+function bwRestoreDraft(draft) {
+  const units = prof().units;
+  const wEl = q('#bw-weight');
+  if (wEl && draft.w !== undefined) wEl.value = draft.w;
+  TAPE.forEach(t => {
+    const el = q('#bw-' + t.k);
+    if (el && draft[t.k] !== undefined) el.value = +toU(draft[t.k], unitFor(units, t.k)).toFixed(1);
+  });
+}
+
+/* Display only — nothing in storage moves, so the tab just repaints. Height
+   is not carried because it does not need to be: it saves on change, which
+   fires on the blur this very click causes. */
+function bdUnit(key, u) {
+  if (u === unitFor(prof().units, key)) return;
+  const draft = bwFormDraft();
+  setUnitFor(key, u);
   renderBW();
-  toast(unitOf(u).full);
+  bwRestoreDraft(draft);
 }
 function bdActivity() { profSet({ act: q('#bd-act').value }); renderBW(); }
 function bdGoalSave() {
@@ -941,14 +994,14 @@ function onClick(e) {
     case 'bw-edit':   bwEdit(a.d); break;
     case 'bw-del':    bwDelete(a.d); break;
     case 'bw-cancel': bwCancelEdit(); break;
-    case 'bd-units':      bdUnits(a.u); break;
+    case 'bd-unit':       bdUnit(a.k, a.u); break;
     case 'bd-goal-save':  bdGoalSave(); break;
     case 'bd-goal-clear': bdGoalClear(); break;
     case 'lv-close':  closeCelebration(); break;
     case 'pg-del':    progDelete(a.d, a.di); break;
     case 'rk-reps':   rkSetReps(+a.r); break;
     case 'rk-basis':  rkSetBasis(a.b); break;
-    case 'bw-more':   bwMore = !bwMore; renderBW(); break;
+    case 'bw-more':   bwToggleMore(); break;
     case 'rk-reset-open':  resetPanel(true, root); break;
     case 'rk-reset-close': resetPanel(false, root); break;
     case 'rk-reset-tgl':   resetToggle(a.k, root); break;
@@ -1049,7 +1102,7 @@ export default {
   id: 'workout',
   name: 'Workout',
   storagePrefix: 'bp_',
-  styles: 'apps/workout/workout.css?v=units-sep26',
+  styles: 'apps/workout/workout.css?v=perunit2-sep26',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {

@@ -204,7 +204,7 @@
 /* Three controls now: height, the unit toggle, activity. Activity carries a
    sentence of description in every option, so it takes the full second row
    rather than being squeezed next to the other two. */
-.bd-prof{display:grid;grid-template-columns:1.1fr auto;gap:10px 12px;align-items:end;
+.bd-prof{display:grid;grid-template-columns:1fr 1.4fr;gap:10px 12px;align-items:end;
   background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:14px}
 .bd-prof.unset{border-color:var(--sel-bd);box-shadow:0 0 0 1px var(--blue-d)}
 .bd-prof-f{display:flex;flex-direction:column;gap:5px;min-width:0}
@@ -215,8 +215,22 @@
    pair needs. */
 .bd-ht.one{justify-content:flex-start}
 .bd-ht.one .bw-in{max-width:150px}
-.bd-units{flex-shrink:0}
-.bd-units .rk-rep{min-width:44px}
+
+/* The unit, doubling as the control that changes it. It lives inside a
+   field label, which is 9px uppercase, so it has to stay small — but a tap
+   target cannot, hence the padding and the negative margin that keeps the
+   label's own height unchanged. */
+.bw-unit{position:relative;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.5px;
+  text-transform:lowercase;color:var(--text-3);background:var(--bg);
+  border:1px solid var(--border);border-radius:4px;
+  padding:3px 6px;margin:-3px 0 -3px 5px;cursor:pointer;transition:all .12s;
+  vertical-align:middle;line-height:1}
+/* The chip has to stay small — it sits inside a 9px label — but a thumb
+   does not. This grows the hit area to roughly 38x35 without moving a
+   single pixel of what you can see. */
+.bw-unit::after{content:'';position:absolute;inset:-9px -6px}
+.bw-unit:hover{color:var(--blue);border-color:var(--sel-bd);background:var(--blue-d)}
+.bw-unit:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
 .bd-ht span{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);flex-shrink:0}
 select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis;font-family:var(--font);font-size:12px}
 .wk .bw-add-lbl em{font-style:normal;color:var(--text-3);opacity:.6;letter-spacing:.5px;margin-left:3px;text-transform:none}
@@ -674,7 +688,7 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
   .bw-h-row{grid-template-columns:1fr auto auto;gap:8px;padding:11px 12px}
   .bw-h-act{grid-column:1/-1;justify-content:flex-end;margin-top:-4px}
   .bw-stat-v{font-size:16px}
-  .bd-prof{grid-template-columns:1fr auto}
+  .bd-prof{grid-template-columns:1fr}
   .bw-add{grid-template-columns:1fr 1fr}
   .bd-targets{grid-template-columns:1fr}
   .bd-goal-row{grid-template-columns:auto 1fr;row-gap:8px}

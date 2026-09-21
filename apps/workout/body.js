@@ -26,7 +26,7 @@
    one means adding both, not flipping a sign here.
    ═══════════════════════════════════════════════════════════ */
 
-import { load, save, dateStr } from '../../assets/js/storage.js?v=units-sep26';
+import { load, save, dateStr } from '../../assets/js/storage.js?v=perunit2-sep26';
 
 const LB_PER_KG = 2.20462262;
 const M_PER_IN  = 0.0254;
@@ -37,7 +37,7 @@ const KCAL_PER_LB = 3500;
 
 /* ═══════════════════ PROFILE ═══════════════════ */
 
-const PROF_DEF = { h: null, act: 'mod', goal: null, units: 'in' };
+const PROF_DEF = { h: null, act: 'mod', goal: null, units: {} };
 export const prof    = () => ({ ...PROF_DEF, ...load('bp_prof', {}) });
 export const profSet = patch => save('bp_prof', { ...prof(), ...patch });
 
@@ -56,14 +56,21 @@ export const actOf = k => ACTIVITY.find(a => a.k === k) || ACTIVITY[2];
 
 /* ═══════════════════ LENGTH UNITS ═══════════════════ */
 
-/* A display preference and nothing more. Every length in bp_bw and bp_prof
-   is stored in INCHES whatever this says, because the Navy formula's
-   constants are calibrated for inches and because a store that mixed the
-   two would need a unit tag on every field forever — one entry taped in
-   Berlin and the next in Boston, and no way to chart them together.
+/* A display preference and nothing more, chosen PER MEASUREMENT. People
+   genuinely do think in both at once — a height in feet and inches because
+   that is how heights are said out loud, a waist in centimetres because
+   that is what the tape in the drawer reads — and a single global switch
+   forces a conversion in your head at exactly the moment you are trying to
+   write down an accurate number.
+
+   Every length in bp_bw and bp_prof is stored in INCHES whatever any of
+   these say. The Navy formula's constants are calibrated for inches, and a
+   store that recorded each value in whatever unit it was typed in would
+   need a unit tag on every field forever — one entry taped in Berlin and
+   the next in Boston, and no way to chart them together.
 
    So the conversion happens at the edges only: toU on the way to a label or
-   an input, fromU on the way back from one. Flip the toggle and nothing in
+   an input, fromU on the way back from one. Flip any toggle and nothing in
    storage moves.
 
    Weight stays in pounds and is not part of this. It is not a length, and
@@ -115,6 +122,34 @@ export const TAPE = [
     how:'Halfway between hip and knee, standing, weight on both legs.' },
 ];
 export const TAPE_KEYS = TAPE.map(t => t.k);
+
+/* Everything that carries a unit: height, then the five tape sites. Defined
+   here rather than up with UNITS because it needs TAPE, and a const cannot
+   reach forward to one. */
+export const UNIT_KEYS = ['h', ...TAPE_KEYS];
+
+/* Which unit one field is shown in.
+
+   `units` is a map. Two older shapes have to keep working: a profile from
+   before per-field units carries a single string meaning "all of them", and
+   one from before units entirely carries nothing. Both read as that value,
+   or inches, for every key — so nobody's height silently becomes 68 cm. */
+export function unitFor(units, key) {
+  if (typeof units === 'string') return unitOf(units).k;
+  const v = units && units[key];
+  return UNITS.some(u => u.k === v) ? v : 'in';
+}
+
+/* Set one field's unit, widening a legacy string into a map on the way so
+   the other fields keep the value they were already being shown in. */
+export function setUnitFor(key, u) {
+  const p = prof();
+  const cur = typeof p.units === 'string'
+    ? Object.fromEntries(UNIT_KEYS.map(k => [k, unitOf(p.units).k]))
+    : { ...(p.units || {}) };
+  cur[key] = unitOf(u).k;
+  profSet({ units: cur });
+}
 
 /* Does this entry carry anything at all? The write path uses it to drop an
    entry that has been emptied rather than leave a dateless husk behind. */

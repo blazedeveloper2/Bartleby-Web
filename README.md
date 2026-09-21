@@ -22,12 +22,17 @@ Live apps:
   The **Body** tab is composition, not just the scale. Log a weight and a
   tape — waist and neck, plus chest, arm and thigh behind a disclosure —
   any of them, any day, and the entry keeps whatever you don't re-enter.
-  Tape sites and height read in **inches or centimetres**, your choice,
-  switchable at any time: lengths are always *stored* in inches, because
-  the Navy formula's constants are calibrated for them and a store that
-  mixed the two would need a unit tag on every field forever. The toggle
-  converts at the edges only, so flipping it moves nothing in storage and
-  changes no figure on the tab. Weight stays in pounds — it isn't a length,
+  Every measurement reads in **inches or centimetres independently** — tap
+  the unit in a field's own label to flip just that one, so a height in
+  feet and inches can sit beside a waist in centimetres without anyone
+  converting anything in their head. Lengths are always *stored* in inches
+  whatever the labels say, because the Navy formula's constants are
+  calibrated for them and a store that recorded each value in whatever unit
+  it was typed in would need a unit tag on every field forever. Conversion
+  happens at the edges only, so flipping a unit moves nothing in storage and
+  changes no figure on the tab — and anything you had already typed into the
+  form is carried across the repaint rather than lost or, worse, left
+  sitting there while its meaning changes underneath it. Weight stays in pounds — it isn't a length,
   and the strength standards, working weights and load totals are all
   denominated in it. Measurements are taken relaxed, never flexed; each
   field's label says where the tape goes.
