@@ -604,14 +604,6 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 .rk-rep:hover{color:var(--text-2)}
 .rk-rep.sel{background:var(--blue-d);border-color:var(--sel-bd);color:var(--blue)}
 
-/* The rep buttons are 32px boxes because they hold "10". These hold words,
-   so they size to their content — same visual language, different shape,
-   rather than one class pretending to do both jobs and clipping one. */
-.rk-opt{padding:7px 13px;border-radius:5px;background:var(--bg-card);border:1px solid var(--border);
-  color:var(--text-3);font-family:var(--font);font-size:12px;font-weight:600;cursor:pointer;
-  transition:all .12s;white-space:nowrap;line-height:1.25}
-.rk-opt:hover{color:var(--text-2);border-color:var(--border-lt)}
-.rk-opt.sel{background:var(--blue-d);border-color:var(--sel-bd);color:var(--blue)}
 .rk-reps-seg{flex-wrap:wrap}
 
 .rk-lift-list{display:flex;flex-direction:column;gap:2px;margin:0 -14px -14px;border-top:1px solid var(--border)}
@@ -639,12 +631,6 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 .rk-lift-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:9px;font-size:10px;color:var(--text-3);font-family:var(--mono);flex-wrap:wrap}
 .rk-lift-foot b{color:var(--text-2);font-weight:700}
 .rk-lift-need{color:var(--green);font-weight:700;flex-shrink:0}
-
-.rk-unscored{margin-top:16px;padding-top:14px;border-top:1px solid var(--border)}
-.rk-unscored-t{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-3);margin-bottom:8px}
-.rk-unscored-l{display:flex;flex-wrap:wrap;gap:6px}
-.rk-unscored-l span{font-size:10.5px;color:var(--text-3);background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:4px 10px}
-.rk-unscored-l b{font-family:var(--mono);color:var(--text-2)}
 
 .pg-tiles{margin-bottom:14px}
 .pg-tiles .bw-stat-u{margin-left:4px}
@@ -674,7 +660,14 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 .pg-big-v{font-family:var(--mono);font-size:34px;font-weight:700;letter-spacing:-1.5px;color:var(--green);line-height:1}
 .pg-big-u{font-size:14px;color:var(--text-3);font-weight:500;margin-left:3px;letter-spacing:0}
 .pg-big-l{font-size:11.5px;color:var(--text-3);margin-top:7px}
-.pg-big-note{font-size:11.5px;color:var(--text-2);margin-top:9px;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);display:inline-block}
+/* The figures that replaced the paragraphs: peak, given back, rolled back,
+   untested. A row of small stats, so the eye lands on the big number first
+   and picks up the caveats as numbers rather than as prose. */
+.pg-figs{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:14px}
+.pg-fig{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:74px;
+  padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs)}
+.pg-fig-v{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--text-2);line-height:1}
+.pg-fig-l{font-size:9px;letter-spacing:.6px;text-transform:uppercase;color:var(--text-3);white-space:nowrap}
 .pg-pr-list{border-top:1px solid var(--border);margin:0 -14px -14px}
 .pg-pr{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border)}
 .pg-pr:last-child{border-bottom:none}
@@ -684,8 +677,6 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 .pg-pr-u{font-size:9px;color:var(--text-3);font-weight:500}
 .pg-pr-up{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--green);background:var(--green-d);padding:3px 7px;border-radius:4px;white-space:nowrap}
 .pg-pr-d{grid-column:1/-1;font-family:var(--mono);font-size:9px;color:var(--text-3);margin-top:-6px}
-.pg-notes{display:flex;flex-direction:column;align-items:center;gap:6px}
-.pg-notes .pg-big-note{margin-top:0;text-align:left;line-height:1.55;max-width:44ch}
 /* a deload is red because it is a real subtraction; a rollback is grey
    because it is the record admitting nothing happened at all */
 .pg-pr.down .pg-pr-up{color:var(--red);background:var(--red-d)}
@@ -732,51 +723,6 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 .pg-s-n{font-size:12.5px;font-weight:600;line-height:1.25}
 .pg-s-d{font-family:var(--mono);font-size:10px;color:var(--text-3);margin-top:3px}
 
-/* â”€â”€ reset â”€â”€
-   The only control in the app that destroys something. The danger is carried
-   inside the card â€” red ticks, a red-edged warning strip, a red button â€” the
-   same way .rk-pending and .pg-b-lapse carry amber, rather than by an outer
-   rim: the card shell is themed and clip-path'd, and a border on it would be
-   cut off along the chamfer. */
-.rk-rs-intro{font-size:11.5px;line-height:1.6;color:var(--text-3)}
-.rk-rs-intro b{color:var(--text-2)}
-.rk-rs-open{margin-top:12px;width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text-2);
-  font-family:var(--font);font-size:12.5px;font-weight:600;padding:11px;border-radius:var(--rs);cursor:pointer;transition:all .14s}
-.rk-rs-open:hover{background:var(--red-d);border-color:#ef444455;color:var(--red)}
-.rk-rs-all{background:none;border:none;color:var(--text-3);font-family:var(--font);font-size:10px;font-weight:700;
-  letter-spacing:1px;text-transform:uppercase;cursor:pointer;padding:2px 0;transition:color .12s}
-.rk-rs-all:hover{color:var(--text)}
-
-.rk-rs-list{display:flex;flex-direction:column;gap:7px}
-.rk-rs{display:grid;grid-template-columns:auto 1fr;align-items:start;gap:11px;width:100%;text-align:left;
-  background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:11px 12px;
-  font-family:var(--font);cursor:pointer;transition:all .14s}
-.rk-rs:hover:not(:disabled){border-color:var(--border-lt)}
-.rk-rs:disabled{opacity:.4;cursor:default}
-.rk-rs.on{border-color:#ef444470;background:var(--red-d)}
-.rk-rs-box{width:16px;height:16px;margin-top:1px;border-radius:4px;border:1.5px solid var(--border-lt);
-  flex-shrink:0;position:relative;transition:all .14s}
-.rk-rs.on .rk-rs-box{background:var(--red);border-color:var(--red)}
-.rk-rs.on .rk-rs-box::after{content:'';position:absolute;left:4.5px;top:1px;width:4px;height:8px;
-  border:solid #fff;border-width:0 2px 2px 0;transform:rotate(42deg)}
-.rk-rs-b{min-width:0}
-.rk-rs-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
-.rk-rs-n{font-size:12.5px;font-weight:600;color:var(--text)}
-.rk-rs-c{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--text-3);flex-shrink:0;font-variant-numeric:tabular-nums}
-.rk-rs.on .rk-rs-c{color:var(--red)}
-.rk-rs-d{display:block;font-size:10.5px;line-height:1.5;color:var(--text-3);margin-top:4px}
-
-.rk-rs-warn{font-size:10.5px;line-height:1.55;color:var(--text-3);background:var(--bg);border:1px solid var(--border);
-  border-left:2px solid var(--red);border-radius:var(--rs);padding:9px 11px;margin-top:12px}
-.rk-rs-warn b{color:var(--text-2)}
-.rk-rs-btns{display:flex;gap:8px;margin-top:12px}
-.rk-rs-go{flex:2;background:var(--red-d);border:1px solid #ef444455;color:var(--red);font-family:var(--font);
-  font-size:13px;font-weight:700;padding:11px;border-radius:var(--rs);cursor:pointer;transition:all .14s}
-.rk-rs-go:hover:not(:disabled){background:var(--red);color:#fff;border-color:var(--red)}
-.rk-rs-go:disabled{opacity:.35;cursor:default;color:var(--text-3);border-color:var(--border)}
-.rk-rs-x{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text-2);font-family:var(--font);
-  font-size:13px;font-weight:600;padding:11px;border-radius:var(--rs);cursor:pointer;transition:all .14s}
-.rk-rs-x:hover{background:var(--bg-hover);color:var(--text)}
 
 /* â”€â”€ how power works / empty start â”€â”€ */
 .pg-how{display:grid;grid-template-columns:1fr 1fr;gap:8px}

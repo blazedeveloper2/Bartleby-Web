@@ -7,10 +7,10 @@
    To add a new app: import it and drop it into the APPS array.
    ═══════════════════════════════════════════════════════════ */
 
-import workout from '../../apps/workout/index.js?v=sheet-sep26';
-import finance from '../../apps/finance/index.js?v=sheet-sep26';
-import { toast } from './ui.js?v=sheet-sep26';
-import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=sheet-sep26';
+import workout from '../../apps/workout/index.js?v=trim-sep26';
+import finance from '../../apps/finance/index.js?v=trim-sep26';
+import { toast } from './ui.js?v=trim-sep26';
+import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=trim-sep26';
 
 // Scripture is parked in archive/ for now — to bring it back, move
 // archive/apps/scripture and archive/assets/data back to their old paths,
@@ -175,6 +175,9 @@ function buildSettings() {
           <button class="sx-btn" data-sx="import">Import Backup</button>
         </div>
         <input type="file" id="sx-file" accept="application/json,.json" hidden>
+
+        <div class="sx-sec-lbl mt danger">Danger Zone</div>
+        <div class="sx-danger" id="sx-danger"></div>
       </div>
     </div>`;
   document.body.appendChild(el);
@@ -188,6 +191,9 @@ function buildSettings() {
     else if (act === 'import') el.querySelector('#sx-file').click();
     else if (act === 'theme') pickTheme(btn.dataset.t);
     else if (act === 'eq') pickEquip(btn.dataset.id, btn.dataset.v === '1');
+    else if (act === 'rs-tgl') toggleReset(btn.dataset.k);
+    else if (act === 'rs-all') toggleResetAll();
+    else if (act === 'rs-go') runReset();
   });
   el.querySelector('#sx-file').addEventListener('change', importBackup);
   return el;
@@ -245,6 +251,94 @@ function pickEquip(id, v) {
 /* Tell the mounted app that shared state changed. */
 const broadcast = () => window.dispatchEvent(new CustomEvent('bs:datachange'));
 
+/* ── danger zone ──
+
+   Resetting used to live inside the Workout app, three taps down a tab you
+   otherwise open to read numbers. It belongs here instead: next to the
+   backup export that is the only way back from it, and behind the red that
+   says what kind of control it is.
+
+   The shell owns the dangerous UI — the red panel, the tick list, the
+   confirmation — and each app owns the knowledge of what its records are
+   and how much is in them, declared as `resetTargets`/`applyReset` on its
+   module the same way `storagePrefix` is. An app that declares neither
+   simply contributes nothing here. */
+const RESETTABLE = APPS.filter(a => a.resetTargets && a.applyReset);
+
+/* Which boxes are ticked, as "<appId>:<targetId>". Deliberately cleared
+   whenever the modal opens: coming back tomorrow to boxes you ticked today
+   is how an accident happens. */
+const resetSel = new Set();
+
+/* Every app's targets flattened into one list, each carrying the app it
+   came from so a reset can be routed back to the right module. */
+const resetRows = () => RESETTABLE.flatMap(app =>
+  app.resetTargets().map(t => ({ ...t, app, uid: `${app.id}:${t.id}` })));
+
+function paintDanger() {
+  const el = document.getElementById('sx-danger');
+  if (!el) return;
+  const rows = resetRows();
+  const held = rows.filter(r => r.c > 0);
+
+  if (!rows.length) { el.innerHTML = '<div class="sx-hint">Nothing here can be reset.</div>'; return; }
+
+  const allOn = held.length > 0 && held.every(r => resetSel.has(r.uid));
+  const sel = rows.filter(r => resetSel.has(r.uid));
+
+  el.innerHTML = `
+    <div class="sx-dz-warn"><b>Deletes data permanently.</b> Whatever you tick below is erased from this
+      device for good — there is no undo. Export a backup first if there is any chance you want it back.</div>
+    <div class="sx-dz-head">
+      <span>${held.length} of ${rows.length} hold data</span>
+      <button class="sx-dz-all" data-sx="rs-all"${held.length ? '' : ' disabled'}>${allOn ? 'Select none' : 'Select everything'}</button>
+    </div>
+    <div class="sx-dz-list">${rows.map(r => `
+      <button class="sx-dz ${resetSel.has(r.uid) ? 'on' : ''}" data-sx="rs-tgl" data-k="${r.uid}"${r.c ? '' : ' disabled'}>
+        <span class="sx-dz-box"></span>
+        <span class="sx-dz-b">
+          <span class="sx-dz-h"><span class="sx-dz-n">${r.n}</span><span class="sx-dz-c">${r.cl}</span></span>
+          <span class="sx-dz-d">${r.d}</span>
+        </span>
+      </button>`).join('')}</div>
+    <button class="sx-dz-go" data-sx="rs-go"${sel.length ? '' : ' disabled'}>${
+      sel.length ? `Reset ${sel.length} Selected` : 'Nothing Selected'}</button>`;
+}
+
+function toggleReset(uid) {
+  if (resetSel.has(uid)) resetSel.delete(uid); else resetSel.add(uid);
+  paintDanger();
+}
+
+function toggleResetAll() {
+  const held = resetRows().filter(r => r.c > 0);
+  const allOn = held.length > 0 && held.every(r => resetSel.has(r.uid));
+  resetSel.clear();
+  if (!allOn) held.forEach(r => resetSel.add(r.uid));
+  paintDanger();
+}
+
+/* The confirmation names every record and how much is in it before anything
+   happens. "Are you sure?" on its own is not consent to delete four months
+   of sessions — you have to be able to see that that is what it is. */
+function runReset() {
+  const sel = resetRows().filter(r => resetSel.has(r.uid));
+  if (!sel.length) return;
+  const lines = sel.map(r => `  •  ${r.n} — ${r.cl}`).join('\n');
+  if (!confirm(`Permanently delete the following? This cannot be undone.\n\n${lines}\n\n`
+    + `Your program, equipment settings and theme are left alone.`)) return;
+
+  RESETTABLE.forEach(app => {
+    const ids = sel.filter(r => r.app === app).map(r => r.id);
+    if (ids.length) app.applyReset(ids);
+  });
+  resetSel.clear();
+  paintDanger();
+  openSettings();                    // storage bar and legend both moved
+  broadcast();                       // the mounted app repaints from empty
+  toast(sel.length === 1 ? `${sel[0].n} reset` : `${sel.length} records reset`);
+}
+
 /* Paint the current values into an already-built settings modal. */
 function syncSettings() {
   const el = document.getElementById('sx-ol');
@@ -274,6 +368,8 @@ function syncSettings() {
 }
 
 function openSettings() {
+  const fresh = !document.getElementById('sx-ol')?.classList.contains('on');
+  if (fresh) resetSel.clear();
   const el = document.getElementById('sx-ol') || buildSettings();
   const { rows, total } = usageBreakdown();
 
@@ -297,6 +393,7 @@ function openSettings() {
     </div>`).join('') : '<div class="sx-leg empty">Nothing stored yet.</div>';
 
   syncSettings();
+  paintDanger();
   el.classList.add('on');
 }
 function closeSettings() { document.getElementById('sx-ol')?.classList.remove('on'); }

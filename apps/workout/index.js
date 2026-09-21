@@ -6,29 +6,28 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, MMAP } from './data.js?v=sheet-sep26';
-import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=sheet-sep26';
-import { toast } from '../../assets/js/ui.js?v=sheet-sep26';
-import { pctColor, ord, LIFTS } from './standards.js?v=sheet-sep26';
+import { PROGRAM, MMAP } from './data.js?v=trim-sep26';
+import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=trim-sep26';
+import { toast } from '../../assets/js/ui.js?v=trim-sep26';
+import { pctColor, ord, LIFTS } from './standards.js?v=trim-sep26';
 import {
-  setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, setReps, setBasis, snapshot,
+  setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, icon,
-  liftScores, standingOf, resEx,
-  resetPanel, resetToggle, resetToggleAll, resetSelection, applyReset, resetDismiss,
-  rebaseline, hasHistory, setExReps, exReps, dropOff,
-} from './rank.js?v=sheet-sep26';
+  liftScores, standingOf, resEx, resetTargets, applyReset,
+  rebaseline, hasHistory, setExReps, exReps, verseHTML,
+} from './rank.js?v=trim-sep26';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
-import { MUSCLE_SVG } from './bodymap.js?v=sheet-sep26';
-import { standingsFor } from './anthro.js?v=sheet-sep26';
+import { MUSCLE_SVG } from './bodymap.js?v=trim-sep26';
+import { standingsFor } from './anthro.js?v=trim-sep26';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor, whtrBand,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=sheet-sep26';
+} from './body.js?v=trim-sep26';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -91,7 +90,8 @@ function renderProg() {
      Unscored movements (bodyweight core work) and lifts with no weight
      set aren't in the map and stay the default text colour. */
   const sc = liftScores();
-  let h = '';
+  /* Before the first day card: the verse is what you read on the way in. */
+  let h = verseHTML();
   PROGRAM.forEach((day, di) => {
     let tot = 0, dn = 0;
     day.sections.forEach((sec, si) => sec.ex.forEach((_, ei) => { tot++; if (ch[ek(di,si,ei)]) dn++; }));
@@ -267,17 +267,13 @@ function mmRankHTML(st) {
   const next = l.rank.next && l.need !== null
     ? `<b>+${l.need < 1 ? l.need.toFixed(1) : Math.round(l.need)} lbs</b> → ${l.rank.next.l} · ${l.rank.next.name}`
     : 'Past the top of the published scale.';
-  /* This is where you decide to add weight, so it is also where you should
-     be told that deciding isn't the same as doing it. */
-  const pend = l.pending ? `<div class="mm-pend">Untested at <b>${l.w} lbs</b>${l.provenW ? ` — last trained at <b>${l.provenW}</b>` : ''}.
-    This letter is an estimate until you finish a session with it. Back off first and it rolls back, no harm done.</div>` : '';
   return `<div class="mm-rank">
     <div class="mm-rank-l" style="color:var(${l.rank.c})">${l.rank.l}</div>
     <div class="mm-rank-b">
       <div class="mm-rank-n">${l.rank.name} · ${ord(l.pct)} percentile${src}</div>
       <div class="mm-rank-s">${next}</div>
     </div>
-  </div>${pend}`;
+  </div>`;
 }
 
 /* ── reps per set ──
@@ -310,19 +306,16 @@ function mmRepsHTML() {
      empty once a recording goes stale, which made the stale branch below
      unreachable. */
   const counted = rec && Array.isArray(rec.s) ? rec.s.filter(v => v > 0) : [];
-  const d = fresh && counted.length ? dropOff(rec.s) : null;
-  let note;
-  if (!counted.length)
-    note = `Best set scores${per}. A lower second set is fatigue, not a worse result — log it as it happened.`;
-  else if (!fresh)
-    note = `Counted at <b>${rec.w} lbs</b>, now <b>${wv}</b> — stale, so the estimate is assuming again. Count one at the new weight.`;
-  else
-    note = `Scoring off <b>${Math.max(...counted)}</b>, your best set${per}, counted ${fmtWhen(rec.d)}.${d && d.kind !== 'normal' ? ` ${d.t}` : ''}`;
+  /* Only two things left worth saying: the count is stale, or which set is
+     scoring. The empty state says nothing — the boxes are self-evident. */
+  const note = !counted.length ? ''
+    : !fresh ? `Counted at <b>${rec.w} lbs</b>, now <b>${wv}</b> — stale.`
+    : `Scoring off <b>${Math.max(...counted)}</b>, counted ${fmtWhen(rec.d)}.`;
 
   return `<div class="mm-reps-row${fresh && counted.length ? ' on' : ''}">
-    <div class="mm-reps-lbl">Reps per set<span>${n} prescribed${per} · saved when you leave a box</span></div>
+    <div class="mm-reps-lbl">Reps per set</div>
     <div class="mm-sets">${boxes}</div>
-    <div class="mm-reps-note">${note}</div>
+    ${note ? `<div class="mm-reps-note">${note}</div>` : ''}
   </div>`;
 }
 
@@ -741,8 +734,6 @@ function callHTML(s, a) {
       <div class="bd-t"><div class="bd-t-v">${a.protein}<span>g protein</span></div>
         <div class="bd-t-l">${a.v === 'CUT' ? '1.2' : '1.0'} g per lb of lean mass</div></div>
     </div>
-    <div class="bd-est" title="Katch-McArdle off your lean mass. It is an estimate of maintenance, not a measurement of it — if the scale disagrees after a fortnight, the scale is right.">Maintenance estimated from lean mass at <b>${actOf(s.act).n.toLowerCase()}</b> activity — a starting point. Trust the scale over it.</div>
-
     <div class="bd-goal">
       <div class="bd-goal-head"><span class="bd-goal-t">Goal weight</span>
         ${usingOwn ? `<button class="bd-mini" data-act="bd-goal-clear">Use recommended</button>`
@@ -754,7 +745,6 @@ function callHTML(s, a) {
                placeholder="${a.goal ? a.goal.w.toFixed(1) : 'Set your own'}" value="${usingOwn ? s.goal : ''}">
         <button class="bd-mini go" data-act="bd-goal-save">Set</button>
       </div>
-      ${a.goal && !usingOwn ? `<div class="bd-goal-note">${a.goal.note}</div>` : ''}
       ${projectHTML(s.w, g, s.rate)}
     </div>
   </div>`;
@@ -785,9 +775,9 @@ function dueHTML(t, snap) {
       : '';
   if (t.due) {
     const over = t.overdueBy;
-    return `<div class="bd-caveat stale" title="Every ${wk(t.every)} is the right cadence at your current rate — measure more often and you mostly record the tape's own error.">Tape due${over ? ` — <b>${over} day${over === 1 ? '' : 's'}</b> overdue` : ''}. Everything above still reads off <b>${snap.bfDate ? bwFmt(snap.bfDate) : 'before'}</b>.</div>`;
+    return `<div class="bd-caveat stale" title="Everything above still reads off ${snap.bfDate ? bwFmt(snap.bfDate) : 'your last tape measurement'}.">Tape measurement due${over ? ` — <b>${over} day${over === 1 ? '' : 's'}</b> overdue` : ''}</div>`;
   }
-  return `<div class="bd-due">Last taped <b>${snap.bfDate ? bwFmt(snap.bfDate) : '—'}</b> · next due in <b>${t.dueIn} day${t.dueIn === 1 ? '' : 's'}</b>. Every ${wk(t.every)} is the right cadence ${t.every === 14 ? 'on a cut — composition moves fast enough that a fortnight clears the tape’s own error' : 'at this rate of change — measure more often and you mostly record the tape’s own error'}.</div>`;
+  return `<div class="bd-due" title="Every ${wk(t.every)} is the right cadence at your current rate — measure more often and you mostly record the tape's own error.">Next tape measurement due in <b>${t.dueIn} day${t.dueIn === 1 ? '' : 's'}</b></div>`;
 }
 
 /* ── measurements vs a population ── */
@@ -1168,26 +1158,6 @@ function progDelete(d, di) {
 /* The rep assumption feeds the 1RM estimate, so it moves every score —
    and with them the Program tab's colours. */
 function rkSetReps(r) { setReps(r); renderScore(); renderProg(); }
-/* Same blast radius as the rep assumption: the divisor moves every ratio,
-   so it moves the Program tab's row colours with it. */
-function rkSetBasis(b) { setBasis(b); renderScore(); renderProg(); }
-
-/* ═══════════════════ RESET ═══════════════════ */
-/* The dialog names every record and its size before anything happens.
-   "Are you sure?" on its own is not consent to delete four months of
-   sessions — you have to be able to see that that is what it is. */
-function doReset() {
-  const sel = resetSelection();
-  if (!sel.length) return;
-  const lines = sel.map(t => `  •  ${t.n} — ${t.cl}`).join('\n');
-  if (!confirm(`Reset the following? This cannot be undone.\n\n${lines}\n\n`
-    + `Everything else — your program, equipment settings and theme — is left alone.`)) return;
-  applyReset(sel.map(t => t.id));
-  /* Weights and bodyweight both move the whole app: row colours on Program,
-     the chart on Weight, every card on Rank. Repaint all three. */
-  renderProg(); renderBW(); renderScore();
-  toast(sel.length === 1 ? `${sel[0].n} reset` : `${sel.length} records reset`);
-}
 
 /* ═══════════════════ TABS ═══════════════════ */
 function switchTab(tab) {
@@ -1233,13 +1203,7 @@ function onClick(e) {
     case 'lv-close':  closeCelebration(); break;
     case 'pg-del':    progDelete(a.d, a.di); break;
     case 'rk-reps':   rkSetReps(+a.r); break;
-    case 'rk-basis':  rkSetBasis(a.b); break;
     case 'bw-more':   bwToggleMore(); break;
-    case 'rk-reset-open':  resetPanel(true, root); break;
-    case 'rk-reset-close': resetPanel(false, root); break;
-    case 'rk-reset-tgl':   resetToggle(a.k, root); break;
-    case 'rk-reset-all':   resetToggleAll(root); break;
-    case 'rk-reset-go':    doReset(); break;
   }
 }
 function onChange(e) {
@@ -1307,7 +1271,7 @@ function template() {
         <div class="mm-head"><div><div class="mm-kicker">Exercise lab</div><div class="mm-title" id="mm-name"></div></div><button class="mm-close" data-act="mm-close" aria-label="Close exercise viewer">&times;</button></div>
         <div class="mm-info" id="mm-info"></div>
         <div class="mm-wt-row">
-          <label class="mm-wt-lbl" for="mm-wt">Working weight<span>Saved when you leave the field</span></label>
+          <label class="mm-wt-lbl" for="mm-wt">Working weight</label>
           <div class="mm-wt-box"><input class="mm-wt-in" id="mm-wt" type="number" step="2.5" min="0" inputmode="decimal" placeholder="—"><span class="mm-wt-u">lbs</span></div>
         </div>
         <div id="mm-reps"></div>
@@ -1335,7 +1299,12 @@ export default {
   id: 'workout',
   name: 'Workout',
   storagePrefix: 'bp_',
-  styles: 'apps/workout/workout.css?v=sheet-sep26',
+  /* What Settings' Danger Zone is allowed to clear on this app's behalf.
+     Declared here the same way `storagePrefix` is — the shell owns the
+     dangerous UI and the confirmation, the app owns the knowledge of what
+     each record is and how much is in it. */
+  resetTargets, applyReset,
+  styles: 'apps/workout/workout.css?v=trim-sep26',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
@@ -1343,7 +1312,6 @@ export default {
     /* activeTab deliberately survives a remount — coming back to an app
        should return you to the tab you left, not to its front page. */
     bwRange = '30'; bwMetric = 'w'; bwMore = false; bwEditDate = null; mmEx = null;
-    resetDismiss();
     root.innerHTML = template();
     root.addEventListener('click', onClick);
     root.addEventListener('change', onChange);

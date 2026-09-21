@@ -36,14 +36,14 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js?v=sheet-sep26';
-import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=sheet-sep26';
-import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=sheet-sep26';
+import { PROGRAM } from './data.js?v=trim-sep26';
+import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=trim-sep26';
+import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=trim-sep26';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef, REF_BF } from './body.js?v=sheet-sep26';
-import { checkup } from './checkup.js?v=sheet-sep26';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=trim-sep26';
+import { checkup } from './checkup.js?v=trim-sep26';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -173,18 +173,12 @@ export function dropOff(sets) {
     t:`${best}→${worst} is ordinary fatigue. Only the ${best} scores.` };
 }
 
-/* What the standards get divided by. 'bw' is the published basis and stays
-   the default: switching it silently would move every letter on the tab
-   overnight, and a grade that changes because the app changed its mind is
-   worth nothing. 'lean' is opt-in and needs a body fat estimate to mean
-   anything, so it falls back on its own when there isn't one. */
-export const BASES = [
-  { k:'bw',   n:'Bodyweight', d:'As the standards are published. Lose weight and every ratio rises, whether or not you got stronger.' },
-  { k:'lean', n:'Lean mass',  d:'Scored as if you carried your lean mass at ' + Math.round(REF_BF * 100) + '% body fat. A cut stops flattering the letter and a bulk stops hiding it.' },
-];
-const basis  = () => (BASES.some(b => b.k === load('bp_basis', 'bw')) ? load('bp_basis', 'bw') : 'bw');
-const sBasis = b => save('bp_basis', b);
-export function setBasis(b) { if (BASES.some(x => x.k === b)) sBasis(b); }
+/* What the standards get divided by. There is no longer a choice here:
+   lean mass is the better read in both directions — a cut stops flattering
+   the letter and a bulk stops hiding it — so it is simply what the tab
+   scores against. Bodyweight survives only as the fallback, because lean
+   mass needs a tape measurement and there is nothing else to divide by
+   until one exists. `usingLean` is what tells the UI which happened. */
 
 /* ── schedule ── */
 const DOW = { sun:0, mon:1, tue:2, wed:3, thu:4, fri:5, sat:6 };
@@ -651,18 +645,13 @@ export function strength() {
      to produce a lean mass, and the setting can be on for weeks before one
      arrives. Without it, fall back to bodyweight silently and let `usingLean`
      tell the UI which of the two actually happened. */
-  const wantLean = basis() === 'lean';
-  const lean = wantLean ? bodySnap().lean : null;
-  const ref = wantLean ? scoringRef(lean) : null;
+  const lean = bodySnap().lean;
+  const ref = scoringRef(lean);
   const usingLean = ref !== null && bodyweight !== null;
   const divisor = usingLean ? ref : bodyweight;
 
-  const out = { bodyweight, lean, basis: basis(), wantLean, usingLean, ref: divisor,
-                reps: r, unscored: [], ...scoreAll(w, bodyweight, divisor, r, reach) };
-  Object.keys(w).forEach(name => {
-    if (!LIFTS[name]) out.unscored.push({ name, w: w[name] });
-  });
-  out.unscored.sort((a, b) => a.name.localeCompare(b.name));
+  const out = { bodyweight, lean, usingLean, ref: divisor,
+                reps: r, ...scoreAll(w, bodyweight, divisor, r, reach) };
 
   /* The same scoring run over proven weights only. This is the view that
      earns things; the live one above is what you see while you decide. */
@@ -1056,9 +1045,6 @@ export function delSession(d, di) {
    into a single Erase Everything makes the smaller one cost the larger one.
    Each record says what is computed from it, so the choice can be made on
    what you'd lose rather than on the name of a storage key. */
-let resetOpen = false;
-const resetSel = new Set();
-
 const RESETS = [
   { id:'log', key:'bp_log', n:'Session log', u:'session',
     d:'Streaks, the heatmap, hard-set totals, your level and every consistency milestone are counted out of this.' },
@@ -1098,8 +1084,6 @@ export function resetTargets() {
 export function applyReset(ids) {
   const want = new Set(ids);
   RESETS.forEach(r => { if (want.has(r.id)) remove(r.key); });
-  resetSel.clear();
-  resetOpen = false;
 }
 
 /* ═══════════════════ CELEBRATION ═══════════════════ */
@@ -1168,7 +1152,10 @@ function bandTrack(pct, showLabels) {
   </div>`;
 }
 
-function verseHTML() {
+/* Exported and rendered at the top of the Program tab. It opened the Rank
+   tab for a while, which was the wrong place: the verse is the thing you
+   read on the way into a session, not on the way to checking a letter. */
+export function verseHTML() {
   const v = verseFor(todayStr());
   return `<div class="pg-card rk-verse">
     <div class="rk-verse-mark">&ldquo;</div>
@@ -1321,24 +1308,9 @@ function liftsHTML(st) {
     ? `<b>${st.loggedReps} of ${st.counted.length}</b> lifts use counted reps. The dial fills in for the rest.`
     : `No reps counted yet — every estimate here is running on this dial. Log sets from the <b>Program</b> tab.`}</div>`;
 
-  const basisBtns = BASES.map(b =>
-    `<button class="rk-opt ${b.k === st.basis ? 'sel' : ''}" data-act="rk-basis" data-b="${b.k}" title="${b.d}">${b.n}</button>`).join('');
-  /* The setting can be on while the data it needs is missing. Say so on the
-     tab rather than quietly scoring the other way. */
-  /* Always says something, because "which of these should I pick" is the
-     obvious question and neither button answers it. The trade is real in
-     both directions: bodyweight has the precise input and the wrong
-     concept, lean mass has the right concept and a noisier input. */
-  const basisNote = st.wantLean && !st.usingLean
-    ? `<div class="rk-basis-note">Lean scoring needs a body fat estimate — log a waist and neck on the <b>Body</b> tab. Using bodyweight until then.</div>`
-    : st.usingLean
-      ? `<div class="rk-basis-note" title="Set at ${Math.round(REF_BF * 100)}% body fat, where the two modes agree — so any gap between them is composition rather than strength. This is the better read mid-cut or mid-bulk. An app-specific adjustment, not a validated comparison against lifters of equal lean mass, and it inherits the tape's few points of error.">Dividing by <b>${Math.round(st.ref)} lb</b> — your ${Math.round(st.lean)} lb lean mass at ${Math.round(REF_BF * 100)}% body fat. A composition-adjusted score, not a population comparison.</div>`
-      : `<div class="rk-basis-note" title="The scale is a precise input, and this is the basis the standards are published on. Its blind spot: losing fat lifts every ratio whether or not you got stronger.">How the standards are published. Mid-cut or mid-bulk, <b>Lean mass</b> is the better read.</div>`;
-
-  const unscored = st.unscored.length ? `<div class="rk-unscored">
-      <div class="rk-unscored-t">Not scored — no published standard to score these against</div>
-      <div class="rk-unscored-l">${st.unscored.map(u => `<span>${u.name} <b>${u.w}</b></span>`).join('')}</div>
-    </div>` : '';
+  /* The divisor is no longer a choice, so the only thing left to say is
+     when the tape measurement it needs is missing. */
+  const basisNote = st.usingLean ? '' : `<div class="rk-basis-note">Scoring against bodyweight — log a waist and neck on the <b>Body</b> tab to score against lean mass instead.</div>`;
 
   return `<div class="pg-card">
     <div class="pg-card-head">
@@ -1350,14 +1322,9 @@ function liftsHTML(st) {
       <div class="rk-reps-seg">${repBtns}</div>
     </div>
     ${repNote}
-    <div class="rk-reps">
-      <span class="rk-reps-l">Score against</span>
-      <div class="rk-reps-seg">${basisBtns}</div>
-    </div>
     ${basisNote}
     ${st.lifts.length ? `<div class="rk-lift-list">${rows}</div>`
       : `<div class="pg-empty">No weights set on any scored lift yet.</div>`}
-    ${unscored}
   </div>`;
 }
 
@@ -1496,33 +1463,26 @@ function progressionHTML(s, st) {
 
   const net = Math.round(s.loadAdded * 10) / 10, down = net < 0;
   const pend = st.pendingAll.length;
-  const notes = [];
 
-  const bw = load('bp_bw', []);
-  if (bw.length >= 2 && s.grossAdded > 0) {
-    const delta = bw[bw.length - 1].w - bw[0].w;
-    notes.push(Math.abs(delta) < 0.5
-      ? `Bodyweight holding steady while adding ${fmtN(Math.round(net))} lbs of load.`
-      : `${delta < 0 ? 'Down' : 'Up'} ${Math.abs(delta).toFixed(1)} lbs of bodyweight while adding ${fmtN(Math.round(net))} lbs of load.`);
-  }
-  if (s.givenBack > 0)
-    notes.push(`Peaked at <b>+${fmtN(Math.round(s.grossAdded))} lbs</b> added, and ${fmtN(Math.round(s.givenBack))} of that has come back off across
-      ${s.backoffs} back-off${s.backoffs === 1 ? '' : 's'} on weight you had already trained. Deloads are real, so they count.`);
-  if (s.voids > 0)
-    notes.push(`<b>${s.voids}</b> increase${s.voids === 1 ? '' : 's'} rolled back — set, then lowered again before a single
-      session ever trained ${s.voids === 1 ? 'it' : 'them'}. ${s.voids === 1 ? 'It was' : 'They were'} never counted.`);
-  if (pend)
-    notes.push(`<b>${pend} weight${pend === 1 ? '' : 's'}</b> still untested${s.pendingLoad > 0
-      ? `, holding <b>${fmtN(Math.round(s.pendingLoad))} lbs</b> out of the total above` : ''}. Finish the session that
-      trains ${pend === 1 ? 'it' : 'them'} and ${pend === 1 ? 'it lands' : 'they land'}.`);
+  /* The paragraphs that used to sit under the number are gone. What is
+     left is the same information as figures: peak, given back, rolled
+     back, untested — each a stat you read rather than a sentence you
+     wade through. Anything with nothing to report is simply absent. */
+  const stats = [
+    s.givenBack > 0 ? [`+${fmtN(Math.round(s.grossAdded))}`, 'peak added'] : null,
+    s.givenBack > 0 ? [`−${fmtN(Math.round(s.givenBack))}`, `${s.backoffs} back-off${s.backoffs === 1 ? '' : 's'}`] : null,
+    s.voids > 0 ? [s.voids, `rolled back`] : null,
+    pend ? [pend, `untested${s.pendingLoad > 0 ? ` · ${fmtN(Math.round(s.pendingLoad))} lbs` : ''}`] : null,
+  ].filter(Boolean);
 
   return `<div class="pg-card">
     <div class="pg-card-head"><div class="pg-card-title">Progression</div>
       <div class="pg-card-note">${s.prs} personal record${s.prs === 1 ? '' : 's'}</div></div>
     <div class="pg-big">
       <div class="pg-big-v ${down ? 'down' : ''}">${down ? '−' : '+'}<span data-cnt="${Math.abs(net)}" data-fmt="n">0</span><span class="pg-big-u">lbs</span></div>
-      <div class="pg-big-l">Net load added across every lift${s.givenBack > 0 ? ', after back-offs' : ''}</div>
-      ${notes.length ? `<div class="pg-notes">${notes.map(n => `<div class="pg-big-note">${n}</div>`).join('')}</div>` : ''}
+      <div class="pg-big-l">Net load added${s.givenBack > 0 ? ', after back-offs' : ''}</div>
+      ${stats.length ? `<div class="pg-figs">${stats.map(([v, l]) =>
+        `<div class="pg-fig"><span class="pg-fig-v">${v}</span><span class="pg-fig-l">${l}</span></div>`).join('')}</div>` : ''}
     </div>
     ${feed ? `<div class="pg-pr-list">${feed}</div>`
            : `<div class="pg-empty">Raise a working weight in any exercise and it lands here.</div>`}
@@ -1595,85 +1555,11 @@ function historyHTML(s) {
 /* Closed it is one line and a button; open it is a checklist. Kept at the
    bottom of the tab because it is the one control here that destroys
    something, and it should take a scroll and two taps to reach. */
-function resetHTML() {
-  const tg = resetTargets();
-  const held = tg.filter(t => t.c > 0);
-
-  if (!resetOpen) {
-    return `<div class="pg-card rk-reset">
-      <div class="pg-card-head"><div class="pg-card-title">Reset</div>
-        <div class="pg-card-note">${held.length}/${tg.length} hold data</div></div>
-      <div class="rk-rs-intro">Start a section over — the streak, the rank, the milestones, or all of it.
-        Nothing here can be undone, so export a backup from <b>Settings</b> first if there is any chance
-        you want it back.</div>
-      <button class="rk-rs-open" data-act="rk-reset-open">Reset Progress…</button>
-    </div>`;
-  }
-
-  const rows = tg.map(t => `
-    <button class="rk-rs ${resetSel.has(t.id) ? 'on' : ''}" data-act="rk-reset-tgl" data-k="${t.id}"
-            ${t.c ? '' : 'disabled'}>
-      <span class="rk-rs-box"></span>
-      <span class="rk-rs-b">
-        <span class="rk-rs-h"><span class="rk-rs-n">${t.n}</span><span class="rk-rs-c">${t.cl}</span></span>
-        <span class="rk-rs-d">${t.d}</span>
-      </span>
-    </button>`).join('');
-
-  const allOn = held.length > 0 && held.every(t => resetSel.has(t.id));
-  return `<div class="pg-card rk-reset open">
-    <div class="pg-card-head"><div class="pg-card-title">Reset</div>
-      <button class="rk-rs-all" data-act="rk-reset-all">${allOn ? 'Select none' : 'Select everything'}</button></div>
-    <div class="rk-rs-list">${rows}</div>
-    <div class="rk-rs-warn">Whatever you tick is deleted from this device for good. A backup exported from
-      <b>Settings</b> before this is the only way back.</div>
-    <div class="rk-rs-btns">
-      <button class="rk-rs-go" data-act="rk-reset-go" ${resetSel.size ? '' : 'disabled'}>${resetGoLabel()}</button>
-      <button class="rk-rs-x" data-act="rk-reset-close">Cancel</button>
-    </div>
-  </div>`;
-}
-
-const resetGoLabel = () =>
-  resetSel.size ? `Reset ${resetSel.size} Selected` : 'Nothing Selected';
-
-/* Ticking a box repaints two elements. A full renderRank() here would rebuild
-   the tab under your finger and restart every counter on it. */
-export function resetToggle(id, root) {
-  if (resetSel.has(id)) resetSel.delete(id); else resetSel.add(id);
-  root.querySelector(`[data-act="rk-reset-tgl"][data-k="${id}"]`)?.classList.toggle('on', resetSel.has(id));
-  const go = root.querySelector('.rk-rs-go');
-  if (go) { go.textContent = resetGoLabel(); go.disabled = !resetSel.size; }
-  const all = root.querySelector('.rk-rs-all');
-  const held = resetTargets().filter(t => t.c > 0);
-  if (all) all.textContent = held.length && held.every(t => resetSel.has(t.id)) ? 'Select none' : 'Select everything';
-}
-
-export function resetToggleAll(root) {
-  const held = resetTargets().filter(t => t.c > 0);
-  const allOn = held.length > 0 && held.every(t => resetSel.has(t.id));
-  resetSel.clear();
-  if (!allOn) held.forEach(t => resetSel.add(t.id));
-  renderAwards(root);
-}
-
-export function resetPanel(open, root) {
-  resetOpen = open;
-  if (!open) resetSel.clear();
-  /* The reset card lives on Awards now, so this repaints Awards. Calling
-     renderRank here would rebuild a panel the card is no longer in and
-     leave the open/closed state on screen untouched. */
-  renderAwards(root);
-  if (open) root.querySelector('.rk-reset')?.scrollIntoView({ block:'nearest', behavior:'smooth' });
-}
-
-/* The targets currently ticked, for the confirm dialog that names them. */
-export const resetSelection = () => resetTargets().filter(t => resetSel.has(t.id));
-
-/* Unlike the active tab, an open delete checklist should NOT survive leaving
-   the app — coming back to boxes you ticked yesterday is how an accident
-   happens. Called from mount(). */
-export function resetDismiss() { resetOpen = false; resetSel.clear(); }
+/* The reset UI moved out of this app entirely — it lives in the shell's
+   Settings modal, under a red Danger Zone, beside the backup export that
+   is the only way back from it. What stays here is the table itself:
+   `resetTargets()` describes what can be cleared and how much is in each,
+   and `applyReset()` clears exactly what was asked for. */
 
 const CALM = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 /* Skip the animated path entirely when it can't be seen: a hidden tab never
@@ -1754,10 +1640,6 @@ function checkupHTML(s, st) {
 
    Two scores for two different things, and now two places to read them.
 
-   Reset lives under Awards because it is administration rather than a
-   reading, and the last tab is where you go looking for it rather than
-   somewhere you scroll past on the way to your lifts.
-
    Each function is self-contained and recomputes what it needs, exactly
    as the single renderRank did. Repainting all three costs what the one
    used to, so nothing got slower by being split up. */
@@ -1773,7 +1655,6 @@ export function renderRank(root) {
      worth nothing wherever it is filed. */
   let h = heroHTML(st);
   h += checkupHTML(s, st);
-  h += verseHTML();
   h += verdictHTML(st);
   h += liftsHTML(st);
   h += progressionHTML(s, st);
@@ -1807,9 +1688,7 @@ export function renderAwards(root) {
   if (!p) return;
   const st = strength(), s = stats();
 
-  let h = badgesHTML(achievements(s, st));
-  h += resetHTML();
-  p.innerHTML = h;
+  p.innerHTML = badgesHTML(achievements(s, st));
   tickCounts(p);
   slideMarkers(p);
 }

@@ -26,7 +26,7 @@
    one means adding both, not flipping a sign here.
    ═══════════════════════════════════════════════════════════ */
 
-import { load, save, dateStr } from '../../assets/js/storage.js?v=sheet-sep26';
+import { load, save, dateStr } from '../../assets/js/storage.js?v=trim-sep26';
 
 const LB_PER_KG = 2.20462262;
 const M_PER_IN  = 0.0254;
@@ -688,19 +688,13 @@ export function tapeStatus(s, verdict) {
    (fat + 0.5G)/(w + G) = 0.18 for G gives the gain, and the target weight
    with it.
 
-   Both numbers are SCENARIOS, and the cards say so. The arithmetic is
-   exact and its inputs are assumptions: nobody can tell you in advance
-   what share of your next ten pounds will be muscle, and a cut that gives
-   back no lean mass at all is the best case rather than the expected one.
-   The right way to read either target is "if it goes like this, here is
-   where it lands" — which is also why MAX_RUN exists, so you re-measure
-   and redraw the target from what actually happened rather than riding
-   one projection for a year.
-
-   And fat-free mass is not muscle. Every "lean" figure here is weight
-   minus estimated fat, which is water, bone, organs and glycogen as well
-   as muscle — so a scenario about lean mass is not a promise about
-   muscle, and the goal note avoids claiming otherwise. */
+   Both numbers are SCENARIOS. The arithmetic is exact and its inputs are
+   assumptions: nobody can tell you in advance what share of your next ten
+   pounds will be muscle, and a cut that gives back no lean mass at all is
+   the best case rather than the expected one. That is why MAX_RUN exists
+   — you re-measure and redraw the target from what actually happened
+   rather than riding one projection for a year. The card no longer spells
+   any of this out; `staged` is what it shows instead. */
 const CUT_TARGET = 0.12, BULK_CEILING = 0.18, LEAN_SHARE = 0.5;
 
 /* And then clamped, because a goal has to be near enough to steer by. Run
@@ -718,10 +712,7 @@ export function goalFor(s, verdict) {
   const off = ageOffset(s.age) / 100;
   const cutTarget = CUT_TARGET + off, bulkCeiling = BULK_CEILING + off;
 
-  if (verdict === 'RECOMP') {
-    return { w: s.w, pct: s.bf, dir:'hold', staged:false,
-             note:'A recomp has no goal weight — the scale is meant to stay where it is while the waist comes in. Watch the waist and the body fat line instead.' };
-  }
+  if (verdict === 'RECOMP') return { w: s.w, pct: s.bf, dir:'hold', staged:false };
 
   const cut  = verdict === 'CUT';
   const full = cut ? s.lean / (1 - cutTarget)
@@ -738,15 +729,8 @@ export function goalFor(s, verdict) {
      with: a clean cut gives back nothing but fat, a bulk adds half fat. */
   const fatAt = cut ? s.fat - (s.w - w) : s.fat + (1 - LEAN_SHARE) * (w - s.w);
   const pct = Math.max(0, fatAt / w * 100);
-  const endPct = Math.round((cut ? cutTarget : bulkCeiling) * 100);
 
-  const note = staged
-    ? `Scenario: the next ${Math.round(MAX_RUN * 100)}% of bodyweight, landing near ${pct.toFixed(0)}%. A full ${cut ? 'cut' : 'bulk'} to ${endPct}% is ${Math.abs(full - s.w).toFixed(0)} lbs off — re-measure here and redraw.`
-    : cut
-      ? `Scenario: your fat-free mass at ${endPct}% body fat, if the cut costs you none of it. Real cuts give back a pound or two, so this is the near edge.`
-      : `Scenario: where this reaches ${endPct}% body fat if half the gain is fat-free mass — an assumption, and fat-free mass is not muscle.`;
-
-  return { w, pct, dir: cut ? 'down' : 'up', staged, full, note };
+  return { w, pct, dir: cut ? 'down' : 'up', staged, full };
 }
 
 /* Days to the goal at the measured rate, or the reason there is no answer.
