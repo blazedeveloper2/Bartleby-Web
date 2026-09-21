@@ -26,8 +26,8 @@
    Nothing here writes. It reads state and returns findings.
    ═══════════════════════════════════════════════════════════ */
 
-import { load, todayStr } from '../../assets/js/storage.js?v=check-sep26';
-import { weighed, taped, navyBF, prof } from './body.js?v=check-sep26';
+import { load, todayStr } from '../../assets/js/storage.js?v=fair-sep26';
+import { weighed, taped, navyBF, prof } from './body.js?v=fair-sep26';
 
 const dOf = ds => new Date(ds + 'T00:00:00');
 const between = (a, b) => Math.round((dOf(b) - dOf(a)) / 86400000);
@@ -106,15 +106,22 @@ function tapeJumps(list, h) {
 
 /* ── progression ── */
 
-/* The last date each lift's working weight went UP, counting only
-   increases you have trained — the same proven-only rule the rest of the
-   app scores on, so a weight you typed and never lifted cannot pass as
-   progress here either. A baseline counts as a starting date. */
-function lastRaise(prList) {
+/* The last date each lift's working weight CHANGED — in either direction.
+
+   Not "went up", which is what this asked before and got wrong twice over.
+   A lift you deliberately lowered last week has not been neglected for
+   months; it is the lift you have thought about most recently. Somebody who
+   discovers they have been doing an exercise wrong and drops it from 52.5
+   to 20 is doing the single most useful thing on offer, and being told they
+   have stalled for it is the opposite of helpful.
+
+   Unproven increases count too. You moved the weight; whether you have
+   trained it yet is a different question, and the pending finding below
+   already asks it. */
+function lastMove(prList) {
   const m = new Map();
   (prList || []).forEach(e => {
-    if (e.k === 'void' || e.k === 'down') return;
-    if (e.k === 'up' && !e.proven) return;
+    if (e.kind === 'void') return;
     const cur = m.get(e.ex);
     if (!cur || e.d > cur) m.set(e.ex, e.d);
   });
@@ -156,7 +163,7 @@ export function checkup(cs, st) {
   });
 
   /* — progression — */
-  const raises = lastRaise(cs.prList);
+  const raises = lastMove(cs.prList);
   const stalledLifts = [];
   raises.forEach((d, ex) => {
     const age = agoOf(d);
@@ -170,13 +177,16 @@ export function checkup(cs, st) {
       `${names}${stalledLifts.length > 3 ? ', and others' : ''}. You have trained through it, so this is a stall rather than a break. Something has to change — more reps before you add weight, a smaller jump, or more food.`);
   }
 
-  const recentUps = (cs.prList || []).filter(e => e.k === 'up' && e.proven && agoOf(e.d) <= DRY_DAYS).length;
-  const recentSessions = log.filter(s => agoOf(s.d) <= DRY_DAYS).length;
-  if (!recentUps && recentSessions >= DRY_SESSIONS && !stalledLifts.length)
+  const inWindow = e => agoOf(e.d) <= DRY_DAYS;
+  const ups = (cs.prList || []).filter(e => e.kind === 'up' && inWindow(e));
+  const recentUps = ups.filter(e => e.proven).length;
+  const untested = ups.length - recentUps;
+  const recentSessions = log.filter(s => inWindow(s)).length;
+  if (!ups.length && recentSessions >= DRY_SESSIONS && !stalledLifts.length)
     add('no-prs', 'warn', 'Nothing has gone up in six weeks',
       `${plural(recentSessions, 'session')} in that time and no working weight raised. Attendance is not the problem, so the load is: if a lift is comfortable at the top of its rep range, it is time to add to it.`);
 
-  const backoffs = (cs.prList || []).filter(e => e.k === 'down' && agoOf(e.d) <= BACKOFF_DAYS).length;
+  const backoffs = (cs.prList || []).filter(e => e.kind === 'down' && agoOf(e.d) <= BACKOFF_DAYS).length;
   if (backoffs >= BACKOFF_N)
     add('backoffs', 'note', `${plural(backoffs, 'back-off')} in the last two months`,
       `Backing off once is honest. This often means the jumps are too big — with dumbbells the next pair up can be a 10% increase, which is a lot. Try holding a weight for an extra session before moving.`);

@@ -33,6 +33,18 @@ Live apps:
   it collapses to a single line saying so, with the evidence. See
   `apps/workout/checkup.js`, where each threshold carries its reasoning.
 
+  Tapping a lift in the muscle-map modal also offers **"Had this wrong?
+  Start this lift over"**. A back-off and a correction look identical in the
+  data and mean opposite things: backing off is real and the load you gave
+  back should come off the total, but discovering you were doing a movement
+  wrong and dropping it from 52.5 to 20 is not a regression — that 52.5 was
+  never a working weight, and netting it away takes load you genuinely added
+  to *other* lifts as the price of being honest about one. The app can't
+  tell them apart, so it asks. Starting a lift over voids its history rather
+  than subtracting it, so the number that was never true stops counting in
+  either direction. The new baseline is deliberately untested, like every
+  other claim here — train it once and it counts.
+
   The **Body** tab is composition, not just the scale. Log a weight and a
   tape — waist and neck, plus chest, arm and thigh behind a disclosure —
   any of them, any day, and the entry keeps whatever you don't re-enter.

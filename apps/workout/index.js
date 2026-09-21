@@ -6,23 +6,24 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, MMAP } from './data.js?v=check-sep26';
-import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=check-sep26';
-import { toast } from '../../assets/js/ui.js?v=check-sep26';
-import { pctColor, ord } from './standards.js?v=check-sep26';
+import { PROGRAM, MMAP } from './data.js?v=fair-sep26';
+import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=fair-sep26';
+import { toast } from '../../assets/js/ui.js?v=fair-sep26';
+import { pctColor, ord } from './standards.js?v=fair-sep26';
 import {
   setsOf, syncDay, logWeight, delSession, setReps, setBasis, snapshot,
   isLoggedToday, celebrationHTML, renderRank, liftScores, standingOf, resEx,
   resetPanel, resetToggle, resetToggleAll, resetSelection, applyReset, resetDismiss,
-} from './rank.js?v=check-sep26';
-import { MUSCLE_SVG } from './bodymap.js?v=check-sep26';
-import { standingsFor } from './anthro.js?v=check-sep26';
+  rebaseline, hasHistory,
+} from './rank.js?v=fair-sep26';
+import { MUSCLE_SVG } from './bodymap.js?v=fair-sep26';
+import { standingsFor } from './anthro.js?v=fair-sep26';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=check-sep26';
+} from './body.js?v=fair-sep26';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -256,7 +257,32 @@ function paintMMStanding() {
   const st = standingOf(mmEx.n);
   /* carry the row's tint through, so the modal reads as the same lift */
   q('#mm-name').style.color = st.state === 'scored' ? pctColor(st.lift.pct) : '';
-  q('#mm-rank').innerHTML = mmRankHTML(st);
+  q('#mm-rank').innerHTML = mmRankHTML(st) + rebaseHTML();
+}
+
+/* Offered on any lift with a history, because the moment you need it is the
+   moment you have just typed a much smaller number and are wondering why
+   the app thinks you got weaker. */
+function rebaseHTML() {
+  if (!mmEx || !hasHistory(mmEx.n)) return '';
+  return `<button class="mm-rebase" data-act="mm-rebase" title="Void this lift's recorded history and start it again from the weight above">Had this wrong? Start this lift over</button>`;
+}
+
+function doRebase() {
+  if (!mmEx) return;
+  const name = mmEx.n;
+  if (!confirm(`Start ${name} over?
+
+Every weight change recorded for this lift is voided — it stops counting as load added AND stops counting against it. Use this when the old numbers were wrong, not when you simply backed off.
+
+Your other lifts are untouched.`)) return;
+  const r = rebaseline(name);
+  paintMMStanding();
+  renderProg();
+  renderRank(root);
+  toast(r.reclaimed > 0
+    ? `${name} reset · ${Math.round(r.reclaimed)} lbs no longer counted against you`
+    : `${name} reset`);
 }
 
 function openMM(ex) {
@@ -1072,6 +1098,7 @@ function onClick(e) {
     case 'mm-close':  closeMM(); break;
     case 'mm-chip': inspectMuscle(el); break;
     case 'mm-view': mmView(a.view); break;
+    case 'mm-rebase': doRebase(); break;
     case 'bw-range':  bwSetRange(a.k); break;
     case 'bw-metric': bwSetMetric(a.k); break;
     case 'bw-save':   bwSave(); break;
@@ -1187,7 +1214,7 @@ export default {
   id: 'workout',
   name: 'Workout',
   storagePrefix: 'bp_',
-  styles: 'apps/workout/workout.css?v=check-sep26',
+  styles: 'apps/workout/workout.css?v=fair-sep26',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {

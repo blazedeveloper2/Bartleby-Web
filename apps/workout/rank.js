@@ -36,14 +36,14 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js?v=check-sep26';
-import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=check-sep26';
-import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=check-sep26';
+import { PROGRAM } from './data.js?v=fair-sep26';
+import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=fair-sep26';
+import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=fair-sep26';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef, REF_BF } from './body.js?v=check-sep26';
-import { checkup } from './checkup.js?v=check-sep26';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef, REF_BF } from './body.js?v=fair-sep26';
+import { checkup } from './checkup.js?v=fair-sep26';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -300,9 +300,20 @@ function provenTest() {
    netAdded therefore lands on exactly the same number as the proven
    strength model — it is what you can currently do, minus where you began,
    and no amount of typing moves it. */
+/* `kind` is stamped here because the stored shape is a trap: an increase
+   carries NO `k` at all — it is the fall-through case — while 'base',
+   'down' and 'void' are labelled. Any reader that goes looking for
+   `k === 'up'` finds nothing, ever, and silently concludes you have never
+   added weight in your life. That is not hypothetical; the checkup shipped
+   with exactly that bug. Every consumer downstream reads `kind`. */
+const kindOf = e => e.k === 'void' ? 'void'
+                  : e.k === 'base' ? 'base'
+                  : e.k === 'down' ? 'down'
+                  : 'up';
+
 function weightHistory() {
   const isProven = provenTest();
-  const entries = prAll().map(e => ({ ...e, proven: isProven(e) }));
+  const entries = prAll().map(e => ({ ...e, proven: isProven(e), kind: kindOf(e) }));
   const byLift = new Map();
   let grossAdded = 0, givenBack = 0, pendingLoad = 0, prs = 0, backoffs = 0, voids = 0;
 
@@ -825,6 +836,45 @@ export function logWeight(name, prev, next, before) {
   prSv(l);
   return done(now < next ? 'up' : now > next ? 'down' : rolled.length ? 'rollback' : 'none');
 }
+
+/* "I had this one wrong."
+
+   A back-off and a correction look identical in the data and mean opposite
+   things. Backing off is real: you could do 80 and now you cannot, so the
+   load you gave back comes off the total, and it should. A correction is
+   not — you were doing the movement wrong, the 52.5 was never a working
+   weight, and netting it against the total takes away load you genuinely
+   added to other lifts as the price of being honest about one.
+
+   The app cannot tell them apart, so it asks. Choosing correction voids
+   this lift's history rather than subtracting it: the number that was never
+   true stops counting in either direction, and the lift starts again from
+   what you are actually doing.
+
+   Deliberately NOT proven. Re-baselining is a claim about today, and the
+   rest of this file only lets a claim become load once a session has
+   trained it — an escape hatch that launders untested weight into a total
+   would be a worse bug than the one it fixes. Train it once and it counts,
+   like everything else here. */
+export function rebaseline(name) {
+  const l = prAll(), cur = wts()[name] || 0;
+  let voided = 0, reclaimed = 0;
+  l.forEach(e => {
+    if (e.ex !== name || e.k === 'void') return;
+    if (e.k === 'down') reclaimed += e.from - e.to;
+    e.hi = Math.max(e.hi || 0, e.to);
+    e.k = 'void';
+    voided++;
+  });
+  if (!voided) return { voided: 0, reclaimed: 0 };
+  if (cur > 0) l.push({ d: todayStr(), ex: name, from: 0, to: cur, k: 'base', p: 0 });
+  prSv(l);
+  latch();
+  return { voided, reclaimed };
+}
+
+/* Has this lift got anything a re-baseline would clear? */
+export const hasHistory = name => prAll().some(e => e.ex === name && e.k !== 'void');
 
 /* Proof isn't unwound here: nothing records WHICH session proved a given
    weight, and deleting one old entry out of months of training shouldn't be
