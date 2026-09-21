@@ -6,28 +6,28 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, MMAP } from './data.js?v=cascadia-sep26';
-import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=cascadia-sep26';
-import { toast } from '../../assets/js/ui.js?v=cascadia-sep26';
-import { pctColor, ord, LIFTS } from './standards.js?v=cascadia-sep26';
+import { PROGRAM, MMAP } from './data.js?v=reps-sep26';
+import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=reps-sep26';
+import { toast } from '../../assets/js/ui.js?v=reps-sep26';
+import { pctColor, ord, LIFTS } from './standards.js?v=reps-sep26';
 import {
   setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, setReps, setBasis, snapshot,
   isLoggedToday, celebrationHTML, renderRank, liftScores, standingOf, resEx,
   resetPanel, resetToggle, resetToggleAll, resetSelection, applyReset, resetDismiss,
   rebaseline, hasHistory, setExReps, exReps, dropOff,
-} from './rank.js?v=cascadia-sep26';
+} from './rank.js?v=reps-sep26';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
-import { MUSCLE_SVG } from './bodymap.js?v=cascadia-sep26';
-import { standingsFor } from './anthro.js?v=cascadia-sep26';
+import { MUSCLE_SVG } from './bodymap.js?v=reps-sep26';
+import { standingsFor } from './anthro.js?v=reps-sep26';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor, whtrBand,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=cascadia-sep26';
+} from './body.js?v=reps-sep26';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -1314,7 +1314,7 @@ export default {
   id: 'workout',
   name: 'Workout',
   storagePrefix: 'bp_',
-  styles: 'apps/workout/workout.css?v=cascadia-sep26',
+  styles: 'apps/workout/workout.css?v=reps-sep26',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
