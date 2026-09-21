@@ -36,13 +36,13 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js?v=seg-sep26';
-import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=seg-sep26';
-import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=seg-sep26';
+import { PROGRAM } from './data.js?v=badge2-sep26';
+import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=badge2-sep26';
+import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=badge2-sep26';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, snapshot as bodySnap, scoringRef, REF_BF } from './body.js?v=seg-sep26';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef, REF_BF } from './body.js?v=badge2-sep26';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -143,13 +143,20 @@ const BADGES = [
   /* -- Consistency -- */
   { id:'first',     cat:0, ico:'bolt',   n:'First Rep',        req:'Finish 1 session',               t:s => s.sessions >= 1 },
   { id:'ten',       cat:0, ico:'bolt',   n:'Double Digits',    req:'Finish 10 sessions',             t:s => s.sessions >= 10 },
+  { id:'streak3',   cat:0, ico:'flame',  n:'Hat Trick',        req:'3 training days in a row',       t:s => s.best >= 3 },
+  { id:'twentyfive',cat:0, ico:'bolt',   n:'Quarter Century',  req:'Finish 25 sessions',             t:s => s.sessions >= 25 },
+  { id:'weeks2',    cat:0, ico:'check',  n:'Back To Back',     req:'2 perfect weeks',                t:s => s.perfectWeeks >= 2 },
   { id:'week',      cat:0, ico:'check',  n:'Perfect Week',     req:`All ${WEEK_TARGET} days in one week`, t:s => s.perfectWeeks >= 1 },
   { id:'streak8',   cat:0, ico:'flame',  n:'Unbroken',         req:'8 training days in a row',       t:s => s.best >= 8 },
   { id:'weeks4',    cat:0, ico:'cal',    n:'Full Month',       req:'4 perfect weeks',                t:s => s.perfectWeeks >= 4 },
+  { id:'season',    cat:0, ico:'cal',    n:'A Season',         req:'90 days since your first session', t:s => s.daysIn >= 90 },
   { id:'fifty',     cat:0, ico:'medal',  n:'Half Century',     req:'Finish 50 sessions',             t:s => s.sessions >= 50 },
+  { id:'everyDay',  cat:0, ico:'cal',    n:'Whole Week',       req:'Train on all 7 weekdays at some point', t:s => s.dowCount >= 7 },
+  { id:'seventy5',  cat:0, ico:'medal',  n:'Three Quarters',   req:'Finish 75 sessions',             t:s => s.sessions >= 75 },
   { id:'streak20',  cat:0, ico:'flame',  n:'Limiter Off',      req:'20 training days in a row',      t:s => s.best >= 20 },
   { id:'comeback',  cat:0, ico:'clock',  n:'No Excuses',       req:'Train again after 14+ days off', t:s => s.maxGap >= 14 },
   { id:'weeks10',   cat:0, ico:'cal',    n:'Ten Out Of Ten',   req:'10 perfect weeks',               t:s => s.perfectWeeks >= 10 },
+  { id:'year1',     cat:0, ico:'cal',    n:'Anniversary',      req:'A year since your first session', t:s => s.daysIn >= 365 },
   { id:'hundred',   cat:0, ico:'trophy', n:'Centurion',        req:'Finish 100 sessions',            t:s => s.sessions >= 100 },
   { id:'streak40',  cat:0, ico:'flame',  n:'Immovable',        req:'40 training days in a row',      t:s => s.best >= 40 },
   { id:'twoHundred',cat:0, ico:'trophy', n:'Double Century',   req:'Finish 200 sessions',            t:s => s.sessions >= 200 },
@@ -165,22 +172,38 @@ const BADGES = [
   { id:'p4p',       cat:1, ico:'peak',   n:'Pound For Pound',  req:'Any lift at 1.0x your bodyweight', t:s => s.maxRatio >= 1 },
   { id:'rankA',     cat:1, ico:'shield', n:'Top Fifth',        req:'Reach rank A overall',           t:s => s.rankIdx >= 4 },
   { id:'liftS',     cat:1, ico:'crown',  n:'Specialist',       req:'Any single lift to S',           t:s => s.bestLift >= 5 },
+  { id:'allB',      cat:1, ico:'target', n:'Across The Board', req:'Every scored lift at B or above', t:s => s.scored >= 8 && s.minPct >= 50 },
+  { id:'bw15',      cat:1, ico:'peak',   n:'One And A Half',   req:'Any lift at 1.5x your bodyweight', t:s => s.maxRatio >= 1.5 },
   { id:'rankS',     cat:1, ico:'crown',  n:'Elite',            req:'Reach rank S overall',           t:s => s.rankIdx >= 5 },
+  { id:'liftSS',    cat:1, ico:'crown',  n:'Off The Table',    req:'Any single lift to SS',          t:s => s.bestLift >= 6 },
+  { id:'rankSS',    cat:1, ico:'crown',  n:'Freak',            req:'Reach rank SS overall',          t:s => s.rankIdx >= 6 },
 
   /* -- Volume -- */
+  { id:'sets100',   cat:2, ico:'bolt',   n:'First Hundred',    req:'Complete 100 hard sets',         t:s => s.sets >= 100 },
+  { id:'sets250',   cat:2, ico:'bolt',   n:'Getting Somewhere',req:'Complete 250 hard sets',         t:s => s.sets >= 250 },
   { id:'sets500',   cat:2, ico:'star',   n:'500 Hard Sets',    req:'Complete 500 hard sets',         t:s => s.sets >= 500 },
   { id:'sets1500',  cat:2, ico:'star',   n:'1,500 Hard Sets',  req:'Complete 1,500 hard sets',       t:s => s.sets >= 1500 },
   { id:'sets4000',  cat:2, ico:'trophy', n:'4,000 Hard Sets',  req:'Complete 4,000 hard sets',       t:s => s.sets >= 4000 },
+  { id:'sets10k',   cat:2, ico:'crown',  n:'Five Figures',     req:'Complete 10,000 hard sets',      t:s => s.sets >= 10000 },
 
   /* -- Progression -- */
   { id:'pr1',       cat:3, ico:'target', n:'Stronger',         req:'Raise a working weight',         t:s => s.prs >= 1 },
   { id:'fullSheet', cat:3, ico:'check',  n:'Full Sheet',       req:'A weight logged on every scored lift', t:s => s.allLogged },
+  { id:'pr5',       cat:3, ico:'target', n:'Creeping Up',      req:'5 working-weight increases',     t:s => s.prs >= 5 },
+  { id:'backoff',   cat:3, ico:'clock',  n:'Honest Rep',       req:'Back a weight off once — the log is for what you lift, not what you meant to', t:s => s.backoffs >= 1 },
   { id:'pr15',      cat:3, ico:'target', n:'Overloaded',       req:'15 working-weight increases',    t:s => s.prs >= 15 },
   { id:'load100',   cat:3, ico:'peak',   n:'Plus One Hundred', req:'+100 lbs of load added',         t:s => s.loadAdded >= 100 },
+  { id:'load250',   cat:3, ico:'peak',   n:'Plus Two Fifty',   req:'+250 lbs of load added',         t:s => s.loadAdded >= 250 },
   { id:'weighIn',   cat:3, ico:'scale',  n:'Weigh In',         req:'Log your bodyweight 15 times',   t:s => s.bwCount >= 15 },
+  { id:'tape1',     cat:3, ico:'scale',  n:'Tape Measure',     req:'Log a waist and neck measurement', t:s => s.tapes >= 1 },
+  { id:'tape6',     cat:3, ico:'scale',  n:'Kept It Up',       req:'6 tape measurements',            t:s => s.tapes >= 6 },
+  { id:'lean',      cat:3, ico:'peak',   n:'Athlete Band',     req:'Body fat under 14%',             t:s => s.bf !== null && s.bf < 14 },
+  { id:'bfDrop3',   cat:3, ico:'peak',   n:'Three Points',     req:'Drop 3 points of body fat since your first tape', t:s => s.bfDrop >= 3 },
+  { id:'bwLog50',   cat:3, ico:'scale',  n:'Creature Of Habit',req:'Log your bodyweight 50 times',   t:s => s.bwCount >= 50 },
   { id:'recomp',    cat:3, ico:'scale',  n:'Recomposition',    req:'Drop 5 lbs of bodyweight while adding 50 lbs of load', t:s => s.bwDelta <= -5 && s.loadAdded >= 50 },
   { id:'pr50',      cat:3, ico:'target', n:'Never Satisfied',  req:'50 working-weight increases',    t:s => s.prs >= 50 },
   { id:'load500',   cat:3, ico:'peak',   n:'Plus Five Hundred',req:'+500 lbs of load added',         t:s => s.loadAdded >= 500 },
+  { id:'load1000',  cat:3, ico:'trophy', n:'Plus One Thousand',req:'+1,000 lbs of load added',       t:s => s.loadAdded >= 1000 },
 ];
 
 /* Flatten consistency + strength into the shape the tests above expect.
@@ -570,6 +593,26 @@ function streaksFrom(hits, firstDate, cover) {
   return { streak: cur, best };
 }
 
+/* Tape-derived numbers for the body badges. Isolated and total-failure-safe:
+   no profile, no height, no tape, a waist typed into the neck box — every
+   one of those has to come back as a number the tests can compare against
+   rather than an exception on the Rank tab. */
+function bodyStats() {
+  try {
+    const t = taped(load('bp_bw', []));
+    const h = prof().h;
+    const first = t.length ? navyBF(t[0].wa, t[0].nk, h) : null;
+    const now = t.length ? navyBF(t[t.length - 1].wa, t[t.length - 1].nk, h) : null;
+    return {
+      tapes: t.length,
+      bf: now,
+      bfDrop: (first !== null && now !== null) ? first - now : 0,
+    };
+  } catch {
+    return { tapes: 0, bf: null, bfDrop: 0 };
+  }
+}
+
 export function stats() {
   const log = logAll(), h = weightHistory();
   const hits = new Set(log.map(e => e.d));
@@ -617,6 +660,18 @@ export function stats() {
     level: levelOf(log.length),
     bwCount: bwLog.length,
     bwDelta: bwLog.length >= 2 ? bwLog[bwLog.length - 1].w - bwLog[0].w : 0,
+
+    /* Fields below exist only for badge tests, and every one of them has a
+       literal fallback rather than an undefined. earned() runs on every
+       render of this tab, and a test that throws on a missing field takes
+       the whole tab down with it — so null-or-number, never absent. */
+    daysIn: firstDate
+      ? Math.max(0, Math.round((dOf(todayStr()) - dOf(firstDate)) / 86400000))
+      : 0,
+    /* Distinct weekdays ever trained. The program asks for four, so getting
+       all seven means make-up days, holidays and at least one odd Sunday. */
+    dowCount: new Set(log.map(e => dOf(e.d).getDay())).size,
+    ...bodyStats(),
   };
   return s;
 }
@@ -1226,12 +1281,17 @@ function badgesHTML(ach) {
     </div>`;
   };
 
-  let i = 0;
   const groups = CATS.map((title, ci) => {
     const all = BADGES.filter(b => b.cat === ci);
     const got = all.filter(b => ach.ids.has(b.id));
     /* earned first inside each group, so progress reads top-down */
     const ordered = [...got, ...all.filter(b => !ach.ids.has(b.id))];
+    /* --i drives the arcade theme's entrance cascade, and it restarts per
+       group rather than running across the whole card. Continuous numbering
+       meant the last tile's delay grew with the total badge count — at 57 it
+       was most of a second, and every badge added made every card slower.
+       Per group it is bounded by the largest category instead. */
+    let i = 0;
     return `<div class="pg-b-group">
       <div class="pg-b-gt"><span>${title}</span><span class="pg-b-gc ${got.length === all.length ? 'full' : ''}">${got.length}/${all.length}</span></div>
       <div class="pg-b-grid">${ordered.map(b => cell(b, i++)).join('')}</div>

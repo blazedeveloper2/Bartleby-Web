@@ -258,7 +258,10 @@ html[data-theme="arcade"] .pg-hm-c {
 /* achievement tiles cascade in */
 html[data-theme="arcade"] .pg-b {
   animation:ar-tile-in .3s cubic-bezier(.22,.68,0,1.1) both;
-  animation-delay:calc(var(--i, 0) * 14ms);
+  /* Capped as well as reset per group: a cascade is a flourish, and past a
+     third of a second it stops reading as one and starts reading as the
+     page being slow. */
+  animation-delay:calc(min(var(--i, 0), 18) * 14ms);
 }
 /* so does the PR feed */
 html[data-theme="arcade"] .pg-pr {

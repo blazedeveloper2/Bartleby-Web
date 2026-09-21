@@ -12,8 +12,8 @@ Live apps:
   — or, if you'd rather, relative to your **lean mass**, which stops a cut
   flattering the letter and a bulk hiding it (see below) —
   plus a training level that climbs one step per finished session (with a
-  level-up card when it does), streaks, a consistency heatmap, milestones and
-  a daily verse. The level is attendance only: it never reads a weight, so it
+  level-up card when it does), streaks, a consistency heatmap, 57 milestones
+  across consistency, strength, volume and progression, and a daily verse. The level is attendance only: it never reads a weight, so it
   can't move the letter and the letter can't be farmed by showing up.
   Every weighted lift in the program is scored; each one is tagged with how
   trustworthy its standard is (exact match / proxy movement / estimate).
