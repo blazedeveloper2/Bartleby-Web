@@ -17,6 +17,14 @@ Live apps:
   can't move the letter and the letter can't be farmed by showing up.
   Every weighted lift in the program is scored; each one is tagged with how
   trustworthy its standard is (exact match / proxy movement / estimate).
+  Exercise names are tinted by where that lift stands, on a scale whose
+  brightness climbs with the percentile rather than peaking in the middle —
+  the stops land on the rank boundaries, so the colour shifts where the
+  letter does, and each one solves for a target luminance rather than a
+  fixed lightness, because equal HSL lightness is not equal brightness. It
+  reads off the theme's own card colour, so the light theme gets a dark ramp
+  and the dark themes a bright one; every point on it clears WCAG AA 4.5:1
+  against every theme.
   See `apps/workout/standards.js` for the data and its sources.
 
   A **checkup** sits under the letter and answers two questions the rest of

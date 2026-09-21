@@ -175,12 +175,101 @@ export function ord(n) {
   return `${v}${['th','st','nd','rd'][v % 10] || 'th'}`;
 }
 
+/* The scale had one job and did the opposite of it.
+
+   A straight hue sweep at constant HSL lightness looks even and is not:
+   yellow carries far more luminance than red or green at the same L. The
+   old scale peaked at the 40th percentile — a mediocre lift was the
+   BRIGHTEST thing on the tab, brighter than an S — so the eye's strongest
+   signal, brightness, pointed at the middle while hue pointed at the ends.
+   That is why everything from a weak C to a good B read as much the same
+   shade of bright yellow-ish. On the light theme it was worse than similar:
+   most of the range sat at 1.2–1.8:1 against white, which is not a colour
+   choice, it is illegible.
+
+   So brightness now carries the same message hue does — dim and red at the
+   bottom, bright and green at the top, monotonically — and the stops land
+   on the rank boundaries, so the colour shifts where the letter does.
+
+   Luminance is solved for rather than set, because equal L is not equal
+   brightness. Each stop names a target relative luminance and the lightness
+   that hits it is found by bisection, which is what keeps the ramp even to
+   the eye instead of even on paper. */
+
+/* Hue stops must ASCEND. 356 followed by 4 is eight degrees apart on the
+   wheel and three hundred and fifty-two apart to a linear interpolator,
+   which duly routed the bottom of the scale through green — an F rendering
+   as mint. Start at 0 and climb. */
+const HUE = [[0, 0], [5, 6], [20, 24], [50, 45], [80, 104], [95, 142], [100, 154]];
+const SAT = [[0, 58], [5, 74], [20, 86], [50, 88], [80, 60], [95, 62], [100, 66]];
+
+/* Targets differ by theme because the constraint does. On a near-black card
+   everything has to be light enough to read; on white everything has to be
+   dark enough, which caps the top of the ramp well below where a dark theme
+   can take it. Same order, same message, different room to say it in. */
+/* 0.205 rather than a rounder number: the darkest card is #0d0d0d, and
+   4.5:1 against it needs relative luminance of 0.20. The bottom of the
+   ramp is exactly as dim as it can be while an F is still legible. */
+const LUM_DARK = [0.205, 0.62];
+const LUM_LIGHT = [0.035, 0.135];
+
+const at = (stops, pct) => {
+  for (let i = 1; i < stops.length; i++) {
+    if (pct <= stops[i][0]) {
+      const [p0, v0] = stops[i - 1], [p1, v1] = stops[i];
+      return v0 + (v1 - v0) * ((pct - p0) / (p1 - p0 || 1));
+    }
+  }
+  return stops[stops.length - 1][1];
+};
+
+function hslToRgb(h, s, l) {
+  s /= 100; l /= 100;
+  const k = n => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return [f(0), f(8), f(4)];
+}
+const relLum = ([r, g, b]) => {
+  const c = [r, g, b].map(v => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+};
+
+/* Lightness that puts this hue at that luminance. Monotonic in l, so twenty
+   halvings land well inside a rounding error. */
+function lightnessFor(h, s, target) {
+  let lo = 0, hi = 100;
+  for (let i = 0; i < 20; i++) {
+    const mid = (lo + hi) / 2;
+    if (relLum(hslToRgb(h, s, mid)) < target) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+/* Which end of the ramp to aim at, decided from the theme's own background
+   rather than a list of theme names — a theme added later gets the right
+   treatment without touching this file. Memoised on the theme attribute,
+   since it is read once per lift per render. */
+let _themeKey = null, _dark = true;
+function onDarkBg() {
+  if (typeof document === 'undefined') return true;
+  const key = document.documentElement.getAttribute('data-theme') || '';
+  if (key === _themeKey) return _dark;
+  _themeKey = key;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim();
+  const m = /^#?([0-9a-f]{6})$/i.exec(raw);
+  _dark = m
+    ? relLum([0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16) / 255)) < 0.4
+    : true;
+  return _dark;
+}
+
 export function pctColor(pct) {
-  const t = Math.max(0, Math.min(100, pct || 0)) / 100;
-  const h = 2 + t * 140;      /* 2° red → 142° green, passing through amber */
-  const s = 92 - t * 24;      /* saturation eases off so green isn't neon */
-  const l = 62 - t * 4;
-  return `hsl(${h.toFixed(1)}, ${s.toFixed(0)}%, ${l.toFixed(0)}%)`;
+  const p = Math.max(0, Math.min(100, pct || 0));
+  const h = at(HUE, p), s = at(SAT, p);
+  const [lo, hi] = onDarkBg() ? LUM_DARK : LUM_LIGHT;
+  const l = lightnessFor(h, s, lo + (hi - lo) * (p / 100));
+  return `hsl(${h.toFixed(1)}, ${s.toFixed(0)}%, ${l.toFixed(1)}%)`;
 }
 
 /* ═══════════════════ DAILY SCRIPTURE ═══════════════════

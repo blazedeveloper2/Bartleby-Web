@@ -36,14 +36,14 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js?v=fair-sep26';
-import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=fair-sep26';
-import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=fair-sep26';
+import { PROGRAM } from './data.js?v=scale-sep26';
+import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=scale-sep26';
+import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=scale-sep26';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef, REF_BF } from './body.js?v=fair-sep26';
-import { checkup } from './checkup.js?v=fair-sep26';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef, REF_BF } from './body.js?v=scale-sep26';
+import { checkup } from './checkup.js?v=scale-sep26';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
