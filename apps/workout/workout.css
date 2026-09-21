@@ -211,6 +211,8 @@
 .bd-ht{display:flex;align-items:center;gap:6px}
 .bd-ht .bw-in{width:100%;min-width:0;text-align:center}
 .bd-prof-f.wide{grid-column:1/-1}
+.bd-prof-f.narrow .bw-in{max-width:90px}
+.wk .bd-prof .bw-add-lbl em{font-style:normal;opacity:.5;letter-spacing:.5px;margin-left:4px;text-transform:none}
 /* One number, not two — don't stretch it across the row the ft+in
    pair needs. */
 .bd-ht.one{justify-content:flex-start}
@@ -246,6 +248,13 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 .bd-scale-bar i.good{background:var(--green)}
 .bd-scale-bar i.mid{background:var(--amber)}
 .bd-scale-bar i.warn{background:var(--red)}
+/* Sits under the marker and over the bands: a lighter, wider highlight that
+   reads as a region rather than a boundary. */
+.bd-scale-ok{position:absolute;top:-3px;height:15px;border-radius:3px;
+  border:1px solid var(--text-2);background:#ffffff0f;pointer-events:none}
+.bd-scale-foot{font-size:10.5px;color:var(--text-3);margin-top:7px;letter-spacing:.2px}
+.bd-scale-foot b{font-family:var(--mono);color:var(--text-2);font-weight:700}
+.bd-scale-foot.ok b{color:var(--green)}
 .bd-scale-mk{position:absolute;top:-4px;width:2px;height:17px;background:var(--text);transform:translateX(-1px);border-radius:1px;box-shadow:0 0 0 2px var(--bg)}
 .bd-scale-mk span{position:absolute;top:-17px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:10px;font-weight:700;color:var(--text);white-space:nowrap}
 .bd-scale-lbl{display:flex;gap:2px;margin-top:5px}

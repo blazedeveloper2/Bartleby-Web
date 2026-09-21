@@ -54,6 +54,19 @@ Live apps:
   an estimate more than three weeks old says so out loud rather than
   quietly presenting itself as today's.
 
+  **Age** is optional and changes nothing the app calculates — the Navy
+  formula has no age term, and Katch-McArdle runs off measured lean mass,
+  which is most of why it was picked over Mifflin-St Jeor. What age changes
+  is what a given body fat *means*: the healthy male range rises from 8–19%
+  in your twenties to 13–24% in your seventies
+  ([Gallagher 2000](https://pubmed.ncbi.nlm.nih.gov/10966886/)). Give it one
+  and the bulk/cut/recomp thresholds and the goal targets slide up with your
+  age bracket, and that healthy range is drawn over the scale. Leave it blank
+  and everything behaves exactly as it did before the field existed. The ACE
+  bands underneath are deliberately *not* relabelled by age — that is a
+  specific published table, and the age-appropriate range belongs over it
+  rather than in place of it.
+
   The rates and targets are not invented. Cutting at 0.5–1%/wk and protein
   at 2.3–3.1 g/kg of lean mass come from [Helms, Aragon & Schoenfeld
   (2014)](https://pmc.ncbi.nlm.nih.gov/articles/PMC4033492/); the bulk rate

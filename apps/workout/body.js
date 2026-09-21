@@ -26,7 +26,7 @@
    one means adding both, not flipping a sign here.
    ═══════════════════════════════════════════════════════════ */
 
-import { load, save, dateStr } from '../../assets/js/storage.js?v=perunit2-sep26';
+import { load, save, dateStr } from '../../assets/js/storage.js?v=age-sep26';
 
 const LB_PER_KG = 2.20462262;
 const M_PER_IN  = 0.0254;
@@ -37,7 +37,7 @@ const KCAL_PER_LB = 3500;
 
 /* ═══════════════════ PROFILE ═══════════════════ */
 
-const PROF_DEF = { h: null, act: 'mod', goal: null, units: {} };
+const PROF_DEF = { h: null, age: null, act: 'mod', goal: null, units: {} };
 export const prof    = () => ({ ...PROF_DEF, ...load('bp_prof', {}) });
 export const profSet = patch => save('bp_prof', { ...prof(), ...patch });
 
@@ -238,6 +238,42 @@ export const BF_BANDS = [
 export const bfBand = bf =>
   bf === null ? null : BF_BANDS.find(b => bf < b.hi) || BF_BANDS[BF_BANDS.length - 1];
 
+/* ── age ──
+   Age changes nothing this file calculates. The Navy formula has no age
+   term (the age box on calculator sites is for the Navy's own pass/fail
+   standard, not the estimate), and Katch-McArdle runs off measured lean
+   mass — which is most of why it was chosen over Mifflin-St Jeor, whose
+   price is a birthday.
+
+   What age does change is what a given body fat MEANS. Healthy ranges for
+   men, from Gallagher et al., "Healthy percentage body fat ranges", Am J
+   Clin Nutr 2000;72:694-701 — https://pubmed.ncbi.nlm.nih.gov/10966886/ —
+   rise by about five points from your twenties to your seventies. Bands
+   written for a 25-year-old tell a 55-year-old to cut at a body fat that
+   is fine for him.
+
+   `off` is how far the decision thresholds below move, taken from the shift
+   in the healthy floor (8 → 11 → 13). Age unset means no shift at all, so
+   leaving the field blank behaves exactly as the app did before it existed.
+
+   The ACE bands above are deliberately NOT shifted. They are a specific
+   published table and renaming its rows by age would misrepresent what it
+   says; the age-appropriate range is drawn over them instead. */
+export const AGE_BANDS = [
+  { max: 40,  lo: 8,  hi: 19, off: 0, lbl: '20–39' },
+  { max: 60,  lo: 11, hi: 21, off: 3, lbl: '40–59' },
+  { max: 200, lo: 13, hi: 24, off: 5, lbl: '60–79' },
+];
+const ageBandFor = age =>
+  (typeof age === 'number' && age > 0) ? AGE_BANDS.find(b => age < b.max) || AGE_BANDS[AGE_BANDS.length - 1] : null;
+
+/* The healthy range for this age, or null when no age is set. */
+export const healthyFor = age => {
+  const b = ageBandFor(age);
+  return b ? { lo: b.lo, hi: b.hi, lbl: b.lbl } : null;
+};
+export const ageOffset = age => (ageBandFor(age)?.off ?? 0);
+
 /* ═══════════════════ DERIVED FIGURES ═══════════════════ */
 
 export const bmiOf  = (w, h) => (num(w) && num(h) ? 703 * w / (h * h) : null);
@@ -341,7 +377,8 @@ export function snapshot() {
   const tapeBad = lt !== null && bf === null;
 
   return {
-    h: p.h, act: p.act, goal: p.goal, units: p.units,
+    h: p.h, age: p.age, act: p.act, goal: p.goal, units: p.units,
+    healthy: healthyFor(p.age),
     w, wDate: lw ? lw.d : null,
     bf, bfDate: bf !== null && lt ? lt.d : null, tapeBad,
     waist: lt ? lt.wa : null,
@@ -376,17 +413,22 @@ export function snapshot() {
 
    Nothing here knows your training age, your sleep, or what you are training
    for. It reads one number and applies a rule of thumb to it. */
+/* `max` is the threshold for a man in his twenties or thirties; the age
+   offset slides all of them up together. `why` takes the offset so the
+   numbers it quotes stay the numbers actually being used — a card that
+   says "run it until around 18%" while scoring against 21% is worse than
+   one that says nothing. The last row is the catch-all and never moves. */
 const CALLS = [
   { max: 10, v:'BULK',   tone:'bulk',
-    why:'Lean enough that a surplus goes mostly where you want it. Little left to gain from getting leaner, and strength usually suffers down here.' },
+    why: () => 'Lean enough that a surplus goes mostly where you want it. Little left to gain from getting leaner, and strength usually suffers down here.' },
   { max: 15, v:'BULK',   tone:'bulk',
-    why:'The band where a surplus buys the most muscle per pound of fat. Run it until you are around 18% and then reassess.' },
+    why: o => `The band where a surplus buys the most muscle per pound of fat. Run it until you are around ${18 + o}% and then reassess.` },
   { max: 18, v:'RECOMP', tone:'hold',
-    why:'Neither lean enough that a bulk pays well nor heavy enough to need a cut. Hold the weight, keep adding load, and let the composition move underneath it.' },
+    why: () => 'Neither lean enough that a bulk pays well nor heavy enough to need a cut. Hold the weight, keep adding load, and let the composition move underneath it.' },
   { max: 22, v:'CUT',    tone:'cut',
-    why:'Far enough up that a bulk from here buys fat faster than muscle. A short cut back to the low teens makes the next one worth more.' },
-  { max: 100, v:'CUT',   tone:'cut',
-    why:'Cut first. Partitioning gets worse the higher this goes, so a month spent bulking at this level costs two cutting back down.' },
+    why: o => `Far enough up that a bulk from here buys fat faster than muscle. A short cut back toward ${12 + o}% makes the next one worth more.` },
+  { max: Infinity, v:'CUT', tone:'cut',
+    why: () => 'Cut first. Partitioning gets worse the higher this goes, so a month spent bulking at this level costs two cutting back down.' },
 ];
 
 /* Target rates, as a share of bodyweight per week, both taken from
@@ -430,7 +472,9 @@ const round10 = n => Math.round(n / 10) * 10;
 export function advise(s) {
   if (s.bf === null || s.lean === null || !s.energy) return { state: 'nodata' };
 
-  const call = CALLS.find(c => s.bf < c.max) || CALLS[CALLS.length - 1];
+  const off = ageOffset(s.age);
+  const row = CALLS.find(c => s.bf < c.max + (isFinite(c.max) ? off : 0)) || CALLS[CALLS.length - 1];
+  const call = { ...row, why: row.why(off) };
 
   /* The surplus or deficit that produces the target rate, then capped as a
      share of maintenance — at a low TDEE an unclamped 0.75%/wk deficit can
@@ -443,6 +487,8 @@ export function advise(s) {
 
   const protein = round5(s.lean * (call.v === 'CUT' ? PROT_CUT : PROT_OTHER));
 
+  /* goalFor reads s.age and derives the same offset itself rather than being
+     handed this one — it is exported and gets called on its own too. */
   return { state:'ok', ...call, kcal, delta: Math.round(delta), protein,
            pace: paceOf(call.v, s.rate), goal: goalFor(s, call.v) };
 }
@@ -504,6 +550,10 @@ const MAX_RUN = 0.10;
 
 export function goalFor(s, verdict) {
   if (s.lean === null || s.fat === null) return null;
+  /* Same slide as the thresholds: chasing a twenty-year-old's 12% at sixty
+     is a target drawn from the wrong table. */
+  const off = ageOffset(s.age) / 100;
+  const cutTarget = CUT_TARGET + off, bulkCeiling = BULK_CEILING + off;
 
   if (verdict === 'RECOMP') {
     return { w: s.w, pct: s.bf, dir:'hold', staged:false,
@@ -511,8 +561,8 @@ export function goalFor(s, verdict) {
   }
 
   const cut  = verdict === 'CUT';
-  const full = cut ? s.lean / (1 - CUT_TARGET)
-                   : s.w + (BULK_CEILING * s.w - s.fat) / (LEAN_SHARE - BULK_CEILING);
+  const full = cut ? s.lean / (1 - cutTarget)
+                   : s.w + (bulkCeiling * s.w - s.fat) / (LEAN_SHARE - bulkCeiling);
   /* Already past the target in the direction the call points — the band and
      the arithmetic disagree, so offer nothing rather than a goal behind you. */
   if (!isFinite(full) || (cut ? full >= s.w : full <= s.w)) return null;
@@ -525,7 +575,7 @@ export function goalFor(s, verdict) {
      with: a clean cut gives back nothing but fat, a bulk adds half fat. */
   const fatAt = cut ? s.fat - (s.w - w) : s.fat + (1 - LEAN_SHARE) * (w - s.w);
   const pct = Math.max(0, fatAt / w * 100);
-  const endPct = Math.round((cut ? CUT_TARGET : BULK_CEILING) * 100);
+  const endPct = Math.round((cut ? cutTarget : bulkCeiling) * 100);
 
   const note = staged
     ? `A full ${cut ? 'cut' : 'bulk'} to ${endPct}% is ${Math.abs(full - s.w).toFixed(0)} lbs away — further than one run should plan. This is the next ${Math.round(MAX_RUN * 100)}% of bodyweight, landing you near ${pct.toFixed(0)}%. Re-measure there and the next target is drawn from that.`

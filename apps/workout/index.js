@@ -6,22 +6,22 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, MMAP } from './data.js?v=perunit2-sep26';
-import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=perunit2-sep26';
-import { toast } from '../../assets/js/ui.js?v=perunit2-sep26';
-import { pctColor, ord } from './standards.js?v=perunit2-sep26';
+import { PROGRAM, MMAP } from './data.js?v=age-sep26';
+import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=age-sep26';
+import { toast } from '../../assets/js/ui.js?v=age-sep26';
+import { pctColor, ord } from './standards.js?v=age-sep26';
 import {
   setsOf, syncDay, logWeight, delSession, setReps, setBasis, snapshot,
   isLoggedToday, celebrationHTML, renderRank, liftScores, standingOf, resEx,
   resetPanel, resetToggle, resetToggleAll, resetSelection, applyReset, resetDismiss,
-} from './rank.js?v=perunit2-sep26';
-import { MUSCLE_SVG } from './bodymap.js?v=perunit2-sep26';
+} from './rank.js?v=age-sep26';
+import { MUSCLE_SVG } from './bodymap.js?v=age-sep26';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny,
-  UNITS, unitOf, toU, fromU, unitFor, setUnitFor,
+  UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=perunit2-sep26';
+} from './body.js?v=age-sep26';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -534,8 +534,9 @@ const deltaSub = v => v === null || v === undefined
 /* A percentage on its own doesn't say whether it is a good one. The bands
    are ACE's male classification; the marker is where you sit on them, which
    is also the reason the verdict below says what it says. */
-function bfScaleHTML(bf) {
+function bfScaleHTML(bf, healthy) {
   const lo = 2, hi = 40;
+  const at = v => Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100));
   /* hi is an exclusive bound — Athlete is `bf < 14` — so the tooltip has to
      print hi-1 or it reads back the next band's floor as its own ceiling
      ("Essential · 2-6%" when ACE publishes 2-5%). The top band has no
@@ -545,10 +546,22 @@ function bfScaleHTML(bf) {
     return `<i class="${b.tone}" style="flex:${b.hi - b.lo}" title="${b.n} · ${range}"></i>`;
   }).join('');
   const names = BF_BANDS.map(b => `<span style="flex:${b.hi - b.lo}"><em>${b.n}</em><i>${b.ab}</i></span>`).join('');
-  const pos = Math.max(0, Math.min(100, (bf - lo) / (hi - lo) * 100));
+  const pos = at(bf);
+  /* Gallagher's healthy range for the age given, laid over ACE's bands
+     rather than replacing them — two different published things saying two
+     different things, and flattening them into one would lose both. Absent
+     an age there is nothing to draw. */
+  const band = healthy
+    ? `<span class="bd-scale-ok" style="left:${at(healthy.lo).toFixed(1)}%;width:${(at(healthy.hi) - at(healthy.lo)).toFixed(1)}%"
+         title="Healthy range for ages ${healthy.lbl}: ${healthy.lo}–${healthy.hi}% (Gallagher 2000)"></span>` : '';
+  const inRange = healthy && bf >= healthy.lo && bf <= healthy.hi;
+  const foot = healthy
+    ? `<div class="bd-scale-foot ${inRange ? 'ok' : ''}">Healthy for ${healthy.lbl}: <b>${healthy.lo}–${healthy.hi}%</b>${inRange ? " — you're in it" : ''}</div>`
+    : '';
   return `<div class="bd-scale">
-    <div class="bd-scale-bar">${segs}<b class="bd-scale-mk" style="left:${pos.toFixed(1)}%"><span>${fx(bf,1)}%</span></b></div>
+    <div class="bd-scale-bar">${segs}${band}<b class="bd-scale-mk" style="left:${pos.toFixed(1)}%"><span>${fx(bf,1)}%</span></b></div>
     <div class="bd-scale-lbl">${names}</div>
+    ${foot}
   </div>`;
 }
 
@@ -640,7 +653,11 @@ function profileHTML(s) {
       <div class="bw-add-lbl">Height ${unitBtn('h', u)}</div>
       ${htField}
     </div>
-    <div class="bd-prof-f">
+    <div class="bd-prof-f narrow">
+      <div class="bw-add-lbl" title="Optional. No formula here uses your age — it only moves what counts as a healthy body fat, which rises with it.">Age <em>optional</em></div>
+      <input class="bw-in" id="bd-age" type="number" min="14" max="100" step="1" inputmode="numeric" placeholder="—" value="${s.age ?? ''}">
+    </div>
+    <div class="bd-prof-f wide">
       <div class="bw-add-lbl">Daily activity</div>
       <select class="bw-in" id="bd-act">${opts}</select>
     </div>
@@ -687,7 +704,7 @@ function renderBW() {
   if (s.bmi !== null && s.lean !== null && s.bmi >= 25 && s.bf < 20)
     h += `<div class="bd-caveat">BMI reads ${fx(s.bmi,1)} — "overweight" — at ${fx(s.bf,1)}% body fat. It is a height-and-weight ratio and cannot tell muscle from fat, which is exactly what the lean and fat mass figures above it are for. Ignore it.</div>`;
 
-  if (s.bf !== null) h += bfScaleHTML(s.bf);
+  if (s.bf !== null) h += bfScaleHTML(s.bf, s.healthy);
   h += callHTML(s, a);
 
   /* Two different complaints about the same measurement, and only ever one
@@ -911,6 +928,11 @@ function bdUnit(key, u) {
   bwRestoreDraft(draft);
 }
 function bdActivity() { profSet({ act: q('#bd-act').value }); renderBW(); }
+function bdAge() {
+  const v = parseInt(q('#bd-age').value, 10);
+  profSet({ age: isNaN(v) || v <= 0 ? null : v });
+  renderBW();
+}
 function bdGoalSave() {
   const v = parseFloat(q('#bd-goal').value);
   if (isNaN(v) || v <= 0) { toast('Enter a goal weight'); return; }
@@ -1016,6 +1038,7 @@ function onChange(e) {
      worse trade than a re-render you didn't ask for. */
   else if (['bd-ft','bd-in','bd-cm'].includes(e.target.id)) bdHeight();
   else if (e.target.id === 'bd-act') bdActivity();
+  else if (e.target.id === 'bd-age') bdAge();
 }
 
 /* Hover, for anyone on a mouse: over a shape names it, over a chip lights
@@ -1102,7 +1125,7 @@ export default {
   id: 'workout',
   name: 'Workout',
   storagePrefix: 'bp_',
-  styles: 'apps/workout/workout.css?v=perunit2-sep26',
+  styles: 'apps/workout/workout.css?v=age-sep26',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
