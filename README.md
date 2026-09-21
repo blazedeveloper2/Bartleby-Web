@@ -22,6 +22,15 @@ Live apps:
   The **Body** tab is composition, not just the scale. Log a weight and a
   tape — waist and neck, plus chest, arm and thigh behind a disclosure —
   any of them, any day, and the entry keeps whatever you don't re-enter.
+  Tape sites and height read in **inches or centimetres**, your choice,
+  switchable at any time: lengths are always *stored* in inches, because
+  the Navy formula's constants are calibrated for them and a store that
+  mixed the two would need a unit tag on every field forever. The toggle
+  converts at the edges only, so flipping it moves nothing in storage and
+  changes no figure on the tab. Weight stays in pounds — it isn't a length,
+  and the strength standards, working weights and load totals are all
+  denominated in it. Measurements are taken relaxed, never flexed; each
+  field's label says where the tape goes.
   Against your height, waist and neck give a body fat estimate by the US
   Navy tape method, which splits your weight into lean and fat mass; the
   other three sites feed no formula and are simply there to watch grow.

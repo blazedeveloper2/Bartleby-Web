@@ -26,7 +26,7 @@
    one means adding both, not flipping a sign here.
    ═══════════════════════════════════════════════════════════ */
 
-import { load, save, dateStr } from '../../assets/js/storage.js?v=bodystat-sep26';
+import { load, save, dateStr } from '../../assets/js/storage.js?v=units-sep26';
 
 const LB_PER_KG = 2.20462262;
 const M_PER_IN  = 0.0254;
@@ -37,7 +37,7 @@ const KCAL_PER_LB = 3500;
 
 /* ═══════════════════ PROFILE ═══════════════════ */
 
-const PROF_DEF = { h: null, act: 'mod', goal: null };
+const PROF_DEF = { h: null, act: 'mod', goal: null, units: 'in' };
 export const prof    = () => ({ ...PROF_DEF, ...load('bp_prof', {}) });
 export const profSet = patch => save('bp_prof', { ...prof(), ...patch });
 
@@ -53,6 +53,36 @@ export const ACTIVITY = [
   { k:'ath',   n:'Athlete',   m:1.90,  d:'Twice a day, or hard physical work' },
 ];
 export const actOf = k => ACTIVITY.find(a => a.k === k) || ACTIVITY[2];
+
+/* ═══════════════════ LENGTH UNITS ═══════════════════ */
+
+/* A display preference and nothing more. Every length in bp_bw and bp_prof
+   is stored in INCHES whatever this says, because the Navy formula's
+   constants are calibrated for inches and because a store that mixed the
+   two would need a unit tag on every field forever — one entry taped in
+   Berlin and the next in Boston, and no way to chart them together.
+
+   So the conversion happens at the edges only: toU on the way to a label or
+   an input, fromU on the way back from one. Flip the toggle and nothing in
+   storage moves.
+
+   Weight stays in pounds and is not part of this. It is not a length, and
+   the whole app is denominated in it — the strength standards, the working
+   weights, the load totals and half the milestone text. */
+export const UNITS = [
+  { k:'in', n:'in', full:'Inches',      per: 1    },
+  { k:'cm', n:'cm', full:'Centimetres', per: 2.54 },   // cm per inch
+];
+export const unitOf = k => UNITS.find(u => u.k === k) || UNITS[0];
+
+/* Stored inches → the number to show. Passes null/undefined through so
+   callers can hand it an optional field without checking first. */
+export const toU = (inches, k) =>
+  (typeof inches === 'number' && isFinite(inches)) ? inches * unitOf(k).per : inches;
+
+/* Typed number → inches to store. */
+export const fromU = (v, k) =>
+  (typeof v === 'number' && isFinite(v)) ? v / unitOf(k).per : v;
 
 /* ═══════════════════ ENTRY HELPERS ═══════════════════ */
 
@@ -80,7 +110,7 @@ export const TAPE = [
   { k:'ch', lbl:'Chest', ab:'C',
     how:'Widest point, arms down, at the end of a normal breath out.' },
   { k:'ar', lbl:'Arm',   ab:'A',
-    how:'Mid-bicep, flexed or relaxed — pick one and keep picking it.' },
+    how:'Mid-bicep, arm hanging relaxed at your side — not flexed.' },
   { k:'th', lbl:'Thigh', ab:'T',
     how:'Halfway between hip and knee, standing, weight on both legs.' },
 ];
@@ -276,7 +306,7 @@ export function snapshot() {
   const tapeBad = lt !== null && bf === null;
 
   return {
-    h: p.h, act: p.act, goal: p.goal,
+    h: p.h, act: p.act, goal: p.goal, units: p.units,
     w, wDate: lw ? lw.d : null,
     bf, bfDate: bf !== null && lt ? lt.d : null, tapeBad,
     waist: lt ? lt.wa : null,

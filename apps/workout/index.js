@@ -6,21 +6,22 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, MMAP } from './data.js?v=bodystat-sep26';
-import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=bodystat-sep26';
-import { toast } from '../../assets/js/ui.js?v=bodystat-sep26';
-import { pctColor, ord } from './standards.js?v=bodystat-sep26';
+import { PROGRAM, MMAP } from './data.js?v=units-sep26';
+import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=units-sep26';
+import { toast } from '../../assets/js/ui.js?v=units-sep26';
+import { pctColor, ord } from './standards.js?v=units-sep26';
 import {
   setsOf, syncDay, logWeight, delSession, setReps, setBasis, snapshot,
   isLoggedToday, celebrationHTML, renderRank, liftScores, standingOf, resEx,
   resetPanel, resetToggle, resetToggleAll, resetSelection, applyReset, resetDismiss,
-} from './rank.js?v=bodystat-sep26';
-import { MUSCLE_SVG } from './bodymap.js?v=bodystat-sep26';
+} from './rank.js?v=units-sep26';
+import { MUSCLE_SVG } from './bodymap.js?v=units-sep26';
 import {
-  profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
+  prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny,
+  UNITS, unitOf, toU, fromU,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=bodystat-sep26';
+} from './body.js?v=units-sep26';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -415,10 +416,15 @@ function bwRelLabel(d) {
 const BW_METRICS = [
   { k:'w',  lbl:'Weight',   unit:'lbs', dec:1, get:(e) => hasW(e) ? e.w : null },
   { k:'bf', lbl:'Body fat', unit:'%',   dec:1, get:(e,h) => navyBF(e.wa, e.nk, h) },
-  ...TAPE.map(t => ({ k:t.k, lbl:t.lbl, unit:'in', dec:1,
+  ...TAPE.map(t => ({ k:t.k, lbl:t.lbl, len:true, unit:'in', dec:1,
                       get:(e) => (typeof e[t.k] === 'number' && e[t.k] > 0) ? e[t.k] : null })),
 ];
-const metricOf = k => BW_METRICS.find(m => m.k === k) || BW_METRICS[0];
+/* The stored unit is always inches; `u` only decides what the axis, the
+   tooltips and the one-reading message call it. */
+const metricOf = (k, u = 'in') => {
+  const m = BW_METRICS.find(x => x.k === k) || BW_METRICS[0];
+  return m.len ? { ...m, unit: unitOf(u).n } : m;
+};
 
 /* Three weeks. Short enough that the estimate can't drift a whole bulk out
    of date before anyone says anything, long enough that measuring every
@@ -429,12 +435,18 @@ const TAPE_STALE = 21;
 /* The chart's series for the current metric and range: {d, v}, oldest first,
    with every entry that has no value for this metric dropped rather than
    plotted as a gap. */
-function bwSeries(k, h) {
-  const m = metricOf(k), r = BW_RANGES.find(x => x.k === bwRange);
+function bwSeries(k, h, u = 'in') {
+  const m = metricOf(k, u), r = BW_RANGES.find(x => x.k === bwRange);
   return within(bwAll(), r ? r.d : null)
-    .map(e => ({ d: e.d, v: m.get(e, h) }))
+    .map(e => { const v = m.get(e, h); return { d: e.d, v: m.len ? toU(v, u) : v }; })
     .filter(p => p.v !== null && p.v !== undefined && isFinite(p.v));
 }
+
+/* One stored length, rendered. Inches keep the prime mark they have always
+   had; centimetres take a space and the abbreviation. */
+const lenStr = (inches, u, dec = 1) =>
+  (typeof inches !== 'number' || !isFinite(inches)) ? '—'
+    : u === 'cm' ? `${toU(inches, u).toFixed(dec)} cm` : `${inches.toFixed(dec)}"`;
 
 const fx = (v, d = 1) => (v === null || v === undefined || !isFinite(v)) ? '—' : v.toFixed(d);
 /* '12.4%' but '182.0 lbs' — a percent sign is part of the number, a unit isn't. */
@@ -548,7 +560,7 @@ function callHTML(s, a) {
        a neck bigger than a waist has no estimate in it, and "log a waist and
        neck" is unhelpful advice to someone who just did. */
     const need = s.tapeBad
-      ? `Your last tape reads a ${s.waist}" waist and a ${s.neck}" neck, and no estimate comes out of that — the waist has to be the larger of the two. Check whether the two numbers went into the wrong boxes.`
+      ? `Your last tape reads a ${lenStr(s.waist, s.units)} waist and a ${lenStr(s.neck, s.units)} neck, and no estimate comes out of that — the waist has to be the larger of the two. Check whether the two numbers went into the wrong boxes.`
       : s.h === null
         ? 'Set your height above, then log a waist and neck measurement below.'
         : 'Log a waist and neck measurement below and this fills in immediately.';
@@ -595,18 +607,32 @@ function callHTML(s, a) {
 
 /* ── profile ── */
 function profileHTML(s) {
-  const ft = s.h ? Math.floor(s.h / 12) : '';
-  const inch = s.h ? +(s.h - Math.floor(s.h / 12) * 12).toFixed(1) : '';
+  const u = s.units;
   const opts = ACTIVITY.map(a => `<option value="${a.k}" ${a.k===s.act?'selected':''}>${a.n} — ${a.d}</option>`).join('');
+  const uBtns = UNITS.map(x =>
+    `<button class="rk-rep ${x.k===u?'sel':''}" data-act="bd-units" data-u="${x.k}" title="${x.full}">${x.n}</button>`).join('');
+
+  /* Feet and inches is two boxes; centimetres is one. Splitting a height
+     into ft+in is a quirk of the imperial system, not a thing heights do. */
+  const ft   = s.h ? Math.floor(s.h / 12) : '';
+  const inch = s.h ? +(s.h - Math.floor(s.h / 12) * 12).toFixed(1) : '';
+  const htField = u === 'cm'
+    ? `<div class="bd-ht one"><input class="bw-in" id="bd-cm" type="number" min="90" max="250" step="0.5" inputmode="decimal" placeholder="—" value="${s.h ? toU(s.h, 'cm').toFixed(1) : ''}"><span>cm</span></div>`
+    : `<div class="bd-ht">
+        <input class="bw-in" id="bd-ft" type="number" min="3" max="8" step="1" inputmode="numeric" placeholder="—" value="${ft}"><span>ft</span>
+        <input class="bw-in" id="bd-in" type="number" min="0" max="11.5" step="0.5" inputmode="decimal" placeholder="—" value="${inch}"><span>in</span>
+      </div>`;
+
   return `<div class="bd-prof ${s.h === null ? 'unset' : ''}">
     <div class="bd-prof-f">
       <div class="bw-add-lbl">Height</div>
-      <div class="bd-ht">
-        <input class="bw-in" id="bd-ft" type="number" min="3" max="8" step="1" inputmode="numeric" placeholder="—" value="${ft}"><span>ft</span>
-        <input class="bw-in" id="bd-in" type="number" min="0" max="11.5" step="0.5" inputmode="decimal" placeholder="—" value="${inch}"><span>in</span>
-      </div>
+      ${htField}
     </div>
     <div class="bd-prof-f">
+      <div class="bw-add-lbl">Measure in</div>
+      <div class="rk-reps-seg bd-units">${uBtns}</div>
+    </div>
+    <div class="bd-prof-f wide">
       <div class="bw-add-lbl">Daily activity</div>
       <select class="bw-in" id="bd-act">${opts}</select>
     </div>
@@ -668,8 +694,8 @@ function renderBW() {
   }
 
   /* ── chart ── */
-  const m = metricOf(bwMetric);
-  const series = bwSeries(bwMetric, s.h);
+  const m = metricOf(bwMetric, s.units);
+  const series = bwSeries(bwMetric, s.h, s.units);
   const mBtns = BW_METRICS.map(x => `<button class="bw-r-btn ${x.k===bwMetric?'sel':''}" data-act="bw-metric" data-k="${x.k}">${x.lbl}</button>`).join('');
   const rngBtns = BW_RANGES.map(r => `<button class="bw-r-btn ${r.k===bwRange?'sel':''}" data-act="bw-range" data-k="${r.k}">${r.lbl}</button>`).join('');
   h += `<div class="bw-chart-card">
@@ -686,8 +712,13 @@ function renderBW() {
   const extras = TAPE.filter(t => !t.core);
   const hasExtras = ee ? extras.some(t => typeof ee[t.k] === 'number') : false;
   const showMore = bwMore || hasExtras;
-  const fld = t => `<div class="bw-add-fld"><div class="bw-add-lbl" title="${t.how}">${t.lbl} <em>in</em></div>`
-    + `<input class="bw-in" type="number" step="0.1" min="0" id="bw-${t.k}" placeholder="—" value="${val(t.k)}" inputmode="decimal"></div>`;
+  const uAb = unitOf(s.units).n;
+  const fld = t => {
+    const stored = val(t.k);
+    const shown = stored === '' ? '' : +toU(stored, s.units).toFixed(1);
+    return `<div class="bw-add-fld"><div class="bw-add-lbl" title="${t.how}">${t.lbl} <em>${uAb}</em></div>`
+      + `<input class="bw-in" type="number" step="0.1" min="0" id="bw-${t.k}" placeholder="—" value="${shown}" inputmode="decimal" title="${t.how}"></div>`;
+  };
 
   h += `<div class="bw-add ${editing?'editing':''}">
     <div class="bw-add-fld"><div class="bw-add-lbl">${editing?'Editing':'Date'}</div><input class="bw-in" type="date" id="bw-date" value="${editing?bwEditDate:todayStr()}" max="${todayStr()}" ${editing?'readonly':''}></div>
@@ -722,7 +753,7 @@ function renderBW() {
       const bf = navyBF(e.wa, e.nk, s.h);
       const chips = TAPE
         .filter(t => typeof e[t.k] === 'number' && e[t.k] > 0)
-        .map(t => `<span class="bw-h-chip" title="${t.lbl}">${t.ab} ${e[t.k].toFixed(1)}"</span>`)
+        .map(t => `<span class="bw-h-chip" title="${t.lbl}">${t.ab} ${lenStr(e[t.k], s.units)}</span>`)
         .concat(bf !== null ? [`<span class="bw-h-chip bf">${bf.toFixed(1)}% bf</span>`] : [])
         .join('');
       h += `<div class="bw-h-row">
@@ -758,11 +789,20 @@ function fieldVal(id) {
 function bwSave() {
   const d = q('#bw-date').value;
   if (!d) { toast('Pick a date'); return; }
-  const raw = { w: fieldVal('#bw-weight') };
+  const u = prof().units;
+  const raw = { w: fieldVal('#bw-weight') };          // pounds, always
   /* Only fields actually on the form. A hidden one contributes nothing —
      not a value and not a blank — so collapsing the disclosure can never
-     be a way to wipe a measurement. */
-  TAPE.forEach(t => { if (q('#bw-' + t.k)) raw[t.k] = fieldVal('#bw-' + t.k); });
+     be a way to wipe a measurement.
+
+     fromU is applied to the number only: fieldVal's null (blank, meaning
+     leave it or clear it) and undefined (rejected) are signals, not
+     lengths, and converting them would turn null into 0. */
+  TAPE.forEach(t => {
+    if (!q('#bw-' + t.k)) return;
+    const v = fieldVal('#bw-' + t.k);
+    raw[t.k] = typeof v === 'number' ? fromU(v, u) : v;
+  });
   if (Object.values(raw).includes(undefined)) { toast('Those numbers need to be above zero'); return; }
   const editing = bwEditDate !== null;
 
@@ -798,10 +838,24 @@ function bwDelete(d) {
 
 /* ── profile + goal writes ── */
 function bdHeight() {
-  const ft = parseFloat(q('#bd-ft')?.value), inch = parseFloat(q('#bd-in')?.value) || 0;
-  const h = isNaN(ft) ? (inch > 0 ? inch : null) : ft * 12 + inch;
+  let h;
+  if (prof().units === 'cm') {
+    const cm = parseFloat(q('#bd-cm')?.value);
+    h = isNaN(cm) ? null : fromU(cm, 'cm');
+  } else {
+    const ft = parseFloat(q('#bd-ft')?.value), inch = parseFloat(q('#bd-in')?.value) || 0;
+    h = isNaN(ft) ? (inch > 0 ? inch : null) : ft * 12 + inch;
+  }
   profSet({ h: h && h > 0 ? h : null });
   renderBW();
+}
+
+/* Display only — nothing in storage moves, so the tab just repaints. */
+function bdUnits(u) {
+  if (u === prof().units) return;
+  profSet({ units: u });
+  renderBW();
+  toast(unitOf(u).full);
 }
 function bdActivity() { profSet({ act: q('#bd-act').value }); renderBW(); }
 function bdGoalSave() {
@@ -887,6 +941,7 @@ function onClick(e) {
     case 'bw-edit':   bwEdit(a.d); break;
     case 'bw-del':    bwDelete(a.d); break;
     case 'bw-cancel': bwCancelEdit(); break;
+    case 'bd-units':      bdUnits(a.u); break;
     case 'bd-goal-save':  bdGoalSave(); break;
     case 'bd-goal-clear': bdGoalClear(); break;
     case 'lv-close':  closeCelebration(); break;
@@ -906,7 +961,7 @@ function onChange(e) {
   /* Height and activity save on change rather than behind a button: they are
      set once and then never touched, and a Save you have to remember is a
      worse trade than a re-render you didn't ask for. */
-  else if (e.target.id === 'bd-ft' || e.target.id === 'bd-in') bdHeight();
+  else if (['bd-ft','bd-in','bd-cm'].includes(e.target.id)) bdHeight();
   else if (e.target.id === 'bd-act') bdActivity();
 }
 
@@ -994,7 +1049,7 @@ export default {
   id: 'workout',
   name: 'Workout',
   storagePrefix: 'bp_',
-  styles: 'apps/workout/workout.css?v=bodystat-sep26',
+  styles: 'apps/workout/workout.css?v=units-sep26',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {

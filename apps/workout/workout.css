@@ -201,12 +201,22 @@
 /* Height and activity sit above everything because every figure below is
    computed from them. Unset, the whole card wears the accent edge — the
    composition block cannot say anything at all without a height. */
-.bd-prof{display:grid;grid-template-columns:1fr 1.4fr;gap:10px;align-items:end;
+/* Three controls now: height, the unit toggle, activity. Activity carries a
+   sentence of description in every option, so it takes the full second row
+   rather than being squeezed next to the other two. */
+.bd-prof{display:grid;grid-template-columns:1.1fr auto;gap:10px 12px;align-items:end;
   background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:14px}
 .bd-prof.unset{border-color:var(--sel-bd);box-shadow:0 0 0 1px var(--blue-d)}
 .bd-prof-f{display:flex;flex-direction:column;gap:5px;min-width:0}
 .bd-ht{display:flex;align-items:center;gap:6px}
 .bd-ht .bw-in{width:100%;min-width:0;text-align:center}
+.bd-prof-f.wide{grid-column:1/-1}
+/* One number, not two — don't stretch it across the row the ft+in
+   pair needs. */
+.bd-ht.one{justify-content:flex-start}
+.bd-ht.one .bw-in{max-width:150px}
+.bd-units{flex-shrink:0}
+.bd-units .rk-rep{min-width:44px}
 .bd-ht span{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);flex-shrink:0}
 select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis;font-family:var(--font);font-size:12px}
 .wk .bw-add-lbl em{font-style:normal;color:var(--text-3);opacity:.6;letter-spacing:.5px;margin-left:3px;text-transform:none}
@@ -664,7 +674,7 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
   .bw-h-row{grid-template-columns:1fr auto auto;gap:8px;padding:11px 12px}
   .bw-h-act{grid-column:1/-1;justify-content:flex-end;margin-top:-4px}
   .bw-stat-v{font-size:16px}
-  .bd-prof{grid-template-columns:1fr}
+  .bd-prof{grid-template-columns:1fr auto}
   .bw-add{grid-template-columns:1fr 1fr}
   .bd-targets{grid-template-columns:1fr}
   .bd-goal-row{grid-template-columns:auto 1fr;row-gap:8px}
