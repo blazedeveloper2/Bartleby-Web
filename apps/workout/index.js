@@ -6,29 +6,29 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, MMAP } from './data.js?v=split-sep26';
-import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=split-sep26';
-import { toast } from '../../assets/js/ui.js?v=split-sep26';
-import { pctColor, ord, LIFTS } from './standards.js?v=split-sep26';
+import { PROGRAM, MMAP } from './data.js?v=sheet-sep26';
+import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=sheet-sep26';
+import { toast } from '../../assets/js/ui.js?v=sheet-sep26';
+import { pctColor, ord, LIFTS } from './standards.js?v=sheet-sep26';
 import {
   setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, setReps, setBasis, snapshot,
   isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, icon,
   liftScores, standingOf, resEx,
   resetPanel, resetToggle, resetToggleAll, resetSelection, applyReset, resetDismiss,
   rebaseline, hasHistory, setExReps, exReps, dropOff,
-} from './rank.js?v=split-sep26';
+} from './rank.js?v=sheet-sep26';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
-import { MUSCLE_SVG } from './bodymap.js?v=split-sep26';
-import { standingsFor } from './anthro.js?v=split-sep26';
+import { MUSCLE_SVG } from './bodymap.js?v=sheet-sep26';
+import { standingsFor } from './anthro.js?v=sheet-sep26';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor, whtrBand,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=split-sep26';
+} from './body.js?v=sheet-sep26';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -820,7 +820,6 @@ function standingsHTML(s) {
       <div class="pg-card-note">${s.age ? 'age-matched' : 'all adult men — set an age above to match'}</div>
     </div>
     <div class="an-list">${body}</div>
-    <div class="an-note">A tape cannot tell muscle from fat, so a big arm or chest here means bigger than most, not more muscular than most. The waist is the one that means what it looks like it means — and the body fat estimate above is what settles the rest. Hover a tag for that row's source.</div>
   </div>`;
 }
 
@@ -904,11 +903,6 @@ function renderBW() {
      minus a fat percentage from three weeks ago is not a measurement of
      anything that existed on either date — so both dates are printed
      whenever they differ. */
-  if (s.bf !== null && s.lean !== null) {
-    const split = s.bfDate && s.wDate && s.bfDate !== s.wDate;
-    h += `<div class="bd-caveat"><span title="The Navy circumference equation is fitted to men and has no female form — that needs a hip measurement and its own constants. Its standard error against a reference scan is roughly 3–4 points, and everything derived from it inherits that.">Navy tape estimate, male formula, ±3–4 points</span> · <span title="Bodyweight minus estimated fat — water, bone, organs and glycogen as well as muscle. A change in it is not a measurement of muscle.">lean mass is fat-free mass, not muscle</span>${split ? ` · <span title="Combining measurements from different days describes neither of them exactly.">tape ${bwFmt(s.bfDate)}, weight ${bwFmt(s.wDate)}</span>` : ''}</div>`;
-  }
-
   /* BMI is in that row because it is free and people ask for it, not because
      it is worth much here — it cannot tell muscle from fat, which is the one
      distinction this whole tab exists to make. Hence the quotation marks
@@ -1341,7 +1335,7 @@ export default {
   id: 'workout',
   name: 'Workout',
   storagePrefix: 'bp_',
-  styles: 'apps/workout/workout.css?v=split-sep26',
+  styles: 'apps/workout/workout.css?v=sheet-sep26',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {

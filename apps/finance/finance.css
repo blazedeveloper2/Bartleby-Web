@@ -6,9 +6,33 @@
 .fin .nav{position:sticky;top:var(--shell-bar-h,0);z-index:50;background:var(--bg);border-bottom:1px solid var(--border);padding-top:14px}
 .fin .nav-inner{display:flex;max-width:640px;margin:0 auto;padding:0 16px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
 .fin .nav-inner::-webkit-scrollbar{display:none}
-.fin .tab{flex:1;min-width:0;padding:14px 4px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-3);font-family:var(--font);font-size:12px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;cursor:pointer;transition:all .2s;white-space:nowrap}
+/* Same tab bar as the Workout app, in this app's accent.
+
+   "Net Worth" is the squeeze here: it is the only two-word label in
+   either app, and at 12px uppercase with 0.8px letter-spacing it runs
+   about 75px into an 86px slot at 375px. Nothing shrinks to fix that —
+   below 560px the icon moves above the label, which buys the width back
+   and makes the tap target taller in the bargain. */
+.fin .tab{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:7px;
+  padding:13px 4px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-3);
+  font-family:var(--font);font-size:12px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;
+  cursor:pointer;transition:color .2s,border-color .2s,background .2s;white-space:nowrap}
+.fin .tab-ico{display:flex;flex-shrink:0;opacity:.7;transition:opacity .2s}
+.fin .tab-ico svg{width:15px;height:15px;display:block}
 .fin .tab:hover{color:var(--text-2)}
+.fin .tab:hover .tab-ico{opacity:.9}
 .fin .tab.active{color:var(--text);border-bottom-color:var(--green)}
+.fin .tab.active .tab-ico{opacity:1;color:var(--green)}
+
+@media (max-width:560px){
+  .fin .nav-inner{padding:0 8px}
+  .fin .tab{flex-direction:column;gap:5px;padding:9px 2px;letter-spacing:.2px;font-size:11px}
+  .fin .tab-ico svg{width:20px;height:20px}
+}
+@media (max-width:360px){
+  .fin .tab{font-size:10.5px;letter-spacing:0}
+  .fin .tab-ico svg{width:18px;height:18px}
+}
 .fin .panel{display:none}.fin .panel.active{display:block}
 
 /* ── Add / edit form ── */

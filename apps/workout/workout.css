@@ -926,3 +926,55 @@ html[data-theme] .wk .mm-card .mm-muscles{overflow:visible}
 .wk .mm-legend{position:relative;z-index:1;background:var(--bg-card)}
 .wk .m-readout:not(.on){display:none}
 @media(max-width:650px){.wk .m-fig{height:clamp(160px,23dvh,210px)}.wk .mm-map{min-height:0}}
+
+/* ── Exercise lab on a phone ──────────────────────────────────────────
+   It was a centred card: overlay position:fixed inset:0 with
+   align-items:center and overflow:hidden, card capped at 100dvh - 32px.
+
+   Those two do not measure the same thing on a phone. A fixed inset:0
+   element and dvh disagree by the height of the browser's URL bar, and
+   they disagree in whichever direction the bar happens to be moving. As
+   soon as the card is taller than what is actually visible — and with
+   the muscle map it is, about 750px of content — centring it inside a
+   container that is measured differently pushes the top of the card,
+   and the close button with it, above the fold. overflow:hidden on the
+   overlay then means there is nothing to scroll to get it back. That is
+   the "off the screen and hard to close" report exactly.
+
+   So on small screens it stops being a centred card and becomes a
+   full-bleed sheet. No padding, no centring, top-aligned, and sized in
+   percent OF THE OVERLAY rather than in viewport units — height:100% of
+   a fixed inset:0 parent is that parent by definition, so the two can no
+   longer disagree about anything. The card's top is the viewport's top,
+   the header is already sticky there, and the close button is therefore
+   always the first thing on screen no matter how long the content runs
+   or what the URL bar is doing.
+
+   Specificity matches html[data-theme] .wk … deliberately: those rules
+   set the centring, and equal specificity later in the file is what
+   overrides them. */
+@media (max-width:560px){
+  html[data-theme] .wk .mm-overlay{padding:0;align-items:flex-start;justify-content:center;overflow:hidden}
+  html[data-theme] .wk .mm-card{
+    width:100%;max-width:none;height:100%;max-height:100%;
+    border-radius:0;border:none;box-shadow:none;
+    padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));
+  }
+  /* Clear of a notch or punch-hole, and a bigger tap target for the
+     close button than the 40px square a mouse would want. */
+  html[data-theme] .wk .mm-card .mm-head{padding-top:calc(16px + env(safe-area-inset-top,0px))}
+  .wk .mm-close{width:44px;height:44px;font-size:24px}
+
+  /* The mm-in entrance slides the card up from translateY(16px). On the
+     old centred card a stray 16px was invisible; on a sheet whose whole
+     contract is "the top of the card IS the top of the screen" it is
+     16px of the bottom cut off and 16px of gap above the header — and
+     the transform was observed sitting at its start value rather than
+     resolving to none, so this is not only a 250ms problem.
+
+     The sheet does not need it. The overlay already fades in, which is
+     the right entrance for something that covers the screen anyway, so
+     the card's own animation is switched off here and the transform
+     pinned to none. */
+  html[data-theme] .wk .mm-card{animation:none;transform:none}
+}

@@ -7,10 +7,42 @@
    Local-first; event-delegated; mount/unmount.
    ═══════════════════════════════════════════════════════════ */
 
-import { DEFAULT_CATS, PALETTE } from './data.js?v=split-sep26';
-import { load, save, todayStr } from '../../assets/js/storage.js?v=split-sep26';
-import { toast } from '../../assets/js/ui.js?v=split-sep26';
-import { renderNetWorth, nwClick, nwKeydown, nwReset } from './networth.js?v=split-sep26';
+import { DEFAULT_CATS, PALETTE } from './data.js?v=sheet-sep26';
+import { load, save, todayStr } from '../../assets/js/storage.js?v=sheet-sep26';
+import { toast } from '../../assets/js/ui.js?v=sheet-sep26';
+import { renderNetWorth, nwClick, nwKeydown, nwReset } from './networth.js?v=sheet-sep26';
+
+/* ── tab bar ──
+
+   Same shape as the Workout app's: one table drives the buttons, the
+   panels and the render dispatch, so the three cannot disagree about
+   which tabs exist.
+
+   The icons are declared here rather than imported from the workout
+   app. They are drawn to the same recipe — 24×24, stroke, 1.8 width,
+   round caps — because the two tab bars should look like one idea, but
+   Finance reaching into rank.js for four paths would couple the apps
+   over nothing.
+
+   "Net Worth" is the reason this matters here. It is the only two-word
+   label in either app, and at 12px uppercase with 0.8px letter-spacing
+   it is about 75px in an 86px slot on a phone — the same squeeze the
+   workout bar had, arriving one tab sooner. The CSS in finance.css
+   stacks the icon over the label below 560px rather than shrinking it. */
+const ICO = {
+  add:    '<circle cx="12" cy="12" r="9"/><path d="M12 8.5v7"/><path d="M8.5 12h7"/>',
+  clock:  '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/>',
+  bars:   '<path d="M3 20h18"/><path d="M6.5 20V12"/><path d="M12 20V5"/><path d="M17.5 20v-5.5"/>',
+  trend:  '<polyline points="3 16.5 9 10.5 13 14.5 21 6.5"/><polyline points="15.5 6.5 21 6.5 21 12"/>',
+};
+const icon = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICO[k]}</svg>`;
+
+const TABS = [
+  { k:'add',      n:'Add',       i:'add' },
+  { k:'history',  n:'History',   i:'clock' },
+  { k:'insights', n:'Insights',  i:'bars' },
+  { k:'networth', n:'Net Worth', i:'trend' },
+];
 
 /* ── storage ── */
 const txAll    = () => load('fin_tx', []);
@@ -887,16 +919,12 @@ function onDataChange() { if (root) renderAll(); }
 function template() {
   return `<div class="fin">
     <nav class="nav"><div class="nav-inner">
-      <button class="tab active" data-act="tab" data-tab="add">Add</button>
-      <button class="tab" data-act="tab" data-tab="history">History</button>
-      <button class="tab" data-act="tab" data-tab="insights">Insights</button>
-      <button class="tab" data-act="tab" data-tab="networth">Net Worth</button>
+      ${TABS.map((t, i) => `<button class="tab${i ? '' : ' active'}" data-act="tab" data-tab="${t.k}">
+        <span class="tab-ico">${icon(t.i)}</span><span class="tab-lbl">${t.n}</span>
+      </button>`).join('')}
     </div></nav>
     <div class="app-wrap">
-      <div class="panel active" id="fp-add"></div>
-      <div class="panel" id="fp-history"></div>
-      <div class="panel" id="fp-insights"></div>
-      <div class="panel" id="fp-networth"></div>
+      ${TABS.map((t, i) => `<div class="panel${i ? '' : ' active'}" id="fp-${t.k}"></div>`).join('')}
     </div>
     <div class="fx-ov" id="fx-modal"><div class="fx-ov-card" id="fx-modal-body"></div></div>
   </div>`;
@@ -906,7 +934,7 @@ export default {
   id: 'finance',
   name: 'Finance',
   storagePrefix: 'fin_',
-  styles: 'apps/finance/finance.css?v=split-sep26',
+  styles: 'apps/finance/finance.css?v=sheet-sep26',
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
   mount(el) {
     root = el;

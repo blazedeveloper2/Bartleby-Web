@@ -36,14 +36,14 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js?v=split-sep26';
-import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=split-sep26';
-import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=split-sep26';
+import { PROGRAM } from './data.js?v=sheet-sep26';
+import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=sheet-sep26';
+import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=sheet-sep26';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef, REF_BF } from './body.js?v=split-sep26';
-import { checkup } from './checkup.js?v=split-sep26';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef, REF_BF } from './body.js?v=sheet-sep26';
+import { checkup } from './checkup.js?v=sheet-sep26';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -1562,11 +1562,13 @@ function badgesHTML(ach) {
     </div>`;
   }).join('');
 
-  const lapsed = [...ach.ids].filter(id => !ach.now.has(id)).length;
+  /* No lapsed-badge notice. A badge is a date on the calendar and stays
+     unlocked either way, so the line only ever explained a distinction the
+     cards themselves do not draw — and the tab is for looking at what you
+     earned, not for reading about it. The latching behaviour is unchanged;
+     it just no longer narrates itself. */
   return `<div class="pg-card">
     <div class="pg-card-head"><div class="pg-card-title">Achievements</div><div class="pg-card-note">${ach.ids.size}/${BADGES.length}</div></div>
-    ${lapsed ? `<div class="pg-b-lapse">${lapsed} of these ${lapsed === 1 ? 'is' : 'are'} no longer true at your current weights.
-      Earning something is a date on the calendar, so ${lapsed === 1 ? 'it stays' : 'they stay'} unlocked — but the card says so rather than pretending.</div>` : ''}
     ${groups}
   </div>`;
 }
