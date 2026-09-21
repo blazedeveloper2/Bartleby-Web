@@ -19,6 +19,20 @@ Live apps:
   trustworthy its standard is (exact match / proxy movement / estimate).
   See `apps/workout/standards.js` for the data and its sources.
 
+  A **checkup** sits under the letter and answers two questions the rest of
+  the tab will not: is this going as it should, and does anything in the
+  data look wrong? It catches stalled lifts, runs of back-offs, attendance
+  quietly halving, weights typed but never trained — and typos, because
+  every figure here is hand-entered and a mistyped 118 among 181s does not
+  look like a mistake once it is a point on a chart. Each threshold is a
+  rate the body cannot plausibly beat rather than a round number: a weigh-in
+  5% off the days either side, a waist that moved two inches inside five
+  weeks, four points of body fat in a month. Flagging the impossible instead
+  of the merely surprising is the whole design — a check that cries wolf at
+  ordinary variation is one you learn to scroll past. When nothing is wrong
+  it collapses to a single line saying so, with the evidence. See
+  `apps/workout/checkup.js`, where each threshold carries its reasoning.
+
   The **Body** tab is composition, not just the scale. Log a weight and a
   tape — waist and neck, plus chest, arm and thigh behind a disclosure —
   any of them, any day, and the entry keeps whatever you don't re-enter.
@@ -186,8 +200,8 @@ Bartleby Web/
 │       └── ui.js             # toast helper
 ├── apps/
 │   ├── workout/              # index.js + data.js + rank.js + standards.js
-│   │                         #   + body.js + anthro.js + bodymap.js
-│   │                         #   + workout.css
+│   │                         #   + body.js + anthro.js + checkup.js
+│   │                         #   + bodymap.js + workout.css
 │   └── finance/              # index.js + networth.js + data.js + finance.css
 ├── archive/                  # parked apps, kept but not loaded by the shell
 │   ├── apps/scripture/       # index.js + bible.js + scripture.css

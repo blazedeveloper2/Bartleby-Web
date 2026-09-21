@@ -36,13 +36,14 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js?v=badge2-sep26';
-import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=badge2-sep26';
-import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=badge2-sep26';
+import { PROGRAM } from './data.js?v=check-sep26';
+import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=check-sep26';
+import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=check-sep26';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef, REF_BF } from './body.js?v=badge2-sep26';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef, REF_BF } from './body.js?v=check-sep26';
+import { checkup } from './checkup.js?v=check-sep26';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -1440,12 +1441,42 @@ function slideMarkers(scope) {
   });
 }
 
+/* The health check. Loud when something is wrong, one quiet line when it
+   is not — a card that takes up the same room whether or not it has
+   anything to say teaches you to scroll past it. */
+function checkupHTML(s, st) {
+  const c = checkup(s, st);
+
+  if (c.steady) {
+    if (!c.evidence.length) return '';          // too early to claim anything
+    return `<div class="ck-card steady">
+      <span class="ck-tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12.5 9.5 18 20 6.5"/></svg></span>
+      <div><b>Everything reads steady.</b> ${c.evidence.join(', ')} — nothing in the numbers looks off.</div>
+    </div>`;
+  }
+
+  const rows = c.findings.map(f => `
+    <div class="ck-row ${f.sev}">
+      <div class="ck-t">${f.t}</div>
+      <div class="ck-d">${f.d}</div>
+    </div>`).join('');
+
+  return `<div class="ck-card">
+    <div class="ck-head">
+      <span class="ck-title">Worth a look</span>
+      <span class="ck-count ${c.warns ? 'warn' : ''}">${c.findings.length}</span>
+    </div>
+    ${rows}
+  </div>`;
+}
+
 export function renderRank(root) {
   const p = root.querySelector('#p-rank');
   if (!p) return;
   const st = strength(), s = stats(), ach = achievements(s, st);
 
   let h = heroHTML(st);
+  h += checkupHTML(s, st);
   h += verseHTML();
   h += verdictHTML(st);
   h += levelHTML(s.level);
