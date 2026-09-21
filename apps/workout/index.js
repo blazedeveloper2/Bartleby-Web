@@ -6,28 +6,28 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, MMAP } from './data.js?v=trim-sep26';
-import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=trim-sep26';
-import { toast } from '../../assets/js/ui.js?v=trim-sep26';
-import { pctColor, ord, LIFTS } from './standards.js?v=trim-sep26';
+import { PROGRAM, MMAP } from './data.js?v=niv-sep26';
+import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=niv-sep26';
+import { toast } from '../../assets/js/ui.js?v=niv-sep26';
+import { pctColor, ord, LIFTS } from './standards.js?v=niv-sep26';
 import {
   setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, icon,
   liftScores, standingOf, resEx, resetTargets, applyReset,
   rebaseline, hasHistory, setExReps, exReps, verseHTML,
-} from './rank.js?v=trim-sep26';
+} from './rank.js?v=niv-sep26';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
-import { MUSCLE_SVG } from './bodymap.js?v=trim-sep26';
-import { standingsFor } from './anthro.js?v=trim-sep26';
+import { MUSCLE_SVG } from './bodymap.js?v=niv-sep26';
+import { standingsFor } from './anthro.js?v=niv-sep26';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor, whtrBand,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=trim-sep26';
+} from './body.js?v=niv-sep26';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -255,8 +255,10 @@ function focusMuscle(name, on) {
 /* This modal is where you decide whether to add weight, so it carries the
    same standing the Rank tab does instead of making you go look it up. */
 function mmRankHTML(st) {
-  if (st.state === 'unscored')
-    return `<div class="mm-rank none">No published standard for this movement, so it isn't scored. Track the weight anyway if it helps.</div>`;
+  /* Nothing at all for an unscored movement. The row is already the default
+     text colour on the Program tab and there is no letter here — saying so
+     in a sentence was the app repeating the absence out loud. */
+  if (st.state === 'unscored') return '';
   if (st.state === 'nobw')
     return `<div class="mm-rank none">Log your bodyweight in the <b>Weight</b> tab — every standard is relative to it.</div>`;
   if (st.state === 'noweight')
@@ -1304,7 +1306,7 @@ export default {
      dangerous UI and the confirmation, the app owns the knowledge of what
      each record is and how much is in it. */
   resetTargets, applyReset,
-  styles: 'apps/workout/workout.css?v=trim-sep26',
+  styles: 'apps/workout/workout.css?v=niv-sep26',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {

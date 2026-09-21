@@ -36,14 +36,14 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js?v=trim-sep26';
-import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=trim-sep26';
-import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=trim-sep26';
+import { PROGRAM } from './data.js?v=niv-sep26';
+import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor, VERSE_NOTICE } from './standards.js?v=niv-sep26';
+import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=niv-sep26';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=trim-sep26';
-import { checkup } from './checkup.js?v=trim-sep26';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=niv-sep26';
+import { checkup } from './checkup.js?v=niv-sep26';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -1160,7 +1160,7 @@ export function verseHTML() {
   return `<div class="pg-card rk-verse">
     <div class="rk-verse-mark">&ldquo;</div>
     <div class="rk-verse-t">${v.t}</div>
-    <div class="rk-verse-r">${v.r} <span>· KJV · changes daily</span></div>
+    <div class="rk-verse-r">${v.r} <span title="${VERSE_NOTICE}">· NIV · changes daily</span></div>
   </div>`;
 }
 
@@ -1206,7 +1206,11 @@ function heroHTML(st) {
      So the composite keeps its letter, its number and its bar — all of
      which are useful for tracking yourself — and drops the sentence that
      placed you among other people. The per-lift rows below still say
-     "percentile", because there it is true. */
+     "percentile", because there it is true.
+
+     The disclaimer that used to sit under the bar saying as much is gone
+     too: the fix was removing the false claim, and a paragraph explaining
+     a claim the tab no longer makes is just more to read. */
   return `<div class="rk-hero" style="--rc:var(${rk.c})"><span class="rk-scan"></span>
     <div class="rk-hero-top">
       <div class="rk-kicker">Strength Score</div>
@@ -1226,7 +1230,7 @@ function heroHTML(st) {
       <span>${nx ? `Next: <b>${nx.l} · ${nx.name}</b> at a score of ${nx.min}` : 'Off the top of the published data.'}</span>
       <span class="rk-foot-pct" data-cnt="${st.overall.toFixed(1)}" data-dec="1">0.0</span>
     </div>
-    <div class="rk-hero-note"><span title="Each lift is compared to a published table for that movement at your bodyweight. Averaging those comparisons gives a number for tracking yourself against yourself — but no population has been measured on this set of lifts, so the average is not itself a percentile among lifters.">An average of published per-lift comparisons — a Bartleby number, not a percentile among lifters.</span>${st.offSheet ? ` ${st.offSheet} off-sheet weight${st.offSheet === 1 ? '' : 's'} listed below, excluded.` : ''}</div>
+    ${st.offSheet ? `<div class="rk-hero-note">${st.offSheet} off-sheet weight${st.offSheet === 1 ? '' : 's'} listed below, excluded.</div>` : ''}
     ${pend ? `<div class="rk-pending" title="Milestones and rank-ups land when you finish a session that trains the untested weight. Until then the letter above is what you would rank if it holds.">
       <b>${pend} untested lift${pend === 1 ? '' : 's'}</b>, so this is an estimate.
       ${pv.counted.length ? `Confirmed: <b style="color:var(${pv.rank.c})">${pv.rank.l}</b> at ${Math.round(pv.overall)}.`
