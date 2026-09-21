@@ -67,6 +67,24 @@ Live apps:
   specific published table, and the age-appropriate range belongs over it
   rather than in place of it.
 
+  **Where you stand** ranks each tape site against a population, the way
+  the Rank tab does for lifts — and with the same tagging, because a
+  percentile with no provenance is just a number that sounds authoritative.
+  Waist and arm come from [NHANES 2015–18](https://www.cdc.gov/nchs/data/series/sr_03/sr03-046-508.pdf)
+  (CDC/NCHS Series 3 No. 46, tables 20 and 23), age-matched by decade when
+  you've given an age. The arm is tagged **exact**: NHANES measures the
+  relaxed mid-upper arm at the marked midpoint, which is what this app asks
+  for. The waist is tagged **site differs**, because NHANES measures at the
+  top of the hip bone and this app measures at the navel, as the Navy
+  formula requires. Neck, chest and thigh are tagged **estimate** — they
+  come from ANSUR II (US Army, 2012, n=4,082) as a normal approximation
+  from mean and SD, against a population that runs leaner and more muscular
+  than the public. The bar always fills in the direction that counts, so a
+  small waist and a big arm both read long. And the card says out loud what
+  a tape cannot do: tell muscle from fat. A big arm there means bigger than
+  most, not more muscular than most; the waist is the one that means what it
+  looks like it means, and the body fat estimate above settles the rest.
+
   The rates and targets are not invented. Cutting at 0.5–1%/wk and protein
   at 2.3–3.1 g/kg of lean mass come from [Helms, Aragon & Schoenfeld
   (2014)](https://pmc.ncbi.nlm.nih.gov/articles/PMC4033492/); the bulk rate
@@ -148,7 +166,8 @@ Bartleby Web/
 │       └── ui.js             # toast helper
 ├── apps/
 │   ├── workout/              # index.js + data.js + rank.js + standards.js
-│   │                         #   + body.js + bodymap.js + workout.css
+│   │                         #   + body.js + anthro.js + bodymap.js
+│   │                         #   + workout.css
 │   └── finance/              # index.js + networth.js + data.js + finance.css
 ├── archive/                  # parked apps, kept but not loaded by the shell
 │   ├── apps/scripture/       # index.js + bible.js + scripture.css

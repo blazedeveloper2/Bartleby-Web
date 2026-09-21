@@ -6,22 +6,23 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, MMAP } from './data.js?v=age-sep26';
-import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=age-sep26';
-import { toast } from '../../assets/js/ui.js?v=age-sep26';
-import { pctColor, ord } from './standards.js?v=age-sep26';
+import { PROGRAM, MMAP } from './data.js?v=stand-sep26';
+import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=stand-sep26';
+import { toast } from '../../assets/js/ui.js?v=stand-sep26';
+import { pctColor, ord } from './standards.js?v=stand-sep26';
 import {
   setsOf, syncDay, logWeight, delSession, setReps, setBasis, snapshot,
   isLoggedToday, celebrationHTML, renderRank, liftScores, standingOf, resEx,
   resetPanel, resetToggle, resetToggleAll, resetSelection, applyReset, resetDismiss,
-} from './rank.js?v=age-sep26';
-import { MUSCLE_SVG } from './bodymap.js?v=age-sep26';
+} from './rank.js?v=stand-sep26';
+import { MUSCLE_SVG } from './bodymap.js?v=stand-sep26';
+import { standingsFor } from './anthro.js?v=stand-sep26';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
-  weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny,
+  weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=age-sep26';
+} from './body.js?v=stand-sep26';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -629,6 +630,40 @@ function callHTML(s, a) {
   </div>`;
 }
 
+/* ── measurements vs a population ── */
+/* The same job standards.js does for lifts, and it earns the same
+   scepticism: each row wears where its comparison came from, because a
+   percentile with no provenance is just a number that sounds authoritative.
+   The bar always fills in the direction that counts — a small waist and a
+   big arm both read long — so one bar can serve five rows. */
+function standingsHTML(s) {
+  const entry = lastTaped(bwAll());
+  const rows = standingsFor(entry, s.age, TAPE_KEYS);
+  if (!rows.length) return '';
+
+  const body = rows.map(r => {
+    const inches = entry[r.key];
+    const c = pctColor(r.score);
+    return `<div class="an-row">
+      <div class="an-top">
+        <span class="an-n">${r.lbl}<span class="an-src ${r.src}" title="${r.note}">${r.srcLabel}</span></span>
+        <span class="an-v">${lenStr(inches, unitFor(s.units, r.key))}</span>
+      </div>
+      <div class="an-bar"><i style="width:${r.score.toFixed(1)}%;background:${c}"></i></div>
+      <div class="an-foot"><span style="color:${c}">${r.phrase}</span><b>${ord(Math.round(r.pct))}</b></div>
+    </div>`;
+  }).join('');
+
+  return `<div class="pg-card an-card">
+    <div class="pg-card-head">
+      <div class="pg-card-title">Where you stand</div>
+      <div class="pg-card-note">${s.age ? 'age-matched' : 'all adult men — set an age above to match'}</div>
+    </div>
+    <div class="an-list">${body}</div>
+    <div class="an-note">A tape cannot tell muscle from fat, so a big arm or chest here means bigger than most, not more muscular than most. The waist is the one that means what it looks like it means — and the body fat estimate above is what settles the rest. Hover a tag for that row's source.</div>
+  </div>`;
+}
+
 /* ── profile ── */
 function profileHTML(s) {
   const u = unitFor(s.units, 'h');
@@ -706,6 +741,7 @@ function renderBW() {
 
   if (s.bf !== null) h += bfScaleHTML(s.bf, s.healthy);
   h += callHTML(s, a);
+  h += standingsHTML(s);
 
   /* Two different complaints about the same measurement, and only ever one
      of them at a time. Stale is the louder one — a body fat figure six weeks
@@ -1125,7 +1161,7 @@ export default {
   id: 'workout',
   name: 'Workout',
   storagePrefix: 'bp_',
-  styles: 'apps/workout/workout.css?v=age-sep26',
+  styles: 'apps/workout/workout.css?v=stand-sep26',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
