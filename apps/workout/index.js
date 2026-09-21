@@ -1,20 +1,26 @@
 /* ═══════════════════════════════════════════════════════════
    WORKOUT APP
    Program tracker (tap an exercise → muscle map + set its weight),
-   a bodyweight trend tab, and a progress/rank tab.
+   a body-composition tab (the maths lives in body.js), and a
+   progress/rank tab.
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, MMAP } from './data.js?v=crunch-sep26';
-import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=crunch-sep26';
-import { toast } from '../../assets/js/ui.js?v=crunch-sep26';
-import { pctColor, ord } from './standards.js?v=crunch-sep26';
+import { PROGRAM, MMAP } from './data.js?v=bodystat-sep26';
+import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=bodystat-sep26';
+import { toast } from '../../assets/js/ui.js?v=bodystat-sep26';
+import { pctColor, ord } from './standards.js?v=bodystat-sep26';
 import {
-  setsOf, syncDay, logWeight, delSession, setReps, snapshot,
+  setsOf, syncDay, logWeight, delSession, setReps, setBasis, snapshot,
   isLoggedToday, celebrationHTML, renderRank, liftScores, standingOf, resEx,
   resetPanel, resetToggle, resetToggleAll, resetSelection, applyReset, resetDismiss,
-} from './rank.js?v=crunch-sep26';
-import { MUSCLE_SVG } from './bodymap.js?v=crunch-sep26';
+} from './rank.js?v=bodystat-sep26';
+import { MUSCLE_SVG } from './bodymap.js?v=bodystat-sep26';
+import {
+  profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
+  weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny,
+  snapshot as bodySnap, advise, project,
+} from './body.js?v=bodystat-sep26';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -30,6 +36,8 @@ const bwSv  = l => save('bp_bw', l);
 let root = null;
 let activeTab = 'program';
 let bwRange = '30';
+let bwMetric = 'w';
+let bwMore = false;              // chest/arm/thigh fields shown on the log form
 let bwEditDate = null;
 let mmReturnFocus = null;
 let mmEx = null;             // exercise currently open in the muscle modal
@@ -77,7 +85,7 @@ function renderProg() {
         const wtH = wv ? `<span class="ex-wt">${wv}</span>` : '';
         const bH  = ex.b ? `<span class="bench-tag ${ex.bc||''}">${ex.b}</span>` : '';
         const l   = sc.get(ex.n);
-        const nA  = l ? ` style="color:${pctColor(l.pct)}" title="${l.rank.l} · ${ord(l.pct)} percentile at your bodyweight"` : '';
+        const nA  = l ? ` style="color:${pctColor(l.pct)}" title="${l.rank.l} · ${ord(l.pct)} percentile at your ${sc.basisWord}"` : '';
         h += `<div class="ex-row ${on?'off':''}" data-act="row" data-di="${di}" data-si="${si}" data-ei="${ei}"><span class="ex-rail"></span><div class="ex-chk ${on?'on':''}" data-act="chk" data-k="${k}"></div><span class="ex-idx">${pad(++exN)}</span><div class="ex-body"><div class="ex-name"${nA}>${ex.n}</div><div class="ex-detail"><span class="ex-musc">${ex.m}</span></div></div><div class="ex-right">${wtH}<span class="ex-sets">${ex.s}</span>${bH}</div></div>`;
       });
     });
@@ -370,14 +378,29 @@ function setMMWeight(el) {
   toast(weightToast(res, name, v));
 }
 
-/* ═══════════════════ BODYWEIGHT ═══════════════════ */
+/* ═══════════════════ BODY ═══════════════════ */
+/* Storage is still bp_bw and entries are still keyed by date — what changed
+   is that an entry now carries an optional waist and neck alongside the
+   weight, and every field on it is optional. You can weigh in without the
+   tape and tape yourself without the scale; the maths in body.js takes the
+   most recent of each. */
 function bwSort(l) { return [...l].sort((a,b) => a.d.localeCompare(b.d)); }
-function bwSet(d, w) { const l = bwAll(); const i = l.findIndex(e => e.d === d); if (i>=0) l[i].w = w; else l.push({d,w}); bwSv(bwSort(l)); }
+function bwSet(d, patch) {
+  const l = bwAll(), i = l.findIndex(e => e.d === d);
+  const next = { ...(i >= 0 ? l[i] : { d }), ...patch };
+  /* A blanked field is a deletion, not a zero — otherwise clearing the waist
+     on one entry would leave a 0 behind and read as a 0-inch waist. */
+  Object.keys(next).forEach(k => { if (next[k] === null) delete next[k]; });
+  if (i >= 0) l[i] = next; else l.push(next);
+  bwSv(bwSort(l.filter(hasAny)));
+}
 function bwDel(d) { bwSv(bwAll().filter(e => e.d !== d)); }
 function bwFmt(d) { return new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+function bwFmtLong(d) { return new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',year:'numeric'}); }
 function bwDaysBetween(a,b) { return Math.round((new Date(b+'T00:00:00') - new Date(a+'T00:00:00')) / 86400000); }
 function bwRelLabel(d) {
   const days = bwDaysBetween(d, todayStr());
+  if (days < 0)   return days === -1 ? 'Tomorrow' : `In ${-days} days`;
   if (days === 0) return 'Today';
   if (days === 1) return 'Yesterday';
   if (days < 7)   return `${days} days ago`;
@@ -385,31 +408,45 @@ function bwRelLabel(d) {
   if (days < 365) return `${Math.round(days/30)}mo ago`;
   return `${Math.round(days/365)}y ago`;
 }
-function bwFilteredForChart() {
-  const l = bwAll(), r = BW_RANGES.find(x => x.k === bwRange);
-  if (!r || r.d === null) return l;
-  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - r.d);
-  const cs = dateStr(cutoff);
-  return l.filter(e => e.d >= cs);
+
+/* One row per thing the chart can plot. Body fat isn't stored — it is
+   computed per entry from that entry's own tape, so a chart point exists
+   only where both measurements do. */
+const BW_METRICS = [
+  { k:'w',  lbl:'Weight',   unit:'lbs', dec:1, get:(e) => hasW(e) ? e.w : null },
+  { k:'bf', lbl:'Body fat', unit:'%',   dec:1, get:(e,h) => navyBF(e.wa, e.nk, h) },
+  ...TAPE.map(t => ({ k:t.k, lbl:t.lbl, unit:'in', dec:1,
+                      get:(e) => (typeof e[t.k] === 'number' && e[t.k] > 0) ? e[t.k] : null })),
+];
+const metricOf = k => BW_METRICS.find(m => m.k === k) || BW_METRICS[0];
+
+/* Three weeks. Short enough that the estimate can't drift a whole bulk out
+   of date before anyone says anything, long enough that measuring every
+   fortnight — which is often enough for a figure that moves this slowly —
+   never trips it. */
+const TAPE_STALE = 21;
+
+/* The chart's series for the current metric and range: {d, v}, oldest first,
+   with every entry that has no value for this metric dropped rather than
+   plotted as a gap. */
+function bwSeries(k, h) {
+  const m = metricOf(k), r = BW_RANGES.find(x => x.k === bwRange);
+  return within(bwAll(), r ? r.d : null)
+    .map(e => ({ d: e.d, v: m.get(e, h) }))
+    .filter(p => p.v !== null && p.v !== undefined && isFinite(p.v));
 }
-function bwStats() {
-  const all = bwAll(); if (all.length === 0) return null;
-  const cur = all[all.length-1].w;
-  const total = cur - all[0].w;
-  function deltaWindow(days) {
-    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
-    const cs = dateStr(cutoff);
-    const recent = all.filter(e => e.d >= cs);
-    if (recent.length < 2) return null;
-    return recent[recent.length-1].w - recent[0].w;
-  }
-  return { cur, d7: deltaWindow(7), d30: deltaWindow(30), total };
-}
-function bwChartSVG(entries) {
-  if (entries.length === 0) return '<div class="bw-empty">No entries in this range yet.</div>';
-  if (entries.length === 1) {
-    const e = entries[0];
-    return `<div class="bw-empty">Just one entry: <b style="color:var(--text)">${e.w} lbs</b> on ${bwFmt(e.d)}.<br>Log more to see a trend.</div>`;
+
+const fx = (v, d = 1) => (v === null || v === undefined || !isFinite(v)) ? '—' : v.toFixed(d);
+/* '12.4%' but '182.0 lbs' — a percent sign is part of the number, a unit isn't. */
+const withUnit = (v, m) => `${fx(v, m.dec)}${m.unit === '%' ? '' : ' '}${m.unit}`;
+
+/* ── chart ── */
+function bwChartSVG(series, m) {
+  if (series.length === 0)
+    return `<div class="bw-empty">No ${m.lbl.toLowerCase()} readings in this range yet.</div>`;
+  if (series.length === 1) {
+    const e = series[0];
+    return `<div class="bw-empty">Just one reading: <b style="color:var(--text)">${withUnit(e.v, m)}</b> on ${bwFmt(e.d)}.<br>Log more to see a trend.</div>`;
   }
   /* Pull the palette from the active theme so the chart re-colours with it. */
   const cs = getComputedStyle(document.documentElement);
@@ -417,103 +454,335 @@ function bwChartSVG(entries) {
   const AC = C('--blue'), GRID = C('--grid'), AXIS = C('--text-3'), CARD = C('--bg-card');
   const W=600,H=200,PADL=36,PADR=12,PADT=14,PADB=22;
   const innerW=W-PADL-PADR, innerH=H-PADT-PADB;
-  const ws=entries.map(e=>e.w);
-  const minW=Math.min(...ws), maxW=Math.max(...ws);
-  const range=Math.max(maxW-minW,1), pad=range*0.18;
-  const yMin=minW-pad, yMax=maxW+pad, n=entries.length;
+
+  /* Drawn through the raw points, not instead of them. Scale weight moves
+     three or four pounds on water alone, so the dots are the readings and
+     the line is what they mean. Sparse metrics — a waist measured once a
+     week — smooth to exactly themselves, and the test below then leaves
+     the second line off rather than drawing it twice. */
+  const sm = smooth(series);
+  const hasTrend = sm.some((p, i) => Math.abs(p.v - series[i].v) > 1e-9);
+
+  const vals = series.map(p => p.v).concat(hasTrend ? sm.map(p => p.v) : []);
+  const minV=Math.min(...vals), maxV=Math.max(...vals);
+  const range=Math.max(maxV-minV,m.k==='w'?1:0.4), pad=range*0.18;
+  const yMin=minV-pad, yMax=maxV+pad, n=series.length;
   const xOf=i=>PADL+(i/(n-1))*innerW;
-  const yOf=w=>PADT+innerH-((w-yMin)/(yMax-yMin))*innerH;
-  const points=entries.map((e,i)=>[xOf(i),yOf(e.w)]);
-  const linePath='M '+points.map(p=>`${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' L ');
-  const areaPath=linePath+` L ${points[n-1][0].toFixed(1)} ${PADT+innerH} L ${points[0][0].toFixed(1)} ${PADT+innerH} Z`;
+  const yOf=v=>PADT+innerH-((v-yMin)/(yMax-yMin))*innerH;
+  const pathOf=pts=>'M '+pts.map(p=>`${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' L ');
+
+  const points=series.map((p,i)=>[xOf(i),yOf(p.v)]);
+  const rawPath=pathOf(points);
+  const areaPath=rawPath+` L ${points[n-1][0].toFixed(1)} ${PADT+innerH} L ${points[0][0].toFixed(1)} ${PADT+innerH} Z`;
+  const trendPath=hasTrend?pathOf(sm.map((p,i)=>[xOf(i),yOf(p.v)])):null;
+
   const gridCount=4; let gridHTML='';
   for (let i=0;i<=gridCount;i++) {
     const v=yMin+((yMax-yMin)*i/gridCount);
     const y=(PADT+innerH-(i/gridCount)*innerH).toFixed(1);
-    gridHTML+=`<line x1="${PADL}" y1="${y}" x2="${W-PADR}" y2="${y}" stroke="${GRID}" stroke-width="1" stroke-dasharray="2,3"/><text x="${PADL-6}" y="${y}" text-anchor="end" dominant-baseline="middle" fill="${AXIS}" font-family="JetBrains Mono, monospace" font-size="9">${v.toFixed(0)}</text>`;
+    gridHTML+=`<line x1="${PADL}" y1="${y}" x2="${W-PADR}" y2="${y}" stroke="${GRID}" stroke-width="1" stroke-dasharray="2,3"/><text x="${PADL-6}" y="${y}" text-anchor="end" dominant-baseline="middle" fill="${AXIS}" font-family="JetBrains Mono, monospace" font-size="9">${v.toFixed(range<6?1:0)}</text>`;
   }
   const xIdx=n>=4?[0,Math.floor(n/2),n-1]:[0,n-1];
-  const xHTML=xIdx.map(i=>`<text x="${xOf(i).toFixed(1)}" y="${H-6}" text-anchor="middle" fill="${AXIS}" font-family="JetBrains Mono, monospace" font-size="9">${bwFmt(entries[i].d)}</text>`).join('');
-  const dotsHTML=points.map((p,i)=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="${AC}" stroke="${CARD}" stroke-width="2"><title>${entries[i].w} lbs · ${bwFmt(entries[i].d)}</title></circle>`).join('');
+  const xHTML=xIdx.map(i=>`<text x="${xOf(i).toFixed(1)}" y="${H-6}" text-anchor="middle" fill="${AXIS}" font-family="JetBrains Mono, monospace" font-size="9">${bwFmt(series[i].d)}</text>`).join('');
+  const dotsHTML=points.map((p,i)=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${hasTrend?2.6:3.5}" fill="${AC}" stroke="${CARD}" stroke-width="${hasTrend?1.5:2}" opacity="${hasTrend?0.55:1}"><title>${withUnit(series[i].v, m)} · ${bwFmt(series[i].d)}</title></circle>`).join('');
+
   return `<svg class="bw-chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
     <defs><linearGradient id="bw-grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${AC}" stop-opacity="0.28"/><stop offset="100%" stop-color="${AC}" stop-opacity="0"/></linearGradient></defs>
     ${gridHTML}
     <path d="${areaPath}" fill="url(#bw-grad)"/>
-    <path d="${linePath}" fill="none" stroke="${AC}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="${rawPath}" fill="none" stroke="${AC}" stroke-width="${hasTrend?1.25:2}" stroke-opacity="${hasTrend?0.4:1}" stroke-linecap="round" stroke-linejoin="round"/>
+    ${trendPath?`<path d="${trendPath}" fill="none" stroke="${AC}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`:''}
     ${dotsHTML}
     ${xHTML}
-  </svg>`;
+  </svg>${hasTrend?`<div class="bw-chart-key"><span><i class="raw"></i>Reading</span><span><i class="trend"></i>7-day trend</span></div>`:''}`;
 }
-function bwStatBox(label, value, unit, delta) {
-  let dHTML = '<div class="bw-stat-d flat">·</div>';
-  if (delta !== null && delta !== undefined) {
-    const cls = delta > 0.05 ? 'up' : delta < -0.05 ? 'dn' : 'flat';
-    const sign = delta > 0 ? '+' : '';
-    dHTML = `<div class="bw-stat-d ${cls}">${sign}${delta.toFixed(1)} lbs</div>`;
-  }
-  return `<div class="bw-stat"><div class="bw-stat-v">${value}<span class="bw-stat-u">${unit}</span></div><div class="bw-stat-l">${label}</div>${dHTML}</div>`;
-}
-function renderBW() {
-  const p = q('#p-bw'), all = bwAll(), s = bwStats();
-  let h = '';
-  if (s) {
-    const fmtD = v => v === null ? null : v;
-    h += `<div class="bw-stats">
-      ${bwStatBox('Current', s.cur.toFixed(1), 'lbs', null)}
-      ${bwStatBox('7 Day', s.d7!==null?s.d7.toFixed(1):'—', 'lbs', fmtD(s.d7))}
-      ${bwStatBox('30 Day', s.d30!==null?s.d30.toFixed(1):'—', 'lbs', fmtD(s.d30))}
-      ${bwStatBox('Total', s.total.toFixed(1), 'lbs', s.total)}
-    </div>`;
-  }
-  const filtered = bwFilteredForChart();
-  const rngBtns = BW_RANGES.map(r => `<button class="bw-r-btn ${r.k===bwRange?'sel':''}" data-act="bw-range" data-k="${r.k}">${r.lbl}</button>`).join('');
-  h += `<div class="bw-chart-card"><div class="bw-chart-head"><div class="bw-chart-title">Trend</div><div class="bw-range">${rngBtns}</div></div>${bwChartSVG(filtered)}</div>`;
 
-  const editing = bwEditDate !== null;
-  const editEntry = editing ? all.find(e => e.d === bwEditDate) : null;
-  h += `<div class="bw-add ${editing?'editing':''}">
-    <div class="bw-add-fld"><div class="bw-add-lbl">${editing?'Editing':'Date'}</div><input class="bw-in" type="date" id="bw-date" value="${editing?bwEditDate:todayStr()}" max="${todayStr()}" ${editing?'readonly':''}></div>
-    <div class="bw-add-fld"><div class="bw-add-lbl">Weight (lbs)</div><input class="bw-in" type="number" step="0.1" min="0" id="bw-weight" placeholder="—" value="${editEntry?editEntry.w:''}" inputmode="decimal"></div>
-    <button class="bw-add-btn" data-act="bw-save">${editing?'Update':'Log'}</button>
-    ${editing?`<button class="bw-add-btn ghost" data-act="bw-cancel">Cancel Edit</button>`:''}
+/* ── tiles ── */
+function tile(label, value, unit, sub, cls = '') {
+  return `<div class="bw-stat"><div class="bw-stat-v">${value}${unit?`<span class="bw-stat-u">${unit}</span>`:''}</div>`
+    + `<div class="bw-stat-l">${label}</div>`
+    + `<div class="bw-stat-d ${cls}">${sub ?? '·'}</div></div>`;
+}
+const deltaSub = v => v === null || v === undefined
+  ? { t:'·', c:'flat' }
+  : { t:`${v > 0 ? '+' : ''}${v.toFixed(1)}`, c: v > 0.05 ? 'up' : v < -0.05 ? 'dn' : 'flat' };
+
+/* ── the body-fat scale ── */
+/* A percentage on its own doesn't say whether it is a good one. The bands
+   are ACE's male classification; the marker is where you sit on them, which
+   is also the reason the verdict below says what it says. */
+function bfScaleHTML(bf) {
+  const lo = 2, hi = 40;
+  /* hi is an exclusive bound — Athlete is `bf < 14` — so the tooltip has to
+     print hi-1 or it reads back the next band's floor as its own ceiling
+     ("Essential · 2-6%" when ACE publishes 2-5%). The top band has no
+     ceiling at all. */
+  const segs = BF_BANDS.map((b, i) => {
+    const range = i === BF_BANDS.length - 1 ? `${b.lo}%+` : `${b.lo}–${b.hi - 1}%`;
+    return `<i class="${b.tone}" style="flex:${b.hi - b.lo}" title="${b.n} · ${range}"></i>`;
+  }).join('');
+  const names = BF_BANDS.map(b => `<span style="flex:${b.hi - b.lo}"><em>${b.n}</em><i>${b.ab}</i></span>`).join('');
+  const pos = Math.max(0, Math.min(100, (bf - lo) / (hi - lo) * 100));
+  return `<div class="bd-scale">
+    <div class="bd-scale-bar">${segs}<b class="bd-scale-mk" style="left:${pos.toFixed(1)}%"><span>${fx(bf,1)}%</span></b></div>
+    <div class="bd-scale-lbl">${names}</div>
+  </div>`;
+}
+
+/* ── the call ── */
+function projectHTML(cur, goalW, rate) {
+  const p = project(cur, goalW, rate);
+  if (!p) return `<div class="bd-proj none">Log a few more weigh-ins and this will say how long it should take.</div>`;
+  if (p.state === 'there') return `<div class="bd-proj good">You're there. Re-measure and set the next one.</div>`;
+  if (p.state === 'flat')  return `<div class="bd-proj none">Weight isn't moving, so there's nothing to project from.</div>`;
+  if (p.state === 'away')  return `<div class="bd-proj warn">Currently moving away from this goal — no date until that turns around.</div>`;
+  const wks = Math.round(p.weeks);
+  const when = wks > 12 ? bwFmtLong(p.date) : bwFmt(p.date);
+  return `<div class="bd-proj good"><b>${Math.abs(p.gap).toFixed(1)} lbs</b> to go · about <b>${wks} week${wks===1?'':'s'}</b> at your current rate · around <b>${when}</b></div>`;
+}
+
+function callHTML(s, a) {
+  if (a.state !== 'ok') {
+    /* Three different reasons for the same blank card, and saying which one
+       is the whole value of the card. The third is the wrong-way-round typo:
+       a neck bigger than a waist has no estimate in it, and "log a waist and
+       neck" is unhelpful advice to someone who just did. */
+    const need = s.tapeBad
+      ? `Your last tape reads a ${s.waist}" waist and a ${s.neck}" neck, and no estimate comes out of that — the waist has to be the larger of the two. Check whether the two numbers went into the wrong boxes.`
+      : s.h === null
+        ? 'Set your height above, then log a waist and neck measurement below.'
+        : 'Log a waist and neck measurement below and this fills in immediately.';
+    return `<div class="bd-call empty"><div class="bd-call-top"><span class="bd-call-v">—</span>
+      <span class="bd-call-sub">No body fat estimate yet</span></div>
+      <p class="bd-call-why">${need}</p>
+      <p class="bd-call-why">Waist at the navel, neck just below the larynx — the same two spots every time, because the change in the number is worth more than the number.</p></div>`;
+  }
+  const g = s.goal !== null && s.goal !== undefined ? s.goal : (a.goal ? a.goal.w : null);
+  const usingOwn = s.goal !== null && s.goal !== undefined;
+
+  return `<div class="bd-call ${a.tone}">
+    <div class="bd-call-top">
+      <span class="bd-call-v">${a.v}</span>
+      <span class="bd-call-sub">${fx(s.bf,1)}% body fat · ${s.band.n}</span>
+    </div>
+    <p class="bd-call-why">${a.why}</p>
+    ${a.pace ? `<div class="bd-pace ${a.pace.tone}">${a.pace.t}</div>` : ''}
+
+    <div class="bd-targets">
+      <div class="bd-t"><div class="bd-t-v">${a.kcal.toLocaleString()}<span>kcal/day</span></div>
+        <div class="bd-t-l">${a.delta === 0 ? 'At maintenance' : `${a.delta > 0 ? '+' : '−'}${Math.abs(a.delta)} on ${Math.round(s.energy.tdee).toLocaleString()} maintenance`}</div></div>
+      <div class="bd-t"><div class="bd-t-v">${a.protein}<span>g protein</span></div>
+        <div class="bd-t-l">${a.v === 'CUT' ? '1.2' : '1.0'} g per lb of lean mass</div></div>
+    </div>
+    <div class="bd-est">Maintenance is Katch-McArdle off your lean mass at <b>${actOf(s.act).n.toLowerCase()}</b> activity — a starting point, not a measurement. If the scale doesn't do what the target says it should after a fortnight, trust the scale and move the number.</div>
+
+    <div class="bd-goal">
+      <div class="bd-goal-head"><span class="bd-goal-t">Goal weight</span>
+        ${usingOwn ? `<button class="bd-mini" data-act="bd-goal-clear">Use recommended</button>`
+                   : `<span class="bd-goal-tag">Recommended</span>`}</div>
+      <div class="bd-goal-row">
+        <div class="bd-goal-v">${fx(g,1)}<span>lbs</span></div>
+        <div class="bd-goal-at">${a.goal ? `at ~${fx(a.goal.pct,0)}% body fat` : ''}${a.goal && a.goal.staged ? ' · staged' : ''}</div>
+        <input class="bw-in bd-goal-in" id="bd-goal" type="number" step="0.5" min="0" inputmode="decimal"
+               placeholder="${a.goal ? a.goal.w.toFixed(1) : 'Set your own'}" value="${usingOwn ? s.goal : ''}">
+        <button class="bd-mini go" data-act="bd-goal-save">Set</button>
+      </div>
+      ${a.goal && !usingOwn ? `<div class="bd-goal-note">${a.goal.note}</div>` : ''}
+      ${projectHTML(s.w, g, s.rate)}
+    </div>
+  </div>`;
+}
+
+/* ── profile ── */
+function profileHTML(s) {
+  const ft = s.h ? Math.floor(s.h / 12) : '';
+  const inch = s.h ? +(s.h - Math.floor(s.h / 12) * 12).toFixed(1) : '';
+  const opts = ACTIVITY.map(a => `<option value="${a.k}" ${a.k===s.act?'selected':''}>${a.n} — ${a.d}</option>`).join('');
+  return `<div class="bd-prof ${s.h === null ? 'unset' : ''}">
+    <div class="bd-prof-f">
+      <div class="bw-add-lbl">Height</div>
+      <div class="bd-ht">
+        <input class="bw-in" id="bd-ft" type="number" min="3" max="8" step="1" inputmode="numeric" placeholder="—" value="${ft}"><span>ft</span>
+        <input class="bw-in" id="bd-in" type="number" min="0" max="11.5" step="0.5" inputmode="decimal" placeholder="—" value="${inch}"><span>in</span>
+      </div>
+    </div>
+    <div class="bd-prof-f">
+      <div class="bw-add-lbl">Daily activity</div>
+      <select class="bw-in" id="bd-act">${opts}</select>
+    </div>
+  </div>`;
+}
+
+/* ── the tab ── */
+function renderBW() {
+  const p = q('#p-bw'), all = bwAll();
+  /* bodySnap, not snapshot — rank.js exports a `snapshot` too, and that one
+     is the level-up before/after picture, not the body one. */
+  const s = bodySnap(), a = advise(s);
+  let h = profileHTML(s);
+
+  /* Row one is what you are. Row two is what that means and how fast it is
+     changing — every figure on it is derived from row one plus height. */
+  const rate = s.rate;
+  const rateSub = rate
+    ? `${rate.pctWk > 0 ? '+' : ''}${rate.pctWk.toFixed(2)}%/wk`
+    : 'Needs a week of data';
+  const bmiWord = s.bmi === null ? '·'
+    : s.bmi < 18.5 ? 'Under' : s.bmi < 25 ? 'Normal' : s.bmi < 30 ? '"Overweight"' : '"Obese"';
+
+  h += `<div class="bw-stats">
+    ${tile('Weight', fx(s.w,1), 'lbs', s.wDate ? bwRelLabel(s.wDate) : 'Not logged', 'flat')}
+    ${tile('Body fat', fx(s.bf,1), '%', s.band ? s.band.n : 'Needs tape', 'flat')}
+    ${tile('Lean mass', fx(s.lean,1), 'lbs', s.lean !== null ? 'Fat-free' : '·', 'flat')}
+    ${tile('Fat mass', fx(s.fat,1), 'lbs', s.fat !== null ? 'Carried' : '·', 'flat')}
   </div>`;
 
+  h += `<div class="bw-stats second">
+    ${tile('Trend', rate ? `${rate.lbsWk > 0 ? '+' : ''}${rate.lbsWk.toFixed(2)}` : '—', 'lb/wk', rateSub,
+           rate ? (rate.lbsWk > 0.05 ? 'up' : rate.lbsWk < -0.05 ? 'dn' : 'flat') : 'flat')}
+    ${tile('FFMI', s.ffmi ? fx(s.ffmi.norm,1) : '—', '', s.ffmi ? 'Natural cap ~25' : 'Needs tape', 'flat')}
+    ${tile('BMI', fx(s.bmi,1), '', bmiWord, 'flat')}
+    ${tile('Waist : height', s.whtr ? s.whtr.toFixed(2) : '—', '', s.whtr ? (s.whtr < 0.5 ? 'Under 0.50 ✓' : 'Aim under 0.50') : 'Needs tape',
+           s.whtr ? (s.whtr < 0.5 ? 'up' : 'dn') : 'flat')}
+  </div>`;
+
+  /* BMI is in that row because it is free and people ask for it, not because
+     it is worth much here — it cannot tell muscle from fat, which is the one
+     distinction this whole tab exists to make. Hence the quotation marks
+     above and the line below. */
+  if (s.bmi !== null && s.lean !== null && s.bmi >= 25 && s.bf < 20)
+    h += `<div class="bd-caveat">BMI reads ${fx(s.bmi,1)} — "overweight" — at ${fx(s.bf,1)}% body fat. It is a height-and-weight ratio and cannot tell muscle from fat, which is exactly what the lean and fat mass figures above it are for. Ignore it.</div>`;
+
+  if (s.bf !== null) h += bfScaleHTML(s.bf);
+  h += callHTML(s, a);
+
+  /* Two different complaints about the same measurement, and only ever one
+     of them at a time. Stale is the louder one — a body fat figure six weeks
+     old is being read as today's — so it wins, and the date-mismatch note is
+     redundant underneath it anyway. */
+  if (s.tapeAge !== null && s.tapeAge >= TAPE_STALE) {
+    const wks = Math.round(s.tapeAge / 7);
+    h += `<div class="bd-caveat stale">Your last tape was <b>${bwFmt(s.bfDate)}</b>, ${wks} week${wks===1?'':'s'} ago. Everything above still reads off it — body fat, lean mass, the calorie target and the call — so all of it is ${wks} week${wks===1?'':'s'} out of date. Take two minutes and measure again.</div>`;
+  } else if (s.bfDate && s.wDate && s.bfDate !== s.wDate) {
+    h += `<div class="bd-caveat">Body fat is from the tape on <b>${bwFmt(s.bfDate)}</b>, paired with your weight from <b>${bwFmt(s.wDate)}</b>. Measure again to bring them back together.</div>`;
+  }
+
+  /* ── chart ── */
+  const m = metricOf(bwMetric);
+  const series = bwSeries(bwMetric, s.h);
+  const mBtns = BW_METRICS.map(x => `<button class="bw-r-btn ${x.k===bwMetric?'sel':''}" data-act="bw-metric" data-k="${x.k}">${x.lbl}</button>`).join('');
+  const rngBtns = BW_RANGES.map(r => `<button class="bw-r-btn ${r.k===bwRange?'sel':''}" data-act="bw-range" data-k="${r.k}">${r.lbl}</button>`).join('');
+  h += `<div class="bw-chart-card">
+    <div class="bw-chart-head"><div class="bw-range metrics">${mBtns}</div><div class="bw-range">${rngBtns}</div></div>
+    ${bwChartSVG(series, m)}</div>`;
+
+  /* ── log ── */
+  const editing = bwEditDate !== null;
+  const ee = editing ? all.find(e => e.d === bwEditDate) : null;
+  const val = k => (ee && ee[k] !== undefined && ee[k] !== null) ? ee[k] : '';
+  /* Editing an entry that already carries a chest, arm or thigh has to open
+     the disclosure — otherwise the fields are hidden, come back blank, and
+     "blank means clear this" quietly deletes them on save. */
+  const extras = TAPE.filter(t => !t.core);
+  const hasExtras = ee ? extras.some(t => typeof ee[t.k] === 'number') : false;
+  const showMore = bwMore || hasExtras;
+  const fld = t => `<div class="bw-add-fld"><div class="bw-add-lbl" title="${t.how}">${t.lbl} <em>in</em></div>`
+    + `<input class="bw-in" type="number" step="0.1" min="0" id="bw-${t.k}" placeholder="—" value="${val(t.k)}" inputmode="decimal"></div>`;
+
+  h += `<div class="bw-add ${editing?'editing':''}">
+    <div class="bw-add-fld"><div class="bw-add-lbl">${editing?'Editing':'Date'}</div><input class="bw-in" type="date" id="bw-date" value="${editing?bwEditDate:todayStr()}" max="${todayStr()}" ${editing?'readonly':''}></div>
+    <div class="bw-add-fld"><div class="bw-add-lbl">Weight <em>lbs</em></div><input class="bw-in" type="number" step="0.1" min="0" id="bw-weight" placeholder="—" value="${val('w')}" inputmode="decimal"></div>
+    ${TAPE.filter(t => t.core).map(fld).join('')}
+    ${showMore ? extras.map(fld).join('') : ''}
+    <button class="bw-add-btn" data-act="bw-save">${editing?'Update':'Log'}</button>
+    <div class="bw-add-foot">
+      <button class="bd-mini" data-act="bw-more">${showMore ? '− Fewer measurements' : '+ Chest, arm, thigh'}</button>
+      ${editing?`<button class="bd-mini" data-act="bw-cancel">Cancel edit</button>`:''}
+    </div>
+  </div>`;
+
+  /* ── history ── */
   if (all.length > 0) {
     h += `<div class="day-card"><div class="day-top"><div class="day-top-l"><span class="day-badge hist">History</span><span class="day-title">${all.length} ${all.length===1?'Entry':'Entries'}</span></div><span class="day-prog">${bwFmt(all[0].d)} → ${bwFmt(all[all.length-1].d)}</span></div><div class="bw-hist">`;
-    const reversed = [...all].reverse();
-    reversed.forEach((e, i) => {
-      const prior = reversed[i+1];
-      let dHTML;
-      if (prior) {
-        const d = e.w - prior.w;
-        const cls = d > 0.05 ? 'up' : d < -0.05 ? 'dn' : 'flat';
-        const arrow = d > 0.05 ? '↑' : d < -0.05 ? '↓' : '•';
-        const sign = d > 0 ? '+' : '';
-        dHTML = `<div class="bw-h-d ${cls}">${arrow} ${sign}${d.toFixed(1)}</div>`;
-      } else dHTML = `<div class="bw-h-d flat">start</div>`;
+    const rev = [...all].reverse();
+    /* The delta compares each weigh-in with the previous *weigh-in*, which
+       is not always the previous entry now that an entry can be tape only. */
+    const wOnly = [...weighed(all)].reverse();
+    rev.forEach(e => {
+      let dHTML = '<div class="bw-h-d flat">—</div>';
+      if (hasW(e)) {
+        const i = wOnly.findIndex(x => x.d === e.d), prior = wOnly[i+1];
+        if (prior) {
+          const d = e.w - prior.w;
+          const cls = d > 0.05 ? 'up' : d < -0.05 ? 'dn' : 'flat';
+          const arrow = d > 0.05 ? '↑' : d < -0.05 ? '↓' : '•';
+          dHTML = `<div class="bw-h-d ${cls}">${arrow} ${d > 0 ? '+' : ''}${d.toFixed(1)}</div>`;
+        } else dHTML = `<div class="bw-h-d flat">start</div>`;
+      }
+      const bf = navyBF(e.wa, e.nk, s.h);
+      const chips = TAPE
+        .filter(t => typeof e[t.k] === 'number' && e[t.k] > 0)
+        .map(t => `<span class="bw-h-chip" title="${t.lbl}">${t.ab} ${e[t.k].toFixed(1)}"</span>`)
+        .concat(bf !== null ? [`<span class="bw-h-chip bf">${bf.toFixed(1)}% bf</span>`] : [])
+        .join('');
       h += `<div class="bw-h-row">
         <div><div class="bw-h-date">${bwFmt(e.d)}</div><div class="bw-h-rel">${bwRelLabel(e.d)}</div></div>
-        <div class="bw-h-w">${e.w.toFixed(1)}<span class="bw-h-w-u">lbs</span></div>
+        <div class="bw-h-w">${hasW(e) ? e.w.toFixed(1) : '—'}${hasW(e)?'<span class="bw-h-w-u">lbs</span>':''}</div>
         ${dHTML}
         <div class="bw-h-act">
           <button class="bw-h-btn" data-act="bw-edit" data-d="${e.d}" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
           <button class="bw-h-btn del" data-act="bw-del" data-d="${e.d}" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
         </div>
+        ${chips ? `<div class="bw-h-chips">${chips}</div>` : ''}
       </div>`;
     });
     h += `</div></div>`;
   }
   p.innerHTML = h;
 }
+
 function bwSetRange(k) { bwRange = k; renderBW(); }
+function bwSetMetric(k) { bwMetric = k; renderBW(); }
+
+/* A blank field means "don't record this", an entered one means record it.
+   Reading a blank as 0 is the bug this guards: a 0 lb weigh-in would sit in
+   the chart forever and drag every average through the floor. */
+function fieldVal(id) {
+  const el = q(id); if (!el) return undefined;
+  const raw = el.value.trim();
+  if (raw === '') return null;
+  const n = parseFloat(raw);
+  return isNaN(n) || n <= 0 ? undefined : n;
+}
+
 function bwSave() {
-  const d = q('#bw-date').value, w = parseFloat(q('#bw-weight').value);
+  const d = q('#bw-date').value;
   if (!d) { toast('Pick a date'); return; }
-  if (isNaN(w) || w <= 0) { toast('Enter a valid weight'); return; }
+  const raw = { w: fieldVal('#bw-weight') };
+  /* Only fields actually on the form. A hidden one contributes nothing —
+     not a value and not a blank — so collapsing the disclosure can never
+     be a way to wipe a measurement. */
+  TAPE.forEach(t => { if (q('#bw-' + t.k)) raw[t.k] = fieldVal('#bw-' + t.k); });
+  if (Object.values(raw).includes(undefined)) { toast('Those numbers need to be above zero'); return; }
   const editing = bwEditDate !== null;
-  bwSet(d, w); bwEditDate = null; renderBW();
+
+  /* A blank field means two different things depending on which form you are
+     standing in, and conflating them costs you data. Adding, it means "I
+     didn't measure that", and the entry keeps whatever it already holds — so
+     stepping on the scale in the evening does not erase the morning's tape.
+     Editing, it means "clear this", which is the only way to take back a
+     waist you mistyped. */
+  const patch = {};
+  Object.entries(raw).forEach(([k, v]) => { if (v !== null || editing) patch[k] = v; });
+  if (!Object.keys(patch).length) { toast('Enter at least one measurement'); return; }
+  if (editing && Object.values(patch).every(v => v === null)) {
+    toast('That would empty the entry — delete it instead'); return;
+  }
+
+  bwSet(d, patch);
+  bwEditDate = null; renderBW();
   renderProg();                       // every lift is scored against bodyweight
-  toast(editing ? 'Updated' : `Logged ${w} lbs`);
+  toast(editing ? 'Updated' : raw.w !== null ? `Logged ${raw.w} lbs` : 'Measurement logged');
 }
 function bwEdit(d) {
   bwEditDate = d; renderBW();
@@ -526,6 +795,21 @@ function bwDelete(d) {
   renderProg();
   toast('Entry deleted');
 }
+
+/* ── profile + goal writes ── */
+function bdHeight() {
+  const ft = parseFloat(q('#bd-ft')?.value), inch = parseFloat(q('#bd-in')?.value) || 0;
+  const h = isNaN(ft) ? (inch > 0 ? inch : null) : ft * 12 + inch;
+  profSet({ h: h && h > 0 ? h : null });
+  renderBW();
+}
+function bdActivity() { profSet({ act: q('#bd-act').value }); renderBW(); }
+function bdGoalSave() {
+  const v = parseFloat(q('#bd-goal').value);
+  if (isNaN(v) || v <= 0) { toast('Enter a goal weight'); return; }
+  profSet({ goal: v }); renderBW(); toast(`Goal set to ${v} lbs`);
+}
+function bdGoalClear() { profSet({ goal: null }); renderBW(); toast('Back to the recommended goal'); }
 
 /* ═══════════════════ CELEBRATION ═══════════════════ */
 /* Rank-ups and milestone unlocks get a card, not a toast — the reward
@@ -548,6 +832,9 @@ function progDelete(d, di) {
 /* The rep assumption feeds the 1RM estimate, so it moves every score —
    and with them the Program tab's colours. */
 function rkSetReps(r) { setReps(r); renderRank(root); renderProg(); }
+/* Same blast radius as the rep assumption: the divisor moves every ratio,
+   so it moves the Program tab's row colours with it. */
+function rkSetBasis(b) { setBasis(b); renderRank(root); renderProg(); }
 
 /* ═══════════════════ RESET ═══════════════════ */
 /* The dialog names every record and its size before anything happens.
@@ -595,13 +882,18 @@ function onClick(e) {
     case 'mm-chip': inspectMuscle(el); break;
     case 'mm-view': mmView(a.view); break;
     case 'bw-range':  bwSetRange(a.k); break;
+    case 'bw-metric': bwSetMetric(a.k); break;
     case 'bw-save':   bwSave(); break;
     case 'bw-edit':   bwEdit(a.d); break;
     case 'bw-del':    bwDelete(a.d); break;
     case 'bw-cancel': bwCancelEdit(); break;
+    case 'bd-goal-save':  bdGoalSave(); break;
+    case 'bd-goal-clear': bdGoalClear(); break;
     case 'lv-close':  closeCelebration(); break;
     case 'pg-del':    progDelete(a.d, a.di); break;
     case 'rk-reps':   rkSetReps(+a.r); break;
+    case 'rk-basis':  rkSetBasis(a.b); break;
+    case 'bw-more':   bwMore = !bwMore; renderBW(); break;
     case 'rk-reset-open':  resetPanel(true, root); break;
     case 'rk-reset-close': resetPanel(false, root); break;
     case 'rk-reset-tgl':   resetToggle(a.k, root); break;
@@ -611,6 +903,11 @@ function onClick(e) {
 }
 function onChange(e) {
   if (e.target.id === 'mm-wt') setMMWeight(e.target);
+  /* Height and activity save on change rather than behind a button: they are
+     set once and then never touched, and a Save you have to remember is a
+     worse trade than a re-render you didn't ask for. */
+  else if (e.target.id === 'bd-ft' || e.target.id === 'bd-in') bdHeight();
+  else if (e.target.id === 'bd-act') bdActivity();
 }
 
 /* Hover, for anyone on a mouse: over a shape names it, over a chip lights
@@ -644,7 +941,8 @@ function onKeydown(e) {
     }
   }
   if (e.key !== 'Enter') return;
-  if (e.target.id === 'bw-weight') bwSave();
+  if (e.target.id === 'bw-weight' || TAPE_KEYS.some(k => e.target.id === 'bw-' + k)) bwSave();
+  else if (e.target.id === 'bd-goal') bdGoalSave();
   else if (e.target.id === 'mm-wt') e.target.blur();
 }
 
@@ -655,7 +953,7 @@ function template() {
     <div class="app-head"><h1>Build Program</h1><p>Dumbbells + Bench · 4 Day Upper/Lower + Calisthenics · Rank Up</p></div>
     <nav class="nav"><div class="nav-inner">
       <button class="tab active" data-act="tab" data-tab="program">Program</button>
-      <button class="tab" data-act="tab" data-tab="bw">Weight</button>
+      <button class="tab" data-act="tab" data-tab="bw">Body</button>
       <button class="tab" data-act="tab" data-tab="rank">Rank</button>
     </div></nav>
     <div class="app-wrap">
@@ -696,14 +994,14 @@ export default {
   id: 'workout',
   name: 'Workout',
   storagePrefix: 'bp_',
-  styles: 'apps/workout/workout.css?v=crunch-sep26',
+  styles: 'apps/workout/workout.css?v=bodystat-sep26',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
     root = el;
     /* activeTab deliberately survives a remount — coming back to an app
        should return you to the tab you left, not to its front page. */
-    bwRange = '30'; bwEditDate = null; mmEx = null;
+    bwRange = '30'; bwMetric = 'w'; bwMore = false; bwEditDate = null; mmEx = null;
     resetDismiss();
     root.innerHTML = template();
     root.addEventListener('click', onClick);

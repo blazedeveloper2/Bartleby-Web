@@ -36,9 +36,13 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js?v=crunch-sep26';
-import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=crunch-sep26';
-import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=crunch-sep26';
+import { PROGRAM } from './data.js?v=bodystat-sep26';
+import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor } from './standards.js?v=bodystat-sep26';
+import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=bodystat-sep26';
+/* An entry in bp_bw can now carry a waist and neck but no weight, so the
+   last entry is no longer reliably the last bodyweight. Everything here that
+   wants a weight goes through weighed(). */
+import { weighed, snapshot as bodySnap, scoringRef, REF_BF } from './body.js?v=bodystat-sep26';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -75,6 +79,19 @@ export const resEx = ex => (ex.alt && !owns(ex.req)) ? ex.alt : ex;
 export const REP_OPTS = [5, 8, 10, 12, 15];
 const reps  = () => { const r = load('bp_reps', 10); return REP_OPTS.includes(r) ? r : 10; };
 const sReps = r => save('bp_reps', r);
+
+/* What the standards get divided by. 'bw' is the published basis and stays
+   the default: switching it silently would move every letter on the tab
+   overnight, and a grade that changes because the app changed its mind is
+   worth nothing. 'lean' is opt-in and needs a body fat estimate to mean
+   anything, so it falls back on its own when there isn't one. */
+export const BASES = [
+  { k:'bw',   n:'Bodyweight', d:'As the standards are published. Lose weight and every ratio rises, whether or not you got stronger.' },
+  { k:'lean', n:'Lean mass',  d:'Scored as if you carried your lean mass at ' + Math.round(REF_BF * 100) + '% body fat. A cut stops flattering the letter and a bulk stops hiding it.' },
+];
+const basis  = () => (BASES.some(b => b.k === load('bp_basis', 'bw')) ? load('bp_basis', 'bw') : 'bw');
+const sBasis = b => save('bp_basis', b);
+export function setBasis(b) { if (BASES.some(x => x.k === b)) sBasis(b); }
 
 /* ── schedule ── */
 const DOW = { sun:0, mon:1, tue:2, wed:3, thu:4, fri:5, sat:6 };
@@ -344,15 +361,22 @@ const repsFor = (spec, r) => spec.reps || r;
 /* The ratio a lift scores at, and the inverse: what working weight would
    be needed to hit a target ratio. Both branch on how the source measures
    the lift — per dumbbell, summed across two, or added onto bodyweight. */
-function ratioOf(spec, wv, bw, r) {
+/* `bw` and `ref` are the same number under bodyweight scoring and diverge
+   under lean scoring, and the two are NOT interchangeable. On an 'added'
+   lift — a weighted pull-up — bodyweight is both the thing being lifted and
+   the thing being divided by, and only the divisor is allowed to move: you
+   haul your actual mass over the bar whatever the tab has been told to
+   score against. So `bw` stays real on the load side and `ref` takes the
+   denominator. */
+function ratioOf(spec, wv, bw, ref, r) {
   const n = repsFor(spec, r);
-  if (spec.mode === 'added') return (est1RM(bw + wv, n) - bw) / bw;
-  return est1RM(wv * (spec.mult || 1), n) / bw;
+  if (spec.mode === 'added') return (est1RM(bw + wv, n) - bw) / ref;
+  return est1RM(wv * (spec.mult || 1), n) / ref;
 }
-function weightFor(spec, targetRatio, bw, r) {
+function weightFor(spec, targetRatio, bw, ref, r) {
   const e = 1 + repsFor(spec, r) / 30;
-  if (spec.mode === 'added') return (bw + targetRatio * bw) / e - bw;
-  return (targetRatio * bw) / (e * (spec.mult || 1));
+  if (spec.mode === 'added') return (bw + targetRatio * ref) / e - bw;
+  return (targetRatio * ref) / (e * (spec.mult || 1));
 }
 
 /* The scored lifts you can actually reach right now. Pull-Ups and Single-Arm
@@ -371,7 +395,7 @@ function reachableLifts() {
 /* Score one map of working weights. Called twice — once with what you have
    set, once with what you have proven — so the two views can never drift
    apart in their maths. */
-function scoreAll(w, bodyweight, r, reach) {
+function scoreAll(w, bodyweight, ref, r, reach) {
   const out = { lifts: [], overall: 0, rank: rankFor(0),
                 scored: 0, scoredReachable: 0, totalScorable: reach.size };
   if (!bodyweight) return out;
@@ -380,7 +404,7 @@ function scoreAll(w, bodyweight, r, reach) {
     const wv = w[name];
     if (!(wv > 0)) return;
     const spec = LIFTS[name], tiers = spec.r;
-    const ratio = ratioOf(spec, wv, bodyweight, r);
+    const ratio = ratioOf(spec, wv, bodyweight, ref, r);
     const pct = pctFor(ratio, tiers);
     const rk = rankFor(pct);
     /* lbs of working weight still needed for the next letter */
@@ -388,12 +412,12 @@ function scoreAll(w, bodyweight, r, reach) {
     if (rk.next) {
       const ti = TIER_PCT.indexOf(rk.next.min);
       const targetRatio = ti >= 0 ? tiers[ti] : tiers[tiers.length - 1] * 1.08;
-      need = Math.max(0, weightFor(spec, targetRatio, bodyweight, r) - wv);
+      need = Math.max(0, weightFor(spec, targetRatio, bodyweight, ref, r) - wv);
     }
     out.lifts.push({
       name, w: wv, ratio, pct, rank: rk, need,
       /* the 1RM the ratio was actually derived from */
-      oneRM: spec.mode === 'added' ? ratio * bodyweight : est1RM(wv * (spec.mult || 1), repsFor(spec, r)),
+      oneRM: spec.mode === 'added' ? ratio * ref : est1RM(wv * (spec.mult || 1), repsFor(spec, r)),
       oneRMLabel: spec.mode === 'added' ? 'est. 1RM added' : 'est. 1RM',
       src: spec.src, srcLabel: SRC_LABEL[spec.src],
       /* only worth a tooltip when the standard isn't a direct match or there's
@@ -417,12 +441,23 @@ function scoreAll(w, bodyweight, r, reach) {
 }
 
 export function strength() {
-  const bw = load('bp_bw', []);
+  const bw = weighed(load('bp_bw', []));
   const bodyweight = bw.length ? bw[bw.length - 1].w : null;
   const r = reps(), w = wts(), reach = reachableLifts();
   const hist = weightHistory(), pw = provenMap(w, hist);
 
-  const out = { bodyweight, reps: r, unscored: [], ...scoreAll(w, bodyweight, r, reach) };
+  /* Lean scoring is a request, not a guarantee: it needs a tape measurement
+     to produce a lean mass, and the setting can be on for weeks before one
+     arrives. Without it, fall back to bodyweight silently and let `usingLean`
+     tell the UI which of the two actually happened. */
+  const wantLean = basis() === 'lean';
+  const lean = wantLean ? bodySnap().lean : null;
+  const ref = wantLean ? scoringRef(lean) : null;
+  const usingLean = ref !== null && bodyweight !== null;
+  const divisor = usingLean ? ref : bodyweight;
+
+  const out = { bodyweight, lean, basis: basis(), wantLean, usingLean, ref: divisor,
+                reps: r, unscored: [], ...scoreAll(w, bodyweight, divisor, r, reach) };
   Object.keys(w).forEach(name => {
     if (!LIFTS[name]) out.unscored.push({ name, w: w[name] });
   });
@@ -430,7 +465,7 @@ export function strength() {
 
   /* The same scoring run over proven weights only. This is the view that
      earns things; the live one above is what you see while you decide. */
-  out.proven = scoreAll(pw, bodyweight, r, reach);
+  out.proven = scoreAll(pw, bodyweight, divisor, r, reach);
   out.lifts.forEach(l => { l.provenW = pw[l.name] || 0; l.pending = l.provenW < l.w; });
   out.pending = out.lifts.filter(l => l.pending);
   /* Untested weights including unscored movements and the no-bodyweight
@@ -444,8 +479,14 @@ export function setReps(r) { if (REP_OPTS.includes(+r)) sReps(+r); }
 /* Scored lifts keyed by exercise name, for callers outside the Rank tab
    that need a lift's standing — the Program tab colours each row with it.
    Empty until a bodyweight and a working weight both exist. */
+/* The map, plus the one fact about HOW it was scored that the Program tab's
+   tooltips need. Returned from the same run rather than fetched by a second
+   strength() call, which would re-score every lift to read one boolean. */
 export function liftScores() {
-  return new Map(strength().lifts.map(l => [l.name, l]));
+  const st = strength();
+  const map = new Map(st.lifts.map(l => [l.name, l]));
+  map.basisWord = st.usingLean ? 'lean mass' : 'bodyweight';
+  return map;
 }
 
 /* Where a single lift stands, including the reasons it might not have a
@@ -552,7 +593,7 @@ export function stats() {
     const g = Math.round((dOf(days[i]) - dOf(days[i - 1])) / 86400000);
     if (g > maxGap) maxGap = g;
   }
-  const bwLog = load('bp_bw', []);
+  const bwLog = weighed(load('bp_bw', []));
 
   const s = {
     log, prList: h.entries, hits, firstDate, cover,
@@ -753,8 +794,8 @@ const RESETS = [
     d:'Personal records, net load added, back-offs — and the proof that separates a weight you typed from one you have trained. Clearing it makes every current weight read as a fresh starting point.' },
   { id:'wt',  key:'bp_wt',  n:'Working weights', u:'lift',
     d:'The letter is computed from these. Clearing them takes every lift back to unscored and the rank to none.' },
-  { id:'bw',  key:'bp_bw',  n:'Bodyweight log', u:'entry', p:'entries',
-    d:'Every standard is relative to bodyweight, so the rank disappears until you log one again.' },
+  { id:'bw',  key:'bp_bw',  n:'Body log', u:'entry', p:'entries',
+    d:'Weigh-ins and tape measurements both. Every standard is relative to bodyweight, so the rank disappears until you log one again — and the body fat estimate, lean mass and calorie targets go with it. Your height and activity setting are left alone.' },
   { id:'ach', key:'bp_ach', n:'Milestone dates', u:'unlocked', p:'unlocked',
     d:'Only the dates. Anything still true at your current numbers re-earns itself on the next render — to genuinely re-lock a milestone, clear what earned it as well.' },
   { id:'chk', key:'bp_chk', n:'Checkmarks', u:'ticked', p:'ticked',
@@ -870,7 +911,7 @@ function heroHTML(st) {
       <div class="rk-kicker">No Rank</div>
       <div class="rk-hero-row"><div class="rk-badge"><span class="rk-letter">?</span></div>
         <div class="rk-hero-txt"><div class="rk-name">Bodyweight missing</div>
-        <div class="rk-blurb">Strength standards are relative to bodyweight. Log yours in the <b>Weight</b> tab and this fills in immediately.</div></div></div>
+        <div class="rk-blurb">Strength standards are relative to bodyweight. Log yours in the <b>Body</b> tab and this fills in immediately.</div></div></div>
     </div>`;
   }
   if (!st.scored) {
@@ -888,13 +929,14 @@ function heroHTML(st) {
   return `<div class="rk-hero" style="--rc:var(${rk.c})"><span class="rk-scan"></span>
     <div class="rk-hero-top">
       <div class="rk-kicker">Strength Rank</div>
-      <div class="rk-kicker">${st.scored} lift${st.scored === 1 ? '' : 's'} scored · ${st.bodyweight} lb bodyweight</div>
+      <div class="rk-kicker">${st.scored} lift${st.scored === 1 ? '' : 's'} scored · ${st.usingLean
+        ? `${Math.round(st.lean)} lb lean mass` : `${st.bodyweight} lb bodyweight`}</div>
     </div>
     <div class="rk-hero-row">
       <div class="rk-badge"><span class="rk-letter">${rk.l}</span></div>
       <div class="rk-hero-txt">
         <div class="rk-name">${rk.name}</div>
-        <div class="rk-pct">Stronger than <b>${beat}%</b> of lifters at your bodyweight</div>
+        <div class="rk-pct">Stronger than <b>${beat}%</b> of lifters at your ${st.usingLean ? 'lean mass' : 'bodyweight'}</div>
         <div class="rk-blurb">${rk.blurb}</div>
       </div>
     </div>
@@ -951,7 +993,7 @@ function liftsHTML(st) {
       </div>
       ${bandTrack(l.pct, false)}
       <div class="rk-lift-foot">
-        <span><b>${l.w}</b> lbs · <b>${Math.round(l.oneRM)}</b> ${l.oneRMLabel} · ${l.ratio.toFixed(2)}× bw</span>
+        <span><b>${l.w}</b> lbs · <b>${Math.round(l.oneRM)}</b> ${l.oneRMLabel} · ${l.ratio.toFixed(2)}× ${st.usingLean ? 'ref' : 'bw'}</span>
         <span class="rk-lift-need">${l.need !== null && l.rank.next
             ? `+${l.need < 1 ? l.need.toFixed(1) : Math.round(l.need)} lbs → ${l.rank.next.l}`
             : 'maxed'}</span>
@@ -960,6 +1002,16 @@ function liftsHTML(st) {
 
   const repBtns = REP_OPTS.map(r =>
     `<button class="rk-rep ${r === st.reps ? 'sel' : ''}" data-act="rk-reps" data-r="${r}">${r}</button>`).join('');
+
+  const basisBtns = BASES.map(b =>
+    `<button class="rk-rep ${b.k === st.basis ? 'sel' : ''}" data-act="rk-basis" data-b="${b.k}" title="${b.d}">${b.n}</button>`).join('');
+  /* The setting can be on while the data it needs is missing. Say so on the
+     tab rather than quietly scoring the other way. */
+  const basisNote = st.wantLean && !st.usingLean
+    ? `<div class="rk-basis-note">Lean scoring needs a body fat estimate — log a waist and neck on the <b>Body</b> tab. Scoring against bodyweight until then.</div>`
+    : st.usingLean
+      ? `<div class="rk-basis-note">Dividing by <b>${Math.round(st.ref)} lb</b>: your ${Math.round(st.lean)} lb of lean mass carried at ${Math.round(REF_BF * 100)}% body fat. At that body fat the two modes agree — the gap between them is your composition, not your strength.</div>`
+      : '';
 
   const unscored = st.unscored.length ? `<div class="rk-unscored">
       <div class="rk-unscored-t">Not scored — no published standard to score these against</div>
@@ -975,6 +1027,11 @@ function liftsHTML(st) {
       <span class="rk-reps-l">Reps to failure per set</span>
       <div class="rk-reps-seg">${repBtns}</div>
     </div>
+    <div class="rk-reps">
+      <span class="rk-reps-l">Score against</span>
+      <div class="rk-reps-seg">${basisBtns}</div>
+    </div>
+    ${basisNote}
     ${st.lifts.length ? `<div class="rk-lift-list">${rows}</div>`
       : `<div class="pg-empty">No weights set on any scored lift yet.</div>`}
     ${unscored}

@@ -6,9 +6,11 @@ module; a lightweight shell switches between them from the sidebar.
 Live apps:
 
 - **Workout** — 4-day upper/lower program tracker with a muscle-map modal
-  (tap an exercise to set its working weight), a bodyweight trend chart, and a
+  (tap an exercise to set its working weight), a **Body** tab, and a
   **Rank** tab: a letter grade (F→SS) computed from your working weights
-  against published population strength standards relative to your bodyweight,
+  against published population strength standards relative to your bodyweight
+  — or, if you'd rather, relative to your **lean mass**, which stops a cut
+  flattering the letter and a bulk hiding it (see below) —
   plus a training level that climbs one step per finished session (with a
   level-up card when it does), streaks, a consistency heatmap, milestones and
   a daily verse. The level is attendance only: it never reads a weight, so it
@@ -16,6 +18,48 @@ Live apps:
   Every weighted lift in the program is scored; each one is tagged with how
   trustworthy its standard is (exact match / proxy movement / estimate).
   See `apps/workout/standards.js` for the data and its sources.
+
+  The **Body** tab is composition, not just the scale. Log a weight and a
+  tape — waist and neck, plus chest, arm and thigh behind a disclosure —
+  any of them, any day, and the entry keeps whatever you don't re-enter.
+  Against your height, waist and neck give a body fat estimate by the US
+  Navy tape method, which splits your weight into lean and fat mass; the
+  other three sites feed no formula and are simply there to watch grow.
+  Around that sit FFMI, BMI, waist-to-height, and a rate of change fitted
+  by least squares across the last 30 days rather than read off two noisy
+  mornings. From all of it comes one call — **bulk, cut or recomp** — with
+  the reasoning, a calorie target (Katch-McArdle off lean mass × your
+  activity setting), a protein target, and a recommended goal weight you
+  can override. A separate pace line reads the measured trend and says
+  whether the direction you are already going is the right *speed*,
+  including when it is the wrong direction entirely. The chart plots any of
+  the seven measurements, with a 7-day trend line drawn through the raw
+  readings. Every figure is an estimate and the tab says so where it
+  matters: the tape method lands within about ±3 points of a DEXA scan,
+  which is why the change in the number is worth more than the number, and
+  an estimate more than three weeks old says so out loud rather than
+  quietly presenting itself as today's.
+
+  The rates and targets are not invented. Cutting at 0.5–1%/wk and protein
+  at 2.3–3.1 g/kg of lean mass come from [Helms, Aragon & Schoenfeld
+  (2014)](https://pmc.ncbi.nlm.nih.gov/articles/PMC4033492/); the bulk rate
+  is the floor of their novice band, which is the nearest thing to a figure
+  that isn't wrong for someone whose training age the app can't know. The
+  band names are ACE's. See `apps/workout/body.js`, where each constant
+  carries its source; the formulas are male-only, matching the strength
+  standards.
+
+  **Scoring against lean mass.** The Rank tab divides your estimated 1RM by
+  your bodyweight, because that is how the standards are published — which
+  means losing fat raises every ratio whether or not you got stronger. With
+  a body fat estimate on hand, the Rank tab offers the other denominator:
+  it scores you as though you carried your current lean mass at a reference
+  18% body fat. At that body fat the two modes agree exactly, so the gap
+  between them is only ever your composition. The effect is the point — a
+  35 lb cut from 25% to 9% body fat, with lean mass and every working
+  weight held constant, moves the bodyweight score 15 percentile points and
+  the lean score not at all. It's opt-in and defaults off, because a grade
+  that moves because the app changed its mind is worth nothing.
 - **Finance** — where the money goes, and how much of it is left.
   **Add / History / Insights** track spending: log by category (add/delete your
   own categories) with a calendar date picker and notes, a filterable history
@@ -76,7 +120,8 @@ Bartleby Web/
 │       ├── storage.js        # localStorage helpers
 │       └── ui.js             # toast helper
 ├── apps/
-│   ├── workout/              # index.js + data.js + rank.js + standards.js + workout.css
+│   ├── workout/              # index.js + data.js + rank.js + standards.js
+│   │                         #   + body.js + bodymap.js + workout.css
 │   └── finance/              # index.js + networth.js + data.js + finance.css
 ├── archive/                  # parked apps, kept but not loaded by the shell
 │   ├── apps/scripture/       # index.js + bible.js + scripture.css

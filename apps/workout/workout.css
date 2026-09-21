@@ -197,6 +197,119 @@
 .bw-h-btn.del:hover{color:var(--red);border-color:var(--red);background:var(--red-d)}
 .bw-h-btn svg{width:13px;height:13px}
 
+/* ── Body tab: profile, composition, the call ── */
+/* Height and activity sit above everything because every figure below is
+   computed from them. Unset, the whole card wears the accent edge — the
+   composition block cannot say anything at all without a height. */
+.bd-prof{display:grid;grid-template-columns:1fr 1.4fr;gap:10px;align-items:end;
+  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:14px}
+.bd-prof.unset{border-color:var(--sel-bd);box-shadow:0 0 0 1px var(--blue-d)}
+.bd-prof-f{display:flex;flex-direction:column;gap:5px;min-width:0}
+.bd-ht{display:flex;align-items:center;gap:6px}
+.bd-ht .bw-in{width:100%;min-width:0;text-align:center}
+.bd-ht span{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);flex-shrink:0}
+select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis;font-family:var(--font);font-size:12px}
+.wk .bw-add-lbl em{font-style:normal;color:var(--text-3);opacity:.6;letter-spacing:.5px;margin-left:3px;text-transform:none}
+
+.bw-stats.second{margin-top:-6px}
+
+/* Where you sit on the scale, which is also why the verdict says what it
+   says. The segments are proportional to the bands they stand for, so the
+   marker's position is literal rather than decorative. */
+.bd-scale{margin-bottom:14px}
+.bd-scale-bar{position:relative;display:flex;gap:2px;height:9px}
+.bd-scale-bar i{display:block;height:100%;border-radius:2px;opacity:.55}
+.bd-scale-bar i.good{background:var(--green)}
+.bd-scale-bar i.mid{background:var(--amber)}
+.bd-scale-bar i.warn{background:var(--red)}
+.bd-scale-mk{position:absolute;top:-4px;width:2px;height:17px;background:var(--text);transform:translateX(-1px);border-radius:1px;box-shadow:0 0 0 2px var(--bg)}
+.bd-scale-mk span{position:absolute;top:-17px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:10px;font-weight:700;color:var(--text);white-space:nowrap}
+.bd-scale-lbl{display:flex;gap:2px;margin-top:5px}
+.bd-scale-lbl span{font-size:8px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--text-3);text-align:center;overflow:hidden;white-space:nowrap;text-overflow:clip}
+.bd-scale-lbl em,.bd-scale-lbl i{font-style:normal}
+.bd-scale-lbl i{display:none}
+
+/* The verdict. It is the loudest thing on the tab on purpose — everything
+   above it is a measurement, and this is the one line that tells you what
+   to do about them. The left edge carries the direction. */
+.bd-call{position:relative;background:var(--bg-card);border:none;border-radius:0;--n:11px;
+  box-shadow:inset 0 0 0 1px var(--border);
+  clip-path:polygon(var(--n) 0,100% 0,100% calc(100% - var(--n)),calc(100% - var(--n)) 100%,0 100%,0 var(--n));
+  padding:16px 16px 14px;margin-bottom:14px;border-left:3px solid var(--text-3)}
+.bd-call.cut{border-left-color:var(--red)}
+.bd-call.bulk{border-left-color:var(--green)}
+.bd-call.hold{border-left-color:var(--amber)}
+.bd-call.empty{border-left-color:var(--border-lt)}
+.bd-call-top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.bd-call-v{font-family:var(--mono);font-size:27px;font-weight:800;letter-spacing:-.5px;line-height:1;color:var(--text)}
+.bd-call.cut .bd-call-v{color:var(--red)}
+.bd-call.bulk .bd-call-v{color:var(--green)}
+.bd-call.hold .bd-call-v{color:var(--amber)}
+.bd-call-sub{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--text-3);letter-spacing:.3px}
+.bd-call-why{font-size:13px;line-height:1.55;color:var(--text-2);margin:0 0 10px}
+
+.bd-pace{font-size:12px;line-height:1.5;padding:9px 11px;border-radius:var(--rs);margin-bottom:12px;border-left:2px solid var(--text-3)}
+.bd-pace.good{background:var(--green-d);border-left-color:var(--green);color:var(--text-2)}
+.bd-pace.warn{background:var(--red-d);border-left-color:var(--red);color:var(--text-2)}
+
+.bd-targets{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.bd-t{background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px}
+.bd-t-v{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--text);line-height:1.1;letter-spacing:-.5px}
+.bd-t-v span{font-size:10px;font-weight:600;color:var(--text-3);margin-left:4px;letter-spacing:0}
+.bd-t-l{font-size:10px;color:var(--text-3);margin-top:5px;line-height:1.4}
+.bd-est{font-size:11px;line-height:1.55;color:var(--text-3);padding:9px 11px;background:var(--bg);border-left:2px solid var(--border-lt);border-radius:0 var(--rs) var(--rs) 0;margin-bottom:12px}
+.bd-est b{color:var(--text-2);font-weight:700}
+
+.bd-goal{border-top:1px solid var(--border);padding-top:12px}
+.bd-goal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.bd-goal-t{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-3)}
+.bd-goal-tag{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--blue);background:var(--blue-d);padding:3px 7px;border-radius:4px}
+.bd-goal-row{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:10px}
+.bd-goal-v{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--text);line-height:1;letter-spacing:-.5px;white-space:nowrap}
+.bd-goal-v span{font-size:10px;font-weight:600;color:var(--text-3);margin-left:3px}
+.bd-goal-at{font-size:11px;color:var(--text-3);min-width:0}
+.bd-goal-in{max-width:110px;height:34px;padding:7px 9px;font-size:13px}
+.bd-mini{background:var(--bg);border:1px solid var(--border);color:var(--text-2);font-family:var(--font);font-size:11px;font-weight:600;padding:8px 12px;border-radius:var(--rs);cursor:pointer;transition:all .12s;white-space:nowrap}
+.bd-mini:hover{background:var(--bg-hover);color:var(--text);border-color:var(--border-lt)}
+.bd-mini.go{background:var(--blue);border-color:var(--blue);color:var(--on-accent)}
+.bd-mini.go:hover{background:var(--btn-hover);border-color:var(--btn-hover)}
+.bd-goal-note{font-size:11px;line-height:1.55;color:var(--text-3);margin-top:9px}
+.bd-proj{font-size:12px;line-height:1.5;margin-top:9px;padding:8px 11px;border-radius:var(--rs);background:var(--bg);color:var(--text-3)}
+.bd-proj b{font-family:var(--mono);color:var(--text-2);font-weight:700}
+.bd-proj.good{color:var(--text-2)}
+.bd-proj.warn{background:var(--red-d);color:var(--text-2)}
+
+.bd-caveat{font-size:11.5px;line-height:1.6;color:var(--text-3);background:var(--bg-card);
+  border-left:2px solid var(--amber);border-radius:0 var(--rs) var(--rs) 0;padding:10px 13px;margin-bottom:14px}
+.bd-caveat b{color:var(--text-2);font-weight:700;font-family:var(--mono)}
+.bd-caveat.stale{border-left-color:var(--red);background:var(--bg-card)}
+.bw-add-foot{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+.rk-basis-note{font-size:11.5px;line-height:1.6;color:var(--text-3);background:var(--bg);border-left:2px solid var(--border-lt);border-radius:0 var(--rs) var(--rs) 0;padding:9px 12px;margin:-4px 0 12px}
+.rk-basis-note b{color:var(--text-2);font-weight:700;font-family:var(--mono)}
+
+/* Chart: metric row on the left, range row on the right. On a narrow screen
+   they stack rather than shrinking the buttons below tapping size. */
+.bw-range.metrics{flex-wrap:wrap}
+.bw-chart-key{display:flex;gap:14px;justify-content:flex-end;padding:0 2px 8px;margin-top:-4px}
+.bw-chart-key span{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--text-3)}
+.bw-chart-key i{display:block;width:14px;height:0;border-top:2px solid var(--blue)}
+.bw-chart-key i.raw{opacity:.4;border-top-width:1px}
+
+/* The log form grew from two fields to four. */
+/* Two to seven fields depending on the disclosure, so the columns are sized
+   rather than counted — adding a tape site in body.js must not need a CSS
+   edit to go with it. */
+.bw-add{grid-template-columns:repeat(auto-fit,minmax(118px,1fr))}
+.bw-add .bw-add-btn{align-self:end}
+
+/* History rows carry the tape on a second line — the weight and its delta
+   stay where they were, and an entry with no tape looks exactly as it did. */
+.bw-h-chips{grid-column:1/-1;display:flex;gap:5px;flex-wrap:wrap;margin-top:2px}
+.bw-h-chip{font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.3px;
+  color:var(--text-3);background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px}
+.bw-h-chip.bf{color:var(--blue);border-color:var(--sel-bd);background:var(--blue-d)}
+
+
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    PROGRESS TAB â€” rank, streaks, heatmap, milestones
    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
@@ -551,6 +664,19 @@
   .bw-h-row{grid-template-columns:1fr auto auto;gap:8px;padding:11px 12px}
   .bw-h-act{grid-column:1/-1;justify-content:flex-end;margin-top:-4px}
   .bw-stat-v{font-size:16px}
+  .bd-prof{grid-template-columns:1fr}
+  .bw-add{grid-template-columns:1fr 1fr}
+  .bd-targets{grid-template-columns:1fr}
+  .bd-goal-row{grid-template-columns:auto 1fr;row-gap:8px}
+  .bd-goal-v{grid-column:1}
+  .bd-goal-at{grid-column:2}
+  .bd-goal-in{grid-column:1;max-width:none}
+  .bd-mini.go{grid-column:2;justify-self:start}
+  .bd-call-v{font-size:23px}
+  .bd-scale-lbl span{font-size:8px;letter-spacing:0}
+  .bd-scale-lbl em{display:none}
+  .bd-scale-lbl i{display:inline}
+  .bw-chart-head{gap:10px}
 }
 
 
