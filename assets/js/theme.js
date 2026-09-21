@@ -13,6 +13,7 @@
 
 export const THEMES = [
   { id:'arcade', name:'Arcade',   motion:'loud',  desc:'Orange game-HUD. Glow, sweeps, scanlines.',  sw:['#ff7a18','#ffb43f','#150f0a'] },
+  { id:'redline',name:'Redline',  motion:'quiet', desc:'Scarlet on near-black. Quiet motion.',       sw:['#ff2d46','#ff7d92','#170c0f'] },
   { id:'black',  name:'Dark',     motion:'quiet', desc:'True black and silver. No colour cast.',     sw:['#e4e4e7','#767677','#000000'] },
   { id:'dark',   name:'Midnight', motion:'quiet', desc:'Cool blue-grey. Quiet, event-driven motion.', sw:['#3b82f6','#8b5cf6','#10121a'] },
   { id:'light',  name:'Daylight', motion:'none',  desc:'Bright paper-white. Calm, no motion.',       sw:['#2563eb','#7c3aed','#ffffff'] },

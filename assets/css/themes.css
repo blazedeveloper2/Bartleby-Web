@@ -29,6 +29,13 @@ html[data-theme="arcade"] {
   --purple:#ffb43f;--amber:#ffc247;
   --red:#ff4d3d;--red-d:#ff4d3d20;
   --green:#3fdb7a;--green-d:#3fdb7a1e;--pink:#ff9c5b;
+  /* Ink for text sitting ON a tinted chip of the same hue (--*-d), which is
+     a different job from the hue itself. On a dark card the vivid colour is
+     already the readable choice; over white it is not — #16a34a on a 9%
+     green wash is 2.97:1, which is how the working-weight badge ended up
+     unreadable in Daylight. Dark themes therefore alias these to the hue,
+     and Daylight darkens each one until it clears 4.5:1 on its own chip. */
+  --ink-green:#3fdb7a;--ink-amber:#ffc247;--ink-blue:#ff7a18;--ink-red:#ff4d3d;--ink-pink:#ff9c5b;
 
   --glow:#ff7a18;--glow-2:#ffb43f;
   --sel-bd:#ff7a1855;--ol-bg:#0a0705f0;--btn-hover:#e0620c;
@@ -45,6 +52,47 @@ html[data-theme="arcade"] {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   REDLINE — scarlet on near-black. Takes the quiet motion set
+   rather than Arcade's, because the loud one is keyed on
+   data-theme="arcade" in fifty-odd selectors and a palette is
+   not worth duplicating all of them for.
+
+   The accent and the danger colour are both red here, which is
+   what "a red theme" means and is the same overlap Arcade lives
+   with at orange. They are kept about twenty-five degrees apart
+   — scarlet accent, orange-red alarm — so a delete button still
+   reads as a different thing from a selected tab. Green is left
+   fully green on purpose: this app's whole job is telling good
+   from bad, and a theme that tinted the good end red would make
+   that harder rather than prettier.
+   ═══════════════════════════════════════════════════════════ */
+html[data-theme="redline"] {
+  --bg:#0a0507;--bg-card:#170c0f;--bg-alt:#1f1015;--bg-hover:#271419;
+  --bg-input:#0f0709;--border:#32161b;--border-lt:#4a2129;
+
+  --text:#fdeaed;--text-2:#bb9096;--text-3:#8c616a;
+
+  --blue:#ff2d46;--blue-d:#ff2d4620;          /* primary accent */
+  --purple:#ff7d92;--amber:#ffb03a;
+  --red:#ff5c3d;--red-d:#ff5c3d20;
+  --green:#3fdb7a;--green-d:#3fdb7a1e;--pink:#ff9aab;
+    --ink-green:#3fdb7a;--ink-amber:#ffb03a;--ink-blue:#ff2d46;--ink-red:#ff5c3d;--ink-pink:#ff9aab;
+
+  --glow:#ff2d46;--glow-2:#ff7d92;
+  --sel-bd:#ff2d4655;--ol-bg:#0a0507f0;--btn-hover:#e01430;
+  --on-accent:#fff;
+  --map-base:#1b0c10;--map-region:#270f15;
+  /* body-map tiers: accent, then blended 55% and 28% toward --map-region */
+  --map-p:#ff2d46;--map-s:#9c1f30;--map-t:#61161f;--map-edge:#0a0507;
+  --hm-off:#200e13;
+  --grid:#32161b;
+  /* rank bands — need real hue separation, not six shades of red */
+  --rk-f:#6b4a50;--rk-d:#e0452f;--rk-c:#ffb03a;
+  --rk-b:#ff2d46;--rk-a:#c04dff;--rk-s:#3fdb7a;--rk-ss:#ffe4e8;
+  --r:10px;--rs:6px;
+}
+
+/* ═══════════════════════════════════════════════════════════
    DARK — the original cool-grey/blue palette. Its motion set lives
    at the bottom of this file, under MIDNIGHT ANIMATIONS.
    ═══════════════════════════════════════════════════════════ */
@@ -57,6 +105,7 @@ html[data-theme="dark"] {
   --blue:#3b82f6;--blue-d:#3b82f620;--purple:#8b5cf6;
   --amber:#f59e0b;--red:#ef4444;--red-d:#ef444420;
   --green:#22c55e;--green-d:#22c55e20;--pink:#f472b6;
+    --ink-green:#22c55e;--ink-amber:#f59e0b;--ink-blue:#3b82f6;--ink-red:#ef4444;--ink-pink:#f472b6;
 
   --glow:#3b82f6;--glow-2:#8b5cf6;
   --sel-bd:#3b82f640;--ol-bg:#08090de8;--btn-hover:#2563eb;
@@ -93,6 +142,7 @@ html[data-theme="black"] {
   --purple:#b8b8bd;--amber:#e0b341;
   --red:#f05252;--red-d:#f0525220;
   --green:#3ecf7a;--green-d:#3ecf7a1e;--pink:#d4d4d8;
+    --ink-green:#3ecf7a;--ink-amber:#e0b341;--ink-blue:#e4e4e7;--ink-red:#f05252;--ink-pink:#d4d4d8;
 
   --glow:#e4e4e7;--glow-2:#ffffff;
   --sel-bd:#e4e4e740;--ol-bg:#000000f0;--btn-hover:#ffffff;
@@ -124,6 +174,7 @@ html[data-theme="light"] {
   --purple:#7c3aed;--amber:#d97706;
   --red:#dc2626;--red-d:#dc26261a;
   --green:#16a34a;--green-d:#16a34a18;--pink:#db2777;
+    --ink-green:#166534;--ink-amber:#854d0e;--ink-blue:#1d4ed8;--ink-red:#b91c1c;--ink-pink:#be185d;
 
   --glow:#2563eb;--glow-2:#7c3aed;
   --sel-bd:#2563eb40;--ol-bg:#f4f5f9e8;--btn-hover:#1d4ed8;

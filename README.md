@@ -197,9 +197,20 @@ the app is archived, but drop out of backups until it is restored.
 
 ## Themes
 
-`Arcade` (orange game-HUD, animated) is the default; `Midnight` is the original
-still blue-grey. A theme is one block of CSS variables plus an optional
-animation set — see `assets/css/themes.css` and `assets/js/theme.js`.
+`Arcade` (orange game-HUD, animated) is the default; `Redline` is scarlet on
+near-black; `Dark` is true black and silver; `Midnight` is the original
+blue-grey; `Daylight` is paper-white. A theme is one block of CSS variables
+plus an optional animation set — see `assets/css/themes.css` and
+`assets/js/theme.js`. Arcade's loud motion is keyed on its own
+`data-theme`, so a new theme picks a `motion` of `quiet` or `none` in the
+registry and inherits that set rather than duplicating fifty selectors.
+
+Each theme also defines `--ink-*` colours: the text that sits *on* a tinted
+chip of a hue, which is a different job from the hue itself. On a dark card
+the vivid colour is already the readable choice, but over white it is not —
+`#16a34a` on a 9% green wash is 2.97:1, which is how the working-weight
+badge ended up unreadable in Daylight. Dark themes alias these to the hue;
+Daylight darkens each until it clears 4.5:1 on its own chip.
 
 ---
 
