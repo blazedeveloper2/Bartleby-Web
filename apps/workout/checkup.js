@@ -17,11 +17,19 @@
    the call. Those are worth catching, and they are catchable,
    because a real body does not move that fast.
 
-   Every threshold below is a rate the body cannot plausibly
-   beat, not a round number. The point is to flag the impossible
-   rather than the merely surprising: a check that cries wolf at
-   ordinary variation is one you learn to ignore, which is worse
-   than not having it.
+   Every threshold below is a rate a body rarely beats, not a
+   round number, and the wording is careful about the difference
+   between rarely and never. A check that cries wolf at ordinary
+   variation is one you learn to ignore, which is worse than not
+   having it — but a check that calls a real measurement
+   impossible is worse still, because the one number you most
+   need to keep is the surprising one that turns out to be true.
+
+   So: these findings say "verify this", never "this is wrong".
+   They account for how far apart the measurements actually are,
+   they never propose editing the record for you, and where a
+   large real change would matter for reasons beyond a trend
+   line, they say that too.
 
    Nothing here writes. It reads state and returns findings.
    ═══════════════════════════════════════════════════════════ */
@@ -40,17 +48,41 @@ const fmtD = ds => dOf(ds).toLocaleDateString('en-US', { month: 'short', day: 'n
 
 /* ── thresholds, each with the reason it is where it is ── */
 
-/* Day-to-day scale movement is water, glycogen and what you ate, and lands
-   inside about 2% of bodyweight. 5% and at least six pounds is well past
-   anything a body does overnight, which leaves the keypad. */
-const BW_DEV_PCT = 0.05, BW_DEV_MIN = 6;
+/* What the scale can honestly do between two weigh-ins, split into the part
+   that does not depend on how far apart they are and the part that does.
 
-/* An inch of waist is roughly five to eight pounds of fat. Two inches
-   inside five weeks would be fifteen-odd pounds of pure fat, which beats
-   an aggressive cut — so it is far likelier the tape sat at a different
-   rib. Four points of body fat over the same stretch is the same argument:
-   about three a month is the ceiling, and the method's own repeatability
-   is one point. */
+   NOISE_PCT is water, glycogen and what you ate: about 2% of bodyweight is
+   there on any two days, including two consecutive ones. REAL_PCT_WK is the
+   fastest sustained change a body actually manages — 1%/wk, which is the
+   ceiling body.js already marks as the point where a cut starts costing
+   lean mass. Together they give a budget that GROWS WITH THE GAP, which is
+   the whole point: eight pounds between Tuesday and Thursday is a typo,
+   and eight pounds between March and May is a cut.
+
+   This used to be a flat 5%-of-bodyweight test against the median of the
+   six nearest weigh-ins, with no notion of when those weigh-ins happened.
+   On a monthly logging habit that flagged an ordinary cut, and then told
+   the user "bodies do not move that far overnight" about two measurements
+   eight weeks apart. BW_DEV_MIN survives as an absolute floor so a very
+   short gap cannot make the budget so tight that ordinary water weight
+   trips it. */
+const NOISE_PCT = 0.02, REAL_PCT_WK = 0.01, BW_DEV_MIN = 6;
+
+/* Two inches of waist inside five weeks is a lot of waist, and four points
+   of estimated body fat over the same stretch is a lot of body fat.
+
+   Neither is a conversion. "An inch of waist is five to eight pounds of
+   fat" is a gym rule of thumb with no published basis, and it used to be
+   stated here as arithmetic; it is gone. Waist-to-fat depends on height,
+   frame, where you carry it and where the tape sat, and the honest version
+   of the claim is just "waists do not usually move that fast".
+
+   The body-fat threshold is the one with something behind it: the
+   circumference method reproduces to about a point even in careful hands,
+   so four points is several times its own repeatability — which makes it
+   far more likely the tape moved than that the body did. That is an
+   argument about the measurement's precision, not a physiological ceiling
+   on fat loss, and the message says it that way. */
 const TAPE_WINDOW = 35, WAIST_JUMP = 2, BF_JUMP = 4;
 
 /* Eight weeks without a working weight moving, while you have actually
@@ -72,22 +104,83 @@ const DROP_RATIO = 0.6;                   // "meaningfully fewer than before"
 
 /* ── data sanity ── */
 
-/* A weigh-in judged against its own neighbours rather than the whole
-   series, so a genuine cut is never the anomaly — only a point that
-   disagrees with the days either side of it. */
+/* A weigh-in judged against the straight line between the weigh-ins either
+   side of it, so a genuine cut is never the anomaly — a steady trend
+   predicts its own next point and every point sits on it. Comparing to a
+   median instead, as this did, means a trending series disagrees with its
+   own middle and the honest cut gets flagged.
+
+   The ends of the series have no line to sit on, and they are also where
+   the worst typo lives: the most recent weigh-in is both the likeliest to
+   be mistyped and the one dragging the trend everything else is read off.
+   So they are judged, but not by carrying the slope out from the two
+   nearest points — that was the first attempt and it is exactly wrong. A
+   two-point slope run through a typo projects the typo: 180, 108, 180
+   extrapolates to 252, and the finding then points at a perfectly good
+   weigh-in and calls it 72 lbs out.
+
+   Theil–Sen instead: the median of every pairwise slope among the
+   neighbours, with the median intercept to match. A single bad point can
+   move a median slope one position along the sorted list and no further,
+   so the estimate survives the thing it is being used to detect. */
+const ptAt = (W, j) => (W[j] ? { t: dOf(W[j].d).getTime() / 86400000, w: W[j].w } : null);
+
+function theilSen(pts, t) {
+  const slopes = [];
+  for (let a = 0; a < pts.length; a++)
+    for (let b = a + 1; b < pts.length; b++)
+      if (pts[b].t !== pts[a].t) slopes.push((pts[b].w - pts[a].w) / (pts[b].t - pts[a].t));
+  if (!slopes.length) return null;
+  const med = xs => { const s = [...xs].sort((x, y) => x - y), m = s.length >> 1;
+                      return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+  const k = med(slopes);
+  return med(pts.map(p => p.w - k * p.t)) + k * t;
+}
+
+/* How many neighbours an endpoint is judged against. Three is the fewest
+   that gives Theil–Sen a majority to be robust with. */
+const EDGE_N = 4;
+
+function expectedAt(W, i) {
+  const here = ptAt(W, i), prev = ptAt(W, i - 1), next = ptAt(W, i + 1);
+  /* Bracketed: the local line between the two points either side. Most
+     local, so the most sensitive to a point that does not belong. */
+  if (prev && next)
+    return next.t === prev.t ? (prev.w + next.w) / 2
+      : prev.w + (next.w - prev.w) * (here.t - prev.t) / (next.t - prev.t);
+  /* An end. Fit the neighbours on the one side available and read the
+     fit at this date. */
+  const side = [];
+  for (let k = 1; k <= EDGE_N; k++) {
+    const p = ptAt(W, prev ? i - k : i + k);
+    if (p) side.push(p);
+  }
+  return side.length >= 3 ? theilSen(side, here.t) : null;
+}
+
 function bwOutliers(list) {
   const W = weighed(list);
-  if (W.length < 5) return [];
-  const out = [];
+  if (W.length < 4) return [];
+  const cand = [];
   W.forEach((e, i) => {
-    const lo = Math.max(0, i - 3), hi = Math.min(W.length, i + 4);
-    const nb = W.slice(lo, hi).filter((_, j) => lo + j !== i).map(x => x.w).sort((a, b) => a - b);
-    if (nb.length < 3) return;
-    const med = nb[Math.floor(nb.length / 2)];
-    const diff = Math.abs(e.w - med);
-    if (diff > med * BW_DEV_PCT && diff > BW_DEV_MIN) out.push({ d: e.d, w: e.w, med, diff });
+    const expect = expectedAt(W, i);
+    if (expect === null || !(expect > 0)) return;
+    /* The tightest real constraint is the CLOSEST weigh-in. A reading two
+       days after a known one cannot have moved a month's worth, however
+       far away the other side of the gap happens to be. */
+    const gaps = [i > 0 ? between(W[i - 1].d, e.d) : null,
+                  i < W.length - 1 ? between(e.d, W[i + 1].d) : null].filter(v => v !== null);
+    const gap = Math.max(1, Math.min(...gaps));
+    const budget = Math.max(BW_DEV_MIN, expect * (NOISE_PCT + REAL_PCT_WK * gap / 7));
+    const diff = Math.abs(e.w - expect);
+    if (diff > budget) cand.push({ d: e.d, w: e.w, med: expect, diff, gap, ratio: diff / budget,
+                                   dir: e.w > expect ? 'up' : 'down', i });
   });
-  return out;
+  /* One bad number also drags the line its NEIGHBOURS are judged against,
+     so a single typo can surface as three findings. The typo always misses
+     by the widest margin, so an entry next to a worse one is dropped —
+     which leaves the finding pointing at the number to actually fix. */
+  return cand.filter(c => !cand.some(o => Math.abs(o.i - c.i) === 1 && o.ratio > c.ratio));
 }
 
 function tapeJumps(list, h) {
@@ -142,8 +235,23 @@ export function checkup(cs, st) {
   const odd = bwOutliers(list);
   if (odd.length) {
     const e = odd[odd.length - 1];
-    add('bw-outlier', 'warn', `A weigh-in that does not fit its neighbours`,
-      `${e.w} lbs on ${fmtD(e.d)} sits ${e.diff.toFixed(1)} lbs off the days around it, which were nearer ${e.med.toFixed(1)}. Bodies do not move that far overnight, so this is most likely a typo${odd.length > 1 ? ` — and it is one of ${odd.length}` : ''}. Worth correcting: the trend line, the rate and every calorie target read off it.`);
+    const also = odd.length > 1 ? ` It is one of ${odd.length} worth checking.` : '';
+    /* Three days is the line between "the keypad" and "something happened".
+       Inside it, nothing a body does explains the number. Outside it, plenty
+       does — so the finding asks rather than concludes. */
+    const tight = e.gap <= 3;
+    const body = tight
+      ? `Nothing moves that far in ${plural(e.gap, 'day')}, so most likely the keypad. If it is right, leave it.`
+      : `Fast for ${plural(e.gap, 'day')}, but possible — illness, salt, carbs, or a gap you did not log. Check it; if it is real, keep it.`;
+    /* Rapid unexplained GAIN is the one direction with a reason to say
+       more, because fluid retention is how several conditions announce
+       themselves. A prompt to see someone, not a finding about the user —
+       an app that flags typos cannot diagnose anything. */
+    const health = (!tight && e.dir === 'up' && e.gap <= 14)
+      ? ` A quick unexplained gain with swelling or breathlessness is one for a doctor.`
+      : '';
+    add('bw-outlier', tight ? 'warn' : 'note', 'A weigh-in worth verifying',
+      `${e.w} lbs on ${fmtD(e.d)} is ${e.diff.toFixed(1)} lbs off the ${e.med.toFixed(1)} its neighbours point to. ${body}${health}${also}`);
   }
 
   /* A waist that moved too far and the body fat jump it caused are one
@@ -155,11 +263,11 @@ export function checkup(cs, st) {
   const onThatDate = jumps.filter(j => j.d === lastJumpDate);
   (onThatDate.find(j => j.kind === 'waist') ? [onThatDate.find(j => j.kind === 'waist')] : onThatDate.slice(-1)).forEach(j => {
     if (j.kind === 'waist')
-      add('tape-jump', 'warn', 'A waist measurement that moved too fast',
-        `The tape on ${fmtD(j.d)} is ${j.delta.toFixed(1)}" from the one ${plural(j.gap, 'day')} before it. An inch is five to eight pounds of fat, so this is more likely a different spot on the torso than a real change. Measure at the navel, relaxed, and it should settle.`);
+      add('tape-jump', 'warn', 'A waist measurement worth repeating',
+        `${j.delta.toFixed(1)}" in ${plural(j.gap, 'day')}. Usually the tape sitting at a different height, not the torso changing. Re-measure at the navel, relaxed — if it reads the same, keep it.`);
     else
-      add('bf-jump', 'warn', 'A body fat estimate that jumped',
-        `${j.delta.toFixed(1)} points in ${plural(j.gap, 'day')}. About three a month is the ceiling even on an aggressive cut, and this method repeats to within a point — so the tape probably moved, not you.`);
+      add('bf-jump', 'warn', 'A body fat estimate worth repeating',
+        `${j.delta.toFixed(1)} points in ${plural(j.gap, 'day')}. This method repeats to within about a point, so a jump this size says more about the tape than about you — and the calorie target reads off it.`);
   });
 
   /* — progression — */
@@ -201,7 +309,7 @@ export function checkup(cs, st) {
     const gap = agoOf(log[log.length - 1].d);
     if (gap >= GAP_DAYS)
       add('gap', 'warn', `${plural(gap, 'day')} since the last session`,
-        `Not a judgment — the streak and the level both survive being told about it. But strength standards are relative to what you can do now, and two weeks off starts to show.`);
+        `Not a judgment, and the streak and level survive it. But the standards are relative to what you can do now.`);
 
     const recent = log.filter(s => agoOf(s.d) <= WINDOW).length;
     const prior = log.filter(s => agoOf(s.d) > WINDOW && agoOf(s.d) <= WINDOW * 2).length;
@@ -217,7 +325,7 @@ export function checkup(cs, st) {
     if (spread > 30) {
       const weak = st.lifts.reduce((a, l) => (l.pct < a.pct ? l : a));
       add('spread', 'note', 'Your lifts are a long way apart',
-        `${Math.round(spread)} percentile points between your best and worst, with ${weak.name} at the bottom. The overall letter is an average, so the weakest movement is holding it down more than the strongest is lifting it.`);
+        `${Math.round(spread)} points between best and worst, ${weak.name} at the bottom. The score is an average, so the weakest lift drags hardest.`);
     }
   }
 
