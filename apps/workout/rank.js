@@ -227,6 +227,9 @@ const ICO = {
   clock:  '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/>',
 };
 const svg = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICO[k]}</svg>`;
+/* The tab bar draws from the same set, so a tab and the badges behind it
+   are never two different visual languages. */
+export const icon = svg;
 
 /* Achievement table. `t` receives a merged view of consistency stats and
    strength state (see earned()), so a badge can key off either. Locked ones
@@ -1649,13 +1652,16 @@ export function resetToggleAll(root) {
   const allOn = held.length > 0 && held.every(t => resetSel.has(t.id));
   resetSel.clear();
   if (!allOn) held.forEach(t => resetSel.add(t.id));
-  renderRank(root);
+  renderAwards(root);
 }
 
 export function resetPanel(open, root) {
   resetOpen = open;
   if (!open) resetSel.clear();
-  renderRank(root);
+  /* The reset card lives on Awards now, so this repaints Awards. Calling
+     renderRank here would rebuild a panel the card is no longer in and
+     leave the open/closed state on screen untouched. */
+  renderAwards(root);
   if (open) root.querySelector('.rk-reset')?.scrollIntoView({ block:'nearest', behavior:'smooth' });
 }
 
@@ -1730,16 +1736,56 @@ function checkupHTML(s, st) {
   </div>`;
 }
 
+/* ═══════════════════ THE THREE TABS ═══════════════════
+
+   This was one tab with thirteen sections in it — 6,200px, about eight
+   screens, and two sections were sixty per cent of that. The split is not
+   an even quartering of the scroll; it follows the line this file's own
+   header draws, because that line was always there:
+
+     RANK    the letter. Earned by lifting more, and nothing else moves
+             it. Hero, the straight answer, every lift, progression.
+     STREAK  attendance. Earned by turning up, and it cannot touch the
+             letter. Level, streak tiles, next session, heatmap, log.
+     AWARDS  the trophy cabinet. Browsed occasionally, not read every
+             session, and on its own it was over a third of the old tab.
+
+   Two scores for two different things, and now two places to read them.
+
+   Reset lives under Awards because it is administration rather than a
+   reading, and the last tab is where you go looking for it rather than
+   somewhere you scroll past on the way to your lifts.
+
+   Each function is self-contained and recomputes what it needs, exactly
+   as the single renderRank did. Repainting all three costs what the one
+   used to, so nothing got slower by being split up. */
+
 export function renderRank(root) {
   const p = root.querySelector('#p-rank');
   if (!p) return;
-  const st = strength(), s = stats(), ach = achievements(s, st);
+  const st = strength(), s = stats();
 
+  /* The checkup reports on lifts AND attendance AND data sanity, so it
+     has no natural home in the split. It stays here because this is the
+     tab you open to ask how it is going, and a finding you never see is
+     worth nothing wherever it is filed. */
   let h = heroHTML(st);
   h += checkupHTML(s, st);
   h += verseHTML();
   h += verdictHTML(st);
-  h += levelHTML(s.level);
+  h += liftsHTML(st);
+  h += progressionHTML(s, st);
+  p.innerHTML = h;
+  tickCounts(p);
+  slideMarkers(p);
+}
+
+export function renderStreak(root) {
+  const p = root.querySelector('#p-streak');
+  if (!p) return;
+  const s = stats();
+
+  let h = levelHTML(s.level);
   h += `<div class="bw-stats pg-tiles">
     ${tile('Streak', s.streak, s.streak === 1 ? 'day' : 'days', s.streak && s.streak === s.best ? 'personal best' : '', s.streak)}
     ${tile('Best', s.best, s.best === 1 ? 'day' : 'days', '', s.best)}
@@ -1747,11 +1793,19 @@ export function renderRank(root) {
     ${tile('Sessions', fmtN(s.sessions), '', s.sets ? `${fmtN(s.sets)} sets` : '', s.sessions)}
   </div>`;
   h += `<div class="pg-card rk-next"><span class="pg-kicker">Next Session</span><div>${nextUpHTML(s)}</div></div>`;
-  h += liftsHTML(st);
   h += heatmapHTML(s);
-  h += progressionHTML(s, st);
-  h += badgesHTML(ach);
   h += historyHTML(s);
+  p.innerHTML = h;
+  tickCounts(p);
+  slideMarkers(p);
+}
+
+export function renderAwards(root) {
+  const p = root.querySelector('#p-awards');
+  if (!p) return;
+  const st = strength(), s = stats();
+
+  let h = badgesHTML(achievements(s, st));
   h += resetHTML();
   p.innerHTML = h;
   tickCounts(p);

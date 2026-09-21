@@ -7,9 +7,50 @@
 .wk .nav{position:sticky;top:var(--shell-bar-h,0);z-index:50;background:var(--bg);border-bottom:1px solid var(--border);padding-top:14px}
 .wk .nav-inner{display:flex;max-width:640px;margin:0 auto;padding:0 16px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
 .wk .nav-inner::-webkit-scrollbar{display:none}
-.wk .tab{flex:1;min-width:0;padding:14px 4px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-3);font-family:var(--font);font-size:12px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;cursor:pointer;transition:all .2s;white-space:nowrap}
+/* Five tabs in the width three used to have.
+
+   The arithmetic that forced the two layouts below: at 375px the bar has
+   343px of usable width, so each tab gets 68.6px. The old style — 12px
+   uppercase at 0.8px letter-spacing — draws "PROGRAM" at 64.4px, leaving
+   2.1px of breathing room each side. That is the cramped, shrunk-to-fit
+   look, and the nav's overflow-x would start scrolling to hide it, which
+   is worse: a tab bar that scrolls is a tab nobody finds.
+
+   So the label does not shrink. Below 560px the icon moves ABOVE it and
+   the row becomes a proper mobile tab bar, which buys the horizontal room
+   back by spending vertical room there is plenty of. The tap target grows
+   in the process — about 58px tall against the old 44px — so the fix for
+   "too small" makes the buttons bigger rather than smaller.
+
+   Above 560px nothing is tight: 121px per tab against 86px of content. */
+.wk .tab{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:7px;
+  padding:13px 4px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-3);
+  font-family:var(--font);font-size:12px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;
+  cursor:pointer;transition:color .2s,border-color .2s,background .2s;white-space:nowrap}
+.wk .tab-ico{display:flex;flex-shrink:0}
+.wk .tab-ico svg{width:15px;height:15px;display:block}
+/* The icon carries the tab's identity at a glance and should not be as
+   loud as the word next to it — except on the active tab, where both
+   belong to the same accent. */
+.wk .tab-ico{opacity:.7;transition:opacity .2s}
 .wk .tab:hover{color:var(--text-2)}
+.wk .tab:hover .tab-ico{opacity:.9}
 .wk .tab.active{color:var(--text);border-bottom-color:var(--blue)}
+.wk .tab.active .tab-ico{opacity:1;color:var(--blue)}
+
+@media (max-width:560px){
+  /* Stack, and claw back the bar's side padding — every pixel here is a
+     pixel the label does not have to give up. */
+  .wk .nav-inner{padding:0 8px}
+  .wk .tab{flex-direction:column;gap:5px;padding:9px 2px;letter-spacing:.2px;font-size:11px}
+  .wk .tab-ico svg{width:20px;height:20px}
+}
+/* Narrow phones. "PROGRAM" at 11px is 54.6px and the slot is 63px here, so
+   the label still fits whole — only the icon gives ground. */
+@media (max-width:360px){
+  .wk .tab{font-size:10.5px;letter-spacing:0}
+  .wk .tab-ico svg{width:18px;height:18px}
+}
 
 /* Tape measurement due. Tinted rather than shouted: it is a reminder to do
    a two-minute thing, not a warning that something is wrong, so it reads at

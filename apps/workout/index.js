@@ -12,7 +12,8 @@ import { toast } from '../../assets/js/ui.js?v=reps-sep26';
 import { pctColor, ord, LIFTS } from './standards.js?v=reps-sep26';
 import {
   setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, setReps, setBasis, snapshot,
-  isLoggedToday, celebrationHTML, renderRank, liftScores, standingOf, resEx,
+  isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, icon,
+  liftScores, standingOf, resEx,
   resetPanel, resetToggle, resetToggleAll, resetSelection, applyReset, resetDismiss,
   rebaseline, hasHistory, setExReps, exReps, dropOff,
 } from './rank.js?v=reps-sep26';
@@ -38,6 +39,31 @@ const ek   = (d, s, e) => `${d}.${s}.${e}`;
 
 const bwAll = () => load('bp_bw', []);
 const bwSv  = l => save('bp_bw', l);
+
+/* ── tabs ──
+
+   One table drives the nav buttons, the panels and the render dispatch, so
+   the three can never disagree about which tabs exist. `k` is both the
+   data-tab value and the panel id suffix.
+
+   Labels are one word each on purpose. Five tabs share the width of three,
+   and a two-word label is what forces either a scrolling nav bar nobody
+   notices or type too small to read — see the .tab rules in workout.css,
+   which stack the icon over the label below 560px rather than shrinking
+   anything into the ground. */
+const TABS = [
+  { k:'program', n:'Program', i:'cal',    r:() => renderProg() },
+  { k:'bw',      n:'Body',    i:'scale',  r:() => renderBW() },
+  { k:'rank',    n:'Rank',    i:'peak',   r:() => renderRank(root) },
+  { k:'streak',  n:'Streak',  i:'flame',  r:() => renderStreak(root) },
+  { k:'awards',  n:'Awards',  i:'trophy', r:() => renderAwards(root) },
+];
+
+/* The three panels that used to be one. Everything that could change a
+   letter, a streak or a badge repaints all of them, which is what the
+   single renderRank already did for the same thirteen sections — so this
+   costs what it always cost, and no tab can go stale behind your back. */
+const renderScore = () => { renderRank(root); renderStreak(root); renderAwards(root); };
 
 /* ── module state ── */
 let root = null;
@@ -138,7 +164,7 @@ function toggleChk(k) {
   const res = syncDay(di, tally);
   if (!res) return;
   paintDayHead(di, tally);            // the "Logged" pill may have appeared
-  renderRank(root);
+  renderScore();
   if (res.logged && !showCelebration(res)) toast(`${res.label} logged`);
 }
 
@@ -323,7 +349,7 @@ function setMMReps() {
   setExReps(mmEx.n, sets, wv);
   paintMMStanding();
   renderProg();
-  renderRank(root);
+  renderScore();
 }
 
 /* Derived from the weight in bp_wt, so it repaints on open and again after
@@ -361,7 +387,7 @@ Your other lifts are untouched.`)) return;
   const r = rebaseline(name);
   paintMMStanding();
   renderProg();
-  renderRank(root);
+  renderScore();
   toast(r.reclaimed > 0
     ? `${name} reset · ${Math.round(r.reclaimed)} lbs no longer counted against you`
     : `${name} reset`);
@@ -476,7 +502,7 @@ function setMMWeight(el) {
   sWt(w);
   const res = logWeight(name, prev, v, before);
   renderProg();
-  renderRank(root);
+  renderScore();
   /* Only a PROVEN change can unlock anything, so this now fires on the
      session that earns it rather than on the keystroke that claims it. */
   if (res.rankUp || res.tierUps?.length || res.badges?.length) {
@@ -1142,15 +1168,15 @@ function closeCelebration() { q('#lv-ol').classList.remove('on'); }
 
 function progDelete(d, di) {
   delSession(d, di);
-  renderRank(root); renderProg();
+  renderScore(); renderProg();
   toast('Session removed');
 }
 /* The rep assumption feeds the 1RM estimate, so it moves every score —
    and with them the Program tab's colours. */
-function rkSetReps(r) { setReps(r); renderRank(root); renderProg(); }
+function rkSetReps(r) { setReps(r); renderScore(); renderProg(); }
 /* Same blast radius as the rep assumption: the divisor moves every ratio,
    so it moves the Program tab's row colours with it. */
-function rkSetBasis(b) { setBasis(b); renderRank(root); renderProg(); }
+function rkSetBasis(b) { setBasis(b); renderScore(); renderProg(); }
 
 /* ═══════════════════ RESET ═══════════════════ */
 /* The dialog names every record and its size before anything happens.
@@ -1165,7 +1191,7 @@ function doReset() {
   applyReset(sel.map(t => t.id));
   /* Weights and bodyweight both move the whole app: row colours on Program,
      the chart on Weight, every card on Rank. Repaint all three. */
-  renderProg(); renderBW(); renderRank(root);
+  renderProg(); renderBW(); renderScore();
   toast(sel.length === 1 ? `${sel[0].n} reset` : `${sel.length} records reset`);
 }
 
@@ -1175,7 +1201,10 @@ function switchTab(tab) {
   root.querySelectorAll('.wk .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   root.querySelectorAll('.wk .panel').forEach(pl => pl.classList.remove('active'));
   q('#p-' + tab).classList.add('active');
-  if (tab === 'rank') renderRank(root);
+  /* Program and Body render on mount and stay rendered; the three score
+     panels repaint on arrival so a tab you were not looking at cannot
+     show yesterday's numbers. */
+  if (tab !== 'program' && tab !== 'bw') TABS.find(t => t.k === tab)?.r();
 }
 
 /* ═══════════════════ EVENT DELEGATION ═══════════════════ */
@@ -1248,7 +1277,7 @@ function onOut(e) {
 function onExternalChange() {
   if (!root) return;
   renderProg(); renderBW();
-  if (activeTab === 'rank') renderRank(root);
+  if (activeTab !== 'program' && activeTab !== 'bw') renderScore();
 }
 function onKeydown(e) {
   if (q('#mm-ol').classList.contains('on')) {
@@ -1271,14 +1300,12 @@ function onKeydown(e) {
 function template() {
   return `<div class="wk">
     <nav class="nav"><div class="nav-inner">
-      <button class="tab active" data-act="tab" data-tab="program">Program</button>
-      <button class="tab" data-act="tab" data-tab="bw">Body</button>
-      <button class="tab" data-act="tab" data-tab="rank">Rank</button>
+      ${TABS.map((t, i) => `<button class="tab${i ? '' : ' active'}" data-act="tab" data-tab="${t.k}">
+        <span class="tab-ico">${icon(t.i)}</span><span class="tab-lbl">${t.n}</span>
+      </button>`).join('')}
     </div></nav>
     <div class="app-wrap">
-      <div class="panel active" id="p-program"></div>
-      <div class="panel" id="p-bw"></div>
-      <div class="panel" id="p-rank"></div>
+      ${TABS.map((t, i) => `<div class="panel${i ? '' : ' active'}" id="p-${t.k}"></div>`).join('')}
     </div>
 
     <div class="mm-overlay" id="mm-ol">
