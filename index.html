@@ -17,28 +17,39 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/tokens.css?v=redline-sep26">
-<link rel="stylesheet" href="assets/css/themes.css?v=redline-sep26">
-<link rel="stylesheet" href="assets/css/shell.css?v=redline-sep26">
+<link rel="stylesheet" href="assets/css/tokens.css?v=cascadia-sep26">
+<link rel="stylesheet" href="assets/css/themes.css?v=cascadia-sep26">
+<link rel="stylesheet" href="assets/css/shell.css?v=cascadia-sep26">
 <!-- Every app's stylesheet, render-blocking and up front. shell.js loads these
      anyway on boot, but from JS, which does not block paint: the app's markup
      went into the DOM in the gap before its CSS landed, and the rule hiding
      inactive panels lives in that CSS -- so all three panels painted at once
      and then collapsed to one. Pages serves even ?v= tagged files with
      max-age=600, so that gap reopened every ten minutes rather than once. -->
-<link rel="stylesheet" href="apps/workout/workout.css?v=redline-sep26">
-<link rel="stylesheet" href="apps/finance/finance.css?v=redline-sep26">
+<link rel="stylesheet" href="apps/workout/workout.css?v=cascadia-sep26">
+<link rel="stylesheet" href="apps/finance/finance.css?v=cascadia-sep26">
 <script>
 /* Set the theme before first paint so there's no flash of the wrong palette.
    Kept inline and dependency-free on purpose — assets/js/theme.js owns the
    real logic, this just mirrors the stored value as early as possible. */
 (function(){
-  /* Keep MOTION in step with THEMES in assets/js/theme.js. */
-  var MOTION = { arcade:'loud', black:'quiet', dark:'quiet', light:'none' };
+  /* Keep MOTION and FONT in step with THEMES in assets/js/theme.js. A theme
+     missing from MOTION is a theme that flashes the default on every load
+     before the module corrects it, which is exactly what redline did. */
+  var MOTION = { arcade:'loud', redline:'quiet', black:'quiet', dark:'quiet', light:'none' };
+  var FONT = { redline:'https://fonts.googleapis.com/css2?family=Cascadia+Code:wght@200..700&display=swap' };
   var t = 'arcade';
   try { var s = JSON.parse(localStorage.getItem('bs_theme')); if (MOTION[s]) t = s; } catch(e){}
   document.documentElement.setAttribute('data-theme', t);
   document.documentElement.setAttribute('data-motion', MOTION[t]);
+  /* Same id theme.js reuses, so it adopts this element rather than adding
+     a second one. The fallback stack is monospace either way, so nothing
+     reflows from a sans face while this loads. */
+  if (FONT[t]) {
+    var l = document.createElement('link');
+    l.id = 'theme-font'; l.rel = 'stylesheet'; l.href = FONT[t];
+    document.head.appendChild(l);
+  }
 })();
 </script>
 </head>
@@ -67,11 +78,11 @@
   </main>
 </div>
 
-<script type="module" src="assets/js/shell.js?v=redline-sep26"></script>
+<script type="module" src="assets/js/shell.js?v=cascadia-sep26"></script>
 
 <script>
 /* ═══ Self-update ═══
-   Every script and stylesheet below carries a ?v=redline-sep26 build tag, which handles
+   Every script and stylesheet below carries a ?v=cascadia-sep26 build tag, which handles
    caching for all of them. The one file that can't carry a tag is this one,
    and GitHub Pages serves it with max-age=600 — so for ten minutes after a
    deploy, and indefinitely in an installed PWA that never gets reloaded, the
