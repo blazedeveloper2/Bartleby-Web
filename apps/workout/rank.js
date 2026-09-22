@@ -36,14 +36,14 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js?v=niv-sep26';
-import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor, VERSE_NOTICE } from './standards.js?v=niv-sep26';
-import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=niv-sep26';
+import { PROGRAM } from './data.js?v=bump-sep26';
+import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor, VERSE_NOTICE } from './standards.js?v=bump-sep26';
+import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=bump-sep26';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=niv-sep26';
-import { checkup } from './checkup.js?v=niv-sep26';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=bump-sep26';
+import { checkup } from './checkup.js?v=bump-sep26';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -171,6 +171,68 @@ export function dropOff(sets) {
     t:`${best}→${worst} is a steep fall: too little rest, or a first set taken past failure. Trust the estimate less.` };
   return { kind:'normal', best, worst,
     t:`${best}→${worst} is ordinary fatigue. Only the ${best} scores.` };
+}
+
+/* ── when the reps say the weight is wrong ──
+
+   Every working set in this program is taken to failure, which makes the
+   rep count the load's own report card. Each lift declares the range it
+   is meant to fail in — `rng` in LIFTS, per movement, because a press and
+   a lateral raise do not fail in the same place and never did. Inside the
+   range this says nothing at all. Outside it, in either direction, the
+   weight and not the effort is what needs changing:
+
+     over the top     the load stopped being the limiting factor
+     under the floor  it is heavier than the slot is asking for
+
+   The range is its own dead band, which is why there is no extra slack
+   bolted on: five or six reps of width already absorbs the rep a good day
+   is worth, so falling outside is a reading rather than noise.
+
+   How much: the load Epley says holds the SAME estimated 1RM at the near
+   edge of the range — base·(30+best)/(30+edge). The NEAR edge, not the
+   middle, so this always asks for the smallest move that makes the set
+   land back inside; if the next count is still outside, it simply asks
+   again. On a weighted pull-up the whole system scales, bodyweight
+   included, not just the plate hanging off you — the same distinction
+   ratioOf() makes. Rounded to the weight field's own 2.5 lb step, and
+   never less than one of them, since a smaller move is not expressible.
+
+   Advisory only, and deliberately not automatic: taking it makes the
+   count that produced it stale, which is the app asking you to count
+   again at the new load rather than carrying the old reps onto it. */
+const LOAD_STEP = 2.5;
+
+export function loadAdvice(name, wv) {
+  const spec = LIFTS[name];
+  if (!spec || !spec.rng || !(wv > 0)) return null;
+  const rec = exReps(name);
+  if (!rec || rec.w !== wv) return null;          // never counted, or stale
+  const counted = (rec.s || []).filter(n => n > 0);
+  if (!counted.length) return null;
+
+  /* The best set is the one that scores (see RECORDED REPS), so it is also
+     the one the load is judged on — reading the advice off a fatigued
+     second set would have the app recommend a drop after every hard day. */
+  const best = Math.max(...counted);
+  const [lo, hi] = spec.rng;
+  if (best >= lo && best <= hi) return null;
+  const up = best > hi, edge = up ? hi : lo;
+
+  /* what the reps are actually lifting, which on an 'added' lift is you */
+  let base = wv;
+  if (spec.mode === 'added') {
+    const bw = bodySnap().w;
+    if (!(bw > 0)) return null;
+    base = bw + wv;
+  }
+  const raw = Math.abs(base * (best - edge) / (30 + edge));
+  const by = Math.max(LOAD_STEP, Math.round(raw / LOAD_STEP) * LOAD_STEP);
+  const to = up ? wv + by : wv - by;
+  /* Below zero the answer is not a weight, it is "take the belt off" or
+     "use a lighter pair" — neither of which this field can say. */
+  if (!(to > 0)) return null;
+  return { up, best, lo, hi, edge, by, to };
 }
 
 /* What the standards get divided by. There is no longer a choice here:

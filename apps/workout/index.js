@@ -6,28 +6,28 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, MMAP } from './data.js?v=niv-sep26';
-import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=niv-sep26';
-import { toast } from '../../assets/js/ui.js?v=niv-sep26';
-import { pctColor, ord, LIFTS } from './standards.js?v=niv-sep26';
+import { PROGRAM, MMAP } from './data.js?v=bump-sep26';
+import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=bump-sep26';
+import { toast } from '../../assets/js/ui.js?v=bump-sep26';
+import { pctColor, ord, LIFTS } from './standards.js?v=bump-sep26';
 import {
   setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, icon,
   liftScores, standingOf, resEx, resetTargets, applyReset,
-  rebaseline, hasHistory, setExReps, exReps, verseHTML,
-} from './rank.js?v=niv-sep26';
+  rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice,
+} from './rank.js?v=bump-sep26';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
-import { MUSCLE_SVG } from './bodymap.js?v=niv-sep26';
-import { standingsFor } from './anthro.js?v=niv-sep26';
+import { MUSCLE_SVG } from './bodymap.js?v=bump-sep26';
+import { standingsFor } from './anthro.js?v=bump-sep26';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor, whtrBand,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=niv-sep26';
+} from './body.js?v=bump-sep26';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -314,12 +314,32 @@ function mmRepsHTML() {
     : !fresh ? `Counted at <b>${rec.w} lbs</b>, now <b>${wv}</b> — stale.`
     : `Scoring off <b>${Math.max(...counted)}</b>, counted ${fmtWhen(rec.d)}.`;
 
+  /* The one thing the boxes can't tell you by themselves: whether the
+     number in them fits the weight above. Both directions, per movement —
+     see loadAdvice() in rank.js for where the range and the size of the
+     move come from. Tapping it fills the weight field and leaves the save
+     to the same handler typing into it would use. */
+  const adv = loadAdvice(mmEx.n, wv);
+  const bump = adv ? `<button class="mm-bump ${adv.up ? 'up' : 'down'}" data-act="mm-bump" data-to="${adv.to}"
+      title="${adv.up
+        ? `Your best set reached ${adv.best}, past the ${adv.hi} this movement is meant to fail by — the weight is no longer what stops you.`
+        : `Your best set stopped at ${adv.best}, short of the ${adv.lo} this movement is meant to reach — the weight is heavier than the slot is asking for.`
+      } ${fmtW(adv.to)} lbs holds the same estimated 1RM at ${adv.edge} reps. Tap to set it — your reps then need counting again at the new load.">
+      <span class="mm-bump-k">Best ${adv.best}${per} · target ${adv.lo}–${adv.hi}</span>
+      <span class="mm-bump-v">${fmtW(wv)} → ${fmtW(adv.to)} lbs</span>
+    </button>` : '';
+
   return `<div class="mm-reps-row${fresh && counted.length ? ' on' : ''}">
     <div class="mm-reps-lbl">Reps per set</div>
     <div class="mm-sets">${boxes}</div>
     ${note ? `<div class="mm-reps-note">${note}</div>` : ''}
+    ${bump}
   </div>`;
 }
+
+/* 62.5 stays 62.5, 65.0 becomes 65 — the half-steps are real and the
+   trailing zero is not. */
+const fmtW = n => (Math.round(n * 10) % 10 === 0 ? String(Math.round(n)) : n.toFixed(1));
 
 /* Calendar days between two dates, not elapsed milliseconds. Measuring
    from `now` to midnight makes anything logged after lunch today round up
@@ -507,6 +527,17 @@ function setMMWeight(el) {
   }
   paintMMStanding();                  // the editor is still open on a changed lift
   toast(weightToast(res, name, v));
+}
+
+/* Taking the advice is typing the number, not a second way to save a
+   weight: the field is filled and handed to the same handler, so the
+   progression log, the toast and any rank-up all behave identically to
+   having entered it yourself. */
+function takeBump(to) {
+  const el = q('#mm-wt');
+  if (!el) return;
+  el.value = to;
+  setMMWeight(el);
 }
 
 /* ═══════════════════ BODY ═══════════════════ */
@@ -1193,6 +1224,7 @@ function onClick(e) {
     case 'mm-chip': inspectMuscle(el); break;
     case 'mm-view': mmView(a.view); break;
     case 'mm-rebase': doRebase(); break;
+    case 'mm-bump':   takeBump(a.to); break;
     case 'bw-range':  bwSetRange(a.k); break;
     case 'bw-metric': bwSetMetric(a.k); break;
     case 'bw-save':   bwSave(); break;
@@ -1306,7 +1338,7 @@ export default {
      dangerous UI and the confirmation, the app owns the knowledge of what
      each record is and how much is in it. */
   resetTargets, applyReset,
-  styles: 'apps/workout/workout.css?v=niv-sep26',
+  styles: 'apps/workout/workout.css?v=bump-sep26',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {

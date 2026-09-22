@@ -26,7 +26,7 @@ html[data-theme="arcade"] {
   --text:#fdf3e7;--text-2:#b0987f;--text-3:#7a6249;
 
   --blue:#ff7a18;--blue-d:#ff7a1820;          /* primary accent */
-  --purple:#ffb43f;--amber:#ffc247;
+  --purple:#ffb43f;--amber:#ffc247;--amber-d:#ffc2471e;
   --red:#ff4d3d;--red-d:#ff4d3d20;
   --green:#3fdb7a;--green-d:#3fdb7a1e;--pink:#ff9c5b;
   /* Ink for text sitting ON a tinted chip of the same hue (--*-d), which is
@@ -103,7 +103,7 @@ html[data-theme="redline"] {
   --text:#f3e7ea;--text-2:#a99aa0;--text-3:#7a6a71;
 
   --blue:#ff2f50;--blue-d:#ff2f5020;          /* primary accent */
-  --purple:#c792ea;--amber:#ffc66d;
+  --purple:#c792ea;--amber:#ffc66d;--amber-d:#ffc66d1e;
   --red:#f2593a;--red-d:#f2593a20;
   --green:#5cdb8f;--green-d:#5cdb8f1e;--pink:#ff8fc4;
     --ink-green:#5cdb8f;--ink-amber:#ffc66d;--ink-blue:#ff2f50;--ink-red:#f2593a;--ink-pink:#ff8fc4;
@@ -140,7 +140,7 @@ html[data-theme="dark"] {
   --text:#e2e6f0;--text-2:#8b92a8;--text-3:#4a5068;
 
   --blue:#3b82f6;--blue-d:#3b82f620;--purple:#8b5cf6;
-  --amber:#f59e0b;--red:#ef4444;--red-d:#ef444420;
+  --amber:#f59e0b;--amber-d:#f59e0b20;--red:#ef4444;--red-d:#ef444420;
   --green:#22c55e;--green-d:#22c55e20;--pink:#f472b6;
     --ink-green:#22c55e;--ink-amber:#f59e0b;--ink-blue:#3b82f6;--ink-red:#ef4444;--ink-pink:#f472b6;
 
@@ -176,7 +176,7 @@ html[data-theme="black"] {
   --text:#f2f2f2;--text-2:#a3a3a3;--text-3:#6b6b6b;
 
   --blue:#e4e4e7;--blue-d:#e4e4e714;          /* primary accent — silver */
-  --purple:#b8b8bd;--amber:#e0b341;
+  --purple:#b8b8bd;--amber:#e0b341;--amber-d:#e0b3411e;
   --red:#f05252;--red-d:#f0525220;
   --green:#3ecf7a;--green-d:#3ecf7a1e;--pink:#d4d4d8;
     --ink-green:#3ecf7a;--ink-amber:#e0b341;--ink-blue:#e4e4e7;--ink-red:#f05252;--ink-pink:#d4d4d8;
@@ -208,7 +208,7 @@ html[data-theme="light"] {
   --text:#1b1f2d;--text-2:#5b6278;--text-3:#98a0b4;
 
   --blue:#2563eb;--blue-d:#2563eb1a;          /* primary accent */
-  --purple:#7c3aed;--amber:#d97706;
+  --purple:#7c3aed;--amber:#d97706;--amber-d:#d9770618;
   --red:#dc2626;--red-d:#dc26261a;
   --green:#16a34a;--green-d:#16a34a18;--pink:#db2777;
     --ink-green:#166534;--ink-amber:#854d0e;--ink-blue:#1d4ed8;--ink-red:#b91c1c;--ink-pink:#be185d;

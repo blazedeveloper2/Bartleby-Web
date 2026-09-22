@@ -81,24 +81,49 @@ export const LIFTS = {
         10, which is roughly 25% light. The numbers below are the middle of
         each movement's honest failure range, not measurements; move them
         if yours sit elsewhere. ── */
+  /* ── `rng` — the rep range this movement is meant to fail in, low to
+        high. Every working set here is taken to failure, so the count you
+        hit IS the verdict on the load: land under the low number and the
+        weight is heavier than the slot is asking for, land over the high
+        one and it stopped being what stopped you. loadAdvice() in rank.js
+        turns that into a weight.
+
+        The ranges are per movement because the movements are not alike.
+        A press fails on a few hard reps and the joint stress of grinding
+        one out is real, so it sits low. A lateral raise or a calf raise
+        runs on a small muscle with far more fatigue resistance and almost
+        no systemic cost, and loading either for six reps buys cheating,
+        not growth — so those sit high. Everything with a long loaded
+        stretch and a light absolute load (flyes, pullovers) sits between.
+        Hypertrophy is roughly equivalent anywhere from five reps to thirty
+        when sets are taken to failure, so none of this is a growth
+        ranking; it is about where each movement can be taken to failure
+        honestly and repeatably.
+
+        This is NOT the same number as `reps` below, and the two are kept
+        apart on purpose: `reps` is what Epley ASSUMES when nothing has
+        been counted, `rng` is what the advisory MEASURES against once
+        something has. Move these if your own failure points sit
+        elsewhere — nothing downstream is calibrated to them. ── */
+
   /* ── published standard for the exact movement ── */
-  'Incline Dumbbell Press':      { r:[0.25,0.35,0.50,0.65,0.85], src:'exact', base:'Incline dumbbell bench press' },
-  'Dumbbell Bench Press':        { r:[0.20,0.35,0.50,0.70,0.90], src:'exact', base:'Dumbbell bench press' },
-  'Dumbbell Shoulder Press':     { r:[0.15,0.25,0.40,0.55,0.70], src:'exact', base:'Dumbbell shoulder press' },
-  'Dumbbell Flyes':              { r:[0.10,0.20,0.30,0.45,0.60], src:'exact', base:'Dumbbell fly' },
-  'Overhead Tricep Extensions':  { r:[0.05,0.15,0.25,0.45,0.60], src:'exact', base:'Dumbbell tricep extension' },
-  'Lateral Raises':              { r:[0.05,0.10,0.20,0.30,0.45], src:'exact', reps:15, base:'Dumbbell lateral raise' },
-  'Reverse Flyes':               { r:[0.05,0.10,0.20,0.35,0.55], src:'exact', reps:15, base:'Dumbbell reverse fly' },
-  'Hammer Curls':                { r:[0.10,0.20,0.30,0.40,0.55], src:'exact', base:'Hammer curl' },
-  'Incline Curls':               { r:[0.10,0.15,0.25,0.35,0.45], src:'exact', base:'Incline dumbbell curl' },
-  'Dumbbell Pullovers':          { r:[0.15,0.30,0.45,0.65,0.85], src:'exact', base:'Dumbbell pullover' },
-  'Single-Arm Rows':             { r:[0.20,0.35,0.55,0.75,1.00], src:'exact', base:'Dumbbell row' },
-  'Chest-Supported Rows':        { r:[0.15,0.30,0.45,0.70,0.95], src:'exact', base:'Chest-supported dumbbell row' },
-  'Romanian Deadlifts':          { r:[0.20,0.35,0.55,0.80,1.05], src:'exact', base:'Dumbbell Romanian deadlift' },
-  'Bulgarian Split Squats':      { r:[0.15,0.25,0.40,0.60,0.85], src:'exact', base:'Dumbbell Bulgarian split squat' },
-  'Standing Calf Raises':        { r:[0.10,0.25,0.45,0.75,1.10], src:'exact', reps:15, base:'Dumbbell calf raise' },
-  'Dumbbell Wrist Curls':        { r:[0.10,0.20,0.35,0.55,0.75], src:'exact', reps:15, base:'Dumbbell wrist curl' },
-  'Dumbbell Reverse Wrist Curls':{ r:[0.05,0.10,0.20,0.35,0.55], src:'exact', reps:15, base:'Dumbbell reverse wrist curl',
+  'Incline Dumbbell Press':      { rng:[6,10], r:[0.25,0.35,0.50,0.65,0.85], src:'exact', base:'Incline dumbbell bench press' },
+  'Dumbbell Bench Press':        { rng:[6,10], r:[0.20,0.35,0.50,0.70,0.90], src:'exact', base:'Dumbbell bench press' },
+  'Dumbbell Shoulder Press':     { rng:[6,10], r:[0.15,0.25,0.40,0.55,0.70], src:'exact', base:'Dumbbell shoulder press' },
+  'Dumbbell Flyes':              { rng:[10,15], r:[0.10,0.20,0.30,0.45,0.60], src:'exact', base:'Dumbbell fly' },
+  'Overhead Tricep Extensions':  { rng:[8,12], r:[0.05,0.15,0.25,0.45,0.60], src:'exact', base:'Dumbbell tricep extension' },
+  'Lateral Raises':              { rng:[12,20], r:[0.05,0.10,0.20,0.30,0.45], src:'exact', reps:15, base:'Dumbbell lateral raise' },
+  'Reverse Flyes':               { rng:[12,20], r:[0.05,0.10,0.20,0.35,0.55], src:'exact', reps:15, base:'Dumbbell reverse fly' },
+  'Hammer Curls':                { rng:[8,12], r:[0.10,0.20,0.30,0.40,0.55], src:'exact', base:'Hammer curl' },
+  'Incline Curls':               { rng:[8,12], r:[0.10,0.15,0.25,0.35,0.45], src:'exact', base:'Incline dumbbell curl' },
+  'Dumbbell Pullovers':          { rng:[10,15], r:[0.15,0.30,0.45,0.65,0.85], src:'exact', base:'Dumbbell pullover' },
+  'Single-Arm Rows':             { rng:[8,12], r:[0.20,0.35,0.55,0.75,1.00], src:'exact', base:'Dumbbell row' },
+  'Chest-Supported Rows':        { rng:[8,12], r:[0.15,0.30,0.45,0.70,0.95], src:'exact', base:'Chest-supported dumbbell row' },
+  'Romanian Deadlifts':          { rng:[8,12], r:[0.20,0.35,0.55,0.80,1.05], src:'exact', base:'Dumbbell Romanian deadlift' },
+  'Bulgarian Split Squats':      { rng:[8,12], r:[0.15,0.25,0.40,0.60,0.85], src:'exact', base:'Dumbbell Bulgarian split squat' },
+  'Standing Calf Raises':        { rng:[12,20], r:[0.10,0.25,0.45,0.75,1.10], src:'exact', reps:15, base:'Dumbbell calf raise' },
+  'Dumbbell Wrist Curls':        { rng:[12,20], r:[0.10,0.20,0.35,0.55,0.75], src:'exact', reps:15, base:'Dumbbell wrist curl' },
+  'Dumbbell Reverse Wrist Curls':{ rng:[12,20], r:[0.05,0.10,0.20,0.35,0.55], src:'exact', reps:15, base:'Dumbbell reverse wrist curl',
                                    note:'Read off a thinner dataset than the rest of this section — 3,783 qualifying results against 12,434 for the flexion version — so the tier boundaries are softer than they look.' },
 
   /* ── weighted pull-up / chin-up: the standard is ADDED weight ÷
@@ -108,9 +133,9 @@ export const LIFTS = {
         Chin standards sit slightly above pull standards because
         people chin a little more than they pull — each grip now
         scores against its own data. ── */
-  'Pull-Ups':                    { r:[-0.04,0.18,0.44,0.72,1.02], src:'exact', mode:'added', base:'Pull-up, 1RM added weight',
+  'Pull-Ups':                    { rng:[5,10], r:[-0.04,0.18,0.44,0.72,1.02], src:'exact', mode:'added', base:'Pull-up, 1RM added weight',
                                    note:'Logged weight is read as weight ADDED on a belt. Beginner is negative because that tier is still using assistance.' },
-  'Chin-Ups':                    { r:[-0.01,0.20,0.45,0.73,1.01], src:'exact', mode:'added', base:'Chin-up, 1RM added weight',
+  'Chin-Ups':                    { rng:[5,10], r:[-0.01,0.20,0.45,0.73,1.01], src:'exact', mode:'added', base:'Chin-up, 1RM added weight',
                                    note:'Logged weight is read as weight ADDED on a belt — bodyweight-only reps stay unscored. Beginner is negative because that tier is still using assistance.' },
 
   /* ── barbell versions, in play only with the Barbell toggle on (off by
@@ -121,17 +146,17 @@ export const LIFTS = {
         RDL, ~1.22M for the hip thrust, ~1.6M for the front squat). The front
         squat is a proxy for the same reason the goblet is: the published
         movement is flat-footed. ── */
-  'Barbell Romanian Deadlifts':  { r:[0.75,1.00,1.50,2.00,2.75], src:'exact', base:'Romanian deadlift (barbell)',
+  'Barbell Romanian Deadlifts':  { rng:[5,8], r:[0.75,1.00,1.50,2.00,2.75], src:'exact', base:'Romanian deadlift (barbell)',
                                    note:'Logged weight is the whole bar, plates included — not per hand.' },
-  'Barbell Hip Thrusts':         { r:[0.50,1.25,1.75,2.75,3.75], src:'exact', base:'Hip thrust (barbell)',
+  'Barbell Hip Thrusts':         { rng:[6,10], r:[0.50,1.25,1.75,2.75,3.75], src:'exact', base:'Hip thrust (barbell)',
                                    note:'Logged weight is the whole bar, plates included.' },
-  'Heel-Elevated Front Squats':  { r:[0.75,1.00,1.25,1.75,2.25], src:'proxy', base:'Front squat',
+  'Heel-Elevated Front Squats':  { rng:[5,8], r:[0.75,1.00,1.25,1.75,2.25], src:'proxy', base:'Front squat',
                                    note:'Heel elevation makes the movement slightly easier than the published version. Logged weight is the whole bar, plates included.' },
 
   /* ── closest published movement ── */
-  'Heel-Elevated Goblet Squats': { r:[0.20,0.35,0.55,0.75,1.05], src:'proxy', base:'Goblet squat',
+  'Heel-Elevated Goblet Squats': { rng:[8,12], r:[0.20,0.35,0.55,0.75,1.05], src:'proxy', base:'Goblet squat',
                                    note:'Heel elevation makes the movement slightly easier than the published version.' },
-  'Preacher Curls':              { r:[0.10,0.15,0.25,0.35,0.45], src:'proxy', base:'Incline dumbbell curl',
+  'Preacher Curls':              { rng:[8,12], r:[0.10,0.15,0.25,0.35,0.45], src:'proxy', base:'Incline dumbbell curl',
                                    note:'No dumbbell preacher-curl data exists — the published preacher curl is the barbell version. Incline curl is the closest dumbbell match: both are strict, elbow-isolated curls, though the pad shortens the long head where the incline stretches it.' },
 
 };

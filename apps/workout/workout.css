@@ -233,6 +233,22 @@
 /* Counted: the one state where the estimate rests on something measured. */
 .mm-reps-row.on .mm-reps-note{border-left-color:var(--green)}
 
+/* The load advisory — a button, because the only thing you would do about
+   it is type the number it is already showing you. Green going up, amber
+   coming down: a back-off is not a failure, but it is not good news
+   either, and the colour should not pretend otherwise. */
+.mm-bump{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;
+  margin-top:10px;padding:10px 12px;text-align:left;cursor:pointer;border-radius:var(--rs);
+  font-family:var(--font);transition:filter .12s,transform .12s}
+.mm-bump:hover{filter:brightness(1.12)}
+.mm-bump:active{transform:scale(.99)}
+.mm-bump.up{background:var(--green-d);border:1px solid var(--green)}
+.mm-bump.down{background:var(--amber-d);border:1px solid var(--amber)}
+.mm-bump-k{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.85}
+.mm-bump-v{font-family:var(--mono);font-size:14px;font-weight:700;white-space:nowrap}
+.mm-bump.up   .mm-bump-k,.mm-bump.up   .mm-bump-v{color:var(--ink-green)}
+.mm-bump.down .mm-bump-k,.mm-bump.down .mm-bump-v{color:var(--ink-amber)}
+
 /* â”€â”€ Where this lift stands, right under the input that changes it â”€â”€ */
 .mm-rank{display:flex;align-items:center;gap:13px;padding:13px 20px;border-bottom:1px solid var(--border)}
 .mm-rank-l{font-family:var(--mono);font-size:23px;font-weight:800;letter-spacing:-1px;line-height:1;min-width:30px;text-align:center}
@@ -827,6 +843,7 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 .wk .mm-wt-row{padding:18px 22px;gap:16px}.wk .mm-wt-lbl{font-size:14px;letter-spacing:0;text-transform:none;color:var(--text);font-weight:600}
 .wk .mm-reps-row{padding:18px 22px}.wk .mm-reps-lbl{font-size:14px;letter-spacing:0;text-transform:none;color:var(--text);font-weight:600}
 .wk .mm-reps-lbl>span{font-size:11px}.wk .mm-set-in{font-size:19px;width:50px;color:var(--blue)}
+.wk .mm-bump{padding:12px 14px}.wk .mm-bump-k{font-size:10px;letter-spacing:1.5px}.wk .mm-bump-v{font-size:16px}
 .wk .mm-set{border-color:var(--sel-bd);background:var(--blue-d);padding:8px 12px}
 .wk .mm-wt-lbl>span{display:block;font-size:11px;color:var(--text-3);font-weight:400;margin-top:4px;max-width:155px}
 .wk .mm-wt-box{padding:10px 12px;border-color:var(--sel-bd);background:var(--blue-d)}.wk .mm-wt-in{font-size:26px;width:78px;color:var(--blue)}.wk .mm-wt-u{font-size:13px}
