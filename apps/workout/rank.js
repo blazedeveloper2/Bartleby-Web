@@ -36,14 +36,14 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js?v=bump-sep26';
-import { LIFTS, SRC_LABEL, TIER_PCT, rankFor, verseFor, VERSE_NOTICE } from './standards.js?v=bump-sep26';
-import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=bump-sep26';
+import { PROGRAM } from './data.js?v=rungs-sep26';
+import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, verseFor, VERSE_NOTICE } from './standards.js?v=rungs-sep26';
+import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=rungs-sep26';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=bump-sep26';
-import { checkup } from './checkup.js?v=bump-sep26';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=rungs-sep26';
+import { checkup } from './checkup.js?v=rungs-sep26';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -226,13 +226,38 @@ export function loadAdvice(name, wv) {
     if (!(bw > 0)) return null;
     base = bw + wv;
   }
-  const raw = Math.abs(base * (best - edge) / (30 + edge));
-  const by = Math.max(LOAD_STEP, Math.round(raw / LOAD_STEP) * LOAD_STEP);
-  const to = up ? wv + by : wv - by;
-  /* Below zero the answer is not a weight, it is "take the belt off" or
-     "use a lighter pair" — neither of which this field can say. */
-  if (!(to > 0)) return null;
-  return { up, best, lo, hi, edge, by, to };
+  const ideal = up ? wv + base * (best - edge) / (30 + edge)
+                   : wv - base * (edge - best) / (30 + edge);
+  const to = snapLoad(spec, wv, ideal, up);
+  /* Nothing to offer when the dumbbells have run out at the top, and
+     below zero the answer is not a weight at all — it is "take the belt
+     off" or "use a lighter pair", neither of which this field can say. */
+  if (to === null || !(to > 0)) return null;
+  return { up, best, lo, hi, edge, by: Math.abs(to - wv), to };
+}
+
+/* The nearest weight you can actually set, in the direction asked for.
+
+   On a dumbbell lift that is a rung of DB_LADDER, which is uneven on
+   purpose — 2.5 lb apart at the bottom and 5 lb apart above 25, because
+   that is how the hardware is built. Everything else rounds to the plain
+   2.5 lb step: a loaded bar and a pull-up belt are whatever plates are to
+   hand, and a weight already past the top rung is proof of equipment the
+   ladder does not describe, so both are left to the generic step.
+
+   Always at least one increment, never zero — a suggestion to change the
+   weight to the weight it already is would be no suggestion at all. */
+function snapLoad(spec, wv, ideal, up) {
+  const top = DB_LADDER[DB_LADDER.length - 1];
+  if (onLadder(spec) && wv <= top) {
+    const side = DB_LADDER.filter(v => up ? v > wv : v < wv);
+    if (!side.length) return null;                      // out of dumbbells
+    /* the rung closest to what Epley asked for, and if it asked for more
+       than the ladder has, the last rung */
+    return side.reduce((a, b) => Math.abs(b - ideal) < Math.abs(a - ideal) ? b : a);
+  }
+  const step = Math.max(LOAD_STEP, Math.round(Math.abs(ideal - wv) / LOAD_STEP) * LOAD_STEP);
+  return up ? wv + step : wv - step;
 }
 
 /* What the standards get divided by. There is no longer a choice here:

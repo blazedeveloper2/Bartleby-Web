@@ -146,11 +146,11 @@ export const LIFTS = {
         RDL, ~1.22M for the hip thrust, ~1.6M for the front squat). The front
         squat is a proxy for the same reason the goblet is: the published
         movement is flat-footed. ── */
-  'Barbell Romanian Deadlifts':  { rng:[5,8], r:[0.75,1.00,1.50,2.00,2.75], src:'exact', base:'Romanian deadlift (barbell)',
+  'Barbell Romanian Deadlifts':  { bar:true, rng:[5,8], r:[0.75,1.00,1.50,2.00,2.75], src:'exact', base:'Romanian deadlift (barbell)',
                                    note:'Logged weight is the whole bar, plates included — not per hand.' },
-  'Barbell Hip Thrusts':         { rng:[6,10], r:[0.50,1.25,1.75,2.75,3.75], src:'exact', base:'Hip thrust (barbell)',
+  'Barbell Hip Thrusts':         { bar:true, rng:[6,10], r:[0.50,1.25,1.75,2.75,3.75], src:'exact', base:'Hip thrust (barbell)',
                                    note:'Logged weight is the whole bar, plates included.' },
-  'Heel-Elevated Front Squats':  { rng:[5,8], r:[0.75,1.00,1.25,1.75,2.25], src:'proxy', base:'Front squat',
+  'Heel-Elevated Front Squats':  { bar:true, rng:[5,8], r:[0.75,1.00,1.25,1.75,2.25], src:'proxy', base:'Front squat',
                                    note:'Heel elevation makes the movement slightly easier than the published version. Logged weight is the whole bar, plates included.' },
 
   /* ── closest published movement ── */
@@ -160,6 +160,30 @@ export const LIFTS = {
                                    note:'No dumbbell preacher-curl data exists — the published preacher curl is the barbell version. Incline curl is the closest dumbbell match: both are strict, elbow-isolated curls, though the pad shortens the long head where the incline stretches it.' },
 
 };
+
+/* ── what the dumbbells can actually be set to ──
+
+   A recommendation you cannot dial in is not a recommendation. The pair
+   this program is run with is a FitRx SmartBell, which is a quick-select
+   adjustable rated 5–52.5 lb per dumbbell across fifteen settings — 2.5 lb
+   apart up to 25, then 5 lb apart to 50, with 52.5 as the last rung. There
+   is no 32.5 and there never was.
+
+   Per DUMBBELL, which is also how every entry above logs a dumbbell lift
+   (see `mult`), so the two agree without any conversion.
+
+   Only the dumbbell movements snap to this. A loaded bar and a pull-up
+   belt are made up of whatever plates are to hand and have no ladder worth
+   naming, so those fall back to the plain 2.5 lb step — as does any weight
+   already sitting above the top rung, since that is proof of equipment
+   this list does not describe.
+
+   Swap the array if the dumbbells change; nothing else needs touching. */
+export const DB_LADDER = [5, 7.5, 10, 12.5, 15, 17.5, 20, 22.5, 25, 30, 35, 40, 45, 50, 52.5];
+
+/* Whether a lift is loaded with one of the above. The barbell rows log the
+   whole bar and an 'added' lift logs what is hanging off a belt. */
+export const onLadder = spec => !spec.bar && spec.mode !== 'added';
 
 /* Back-compat alias: the ratio-only view of LIFTS. */
 export const RATIOS = Object.fromEntries(Object.entries(LIFTS).map(([k, v]) => [k, v.r]));
