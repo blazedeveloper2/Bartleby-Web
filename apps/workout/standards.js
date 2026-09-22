@@ -88,17 +88,37 @@ export const LIFTS = {
         one and it stopped being what stopped you. loadAdvice() in rank.js
         turns that into a weight.
 
-        The ranges are per movement because the movements are not alike.
-        A press fails on a few hard reps and the joint stress of grinding
-        one out is real, so it sits low. A lateral raise or a calf raise
-        runs on a small muscle with far more fatigue resistance and almost
-        no systemic cost, and loading either for six reps buys cheating,
-        not growth — so those sit high. Everything with a long loaded
-        stretch and a light absolute load (flyes, pullovers) sits between.
-        Hypertrophy is roughly equivalent anywhere from five reps to thirty
-        when sets are taken to failure, so none of this is a growth
-        ranking; it is about where each movement can be taken to failure
-        honestly and repeatably.
+        NOT a growth ranking. Schoenfeld's repetition-continuum work and
+        the meta-analyses after it put hypertrophy at roughly equivalent
+        anywhere from five reps to thirty when sets are taken close to
+        failure and volume is equated, so no band here is buying more
+        muscle than another. What the ranges encode is where each movement
+        can be taken to failure honestly, repeatably and safely:
+
+          5–8    loaded bar — the front squat and barbell RDL. The band
+                 the strength literature actually programmes heavy
+                 multi-joint work in, and the only lifts here where a bar
+                 on the back of a hinge makes low reps the point.
+          5–10   pull-ups and chin-ups. Bodyweight sets the floor; most
+                 people cannot reach the teens on these regardless.
+          8–12   dumbbell presses, rows, the hinge, split squats and the
+                 hip thrust. The standard prescription for dumbbell
+                 pressing, and it exists partly for a reason that applies
+                 doubly here: a heavy pair has to be kicked into position
+                 off the thighs with no spotter, and a five-rep set of
+                 that is where people hurt shoulders.
+          10–15  single-joint work with a long loaded stretch and a light
+                 absolute load — flyes, pullovers, curls, overhead
+                 extensions — plus the goblet squat, which is capped by
+                 what one dumbbell lets you hold at the chest and so is
+                 naturally a higher-rep slot. Loading a single joint for
+                 heavy triples stresses the elbow or shoulder out of
+                 proportion to what it buys.
+          12–20  lateral raises, reverse flyes, calves and both wrist
+                 curls. Small muscles with far more fatigue resistance and
+                 almost no systemic cost; a three-rep max on a lateral
+                 raise is both risky and pointless, and loading one for
+                 six reps buys cheating rather than growth.
 
         This is NOT the same number as `reps` below, and the two are kept
         apart on purpose: `reps` is what Epley ASSUMES when nothing has
@@ -107,15 +127,15 @@ export const LIFTS = {
         elsewhere — nothing downstream is calibrated to them. ── */
 
   /* ── published standard for the exact movement ── */
-  'Incline Dumbbell Press':      { rng:[6,10], r:[0.25,0.35,0.50,0.65,0.85], src:'exact', base:'Incline dumbbell bench press' },
-  'Dumbbell Bench Press':        { rng:[6,10], r:[0.20,0.35,0.50,0.70,0.90], src:'exact', base:'Dumbbell bench press' },
-  'Dumbbell Shoulder Press':     { rng:[6,10], r:[0.15,0.25,0.40,0.55,0.70], src:'exact', base:'Dumbbell shoulder press' },
+  'Incline Dumbbell Press':      { rng:[8,12], r:[0.25,0.35,0.50,0.65,0.85], src:'exact', base:'Incline dumbbell bench press' },
+  'Dumbbell Bench Press':        { rng:[8,12], r:[0.20,0.35,0.50,0.70,0.90], src:'exact', base:'Dumbbell bench press' },
+  'Dumbbell Shoulder Press':     { rng:[8,12], r:[0.15,0.25,0.40,0.55,0.70], src:'exact', base:'Dumbbell shoulder press' },
   'Dumbbell Flyes':              { rng:[10,15], r:[0.10,0.20,0.30,0.45,0.60], src:'exact', base:'Dumbbell fly' },
-  'Overhead Tricep Extensions':  { rng:[8,12], r:[0.05,0.15,0.25,0.45,0.60], src:'exact', base:'Dumbbell tricep extension' },
+  'Overhead Tricep Extensions':  { rng:[10,15], r:[0.05,0.15,0.25,0.45,0.60], src:'exact', base:'Dumbbell tricep extension' },
   'Lateral Raises':              { rng:[12,20], r:[0.05,0.10,0.20,0.30,0.45], src:'exact', reps:15, base:'Dumbbell lateral raise' },
   'Reverse Flyes':               { rng:[12,20], r:[0.05,0.10,0.20,0.35,0.55], src:'exact', reps:15, base:'Dumbbell reverse fly' },
-  'Hammer Curls':                { rng:[8,12], r:[0.10,0.20,0.30,0.40,0.55], src:'exact', base:'Hammer curl' },
-  'Incline Curls':               { rng:[8,12], r:[0.10,0.15,0.25,0.35,0.45], src:'exact', base:'Incline dumbbell curl' },
+  'Hammer Curls':                { rng:[10,15], r:[0.10,0.20,0.30,0.40,0.55], src:'exact', base:'Hammer curl' },
+  'Incline Curls':               { rng:[10,15], r:[0.10,0.15,0.25,0.35,0.45], src:'exact', base:'Incline dumbbell curl' },
   'Dumbbell Pullovers':          { rng:[10,15], r:[0.15,0.30,0.45,0.65,0.85], src:'exact', base:'Dumbbell pullover' },
   'Single-Arm Rows':             { rng:[8,12], r:[0.20,0.35,0.55,0.75,1.00], src:'exact', base:'Dumbbell row' },
   'Chest-Supported Rows':        { rng:[8,12], r:[0.15,0.30,0.45,0.70,0.95], src:'exact', base:'Chest-supported dumbbell row' },
@@ -148,15 +168,15 @@ export const LIFTS = {
         movement is flat-footed. ── */
   'Barbell Romanian Deadlifts':  { bar:true, rng:[5,8], r:[0.75,1.00,1.50,2.00,2.75], src:'exact', base:'Romanian deadlift (barbell)',
                                    note:'Logged weight is the whole bar, plates included — not per hand.' },
-  'Barbell Hip Thrusts':         { bar:true, rng:[6,10], r:[0.50,1.25,1.75,2.75,3.75], src:'exact', base:'Hip thrust (barbell)',
+  'Barbell Hip Thrusts':         { bar:true, rng:[8,12], r:[0.50,1.25,1.75,2.75,3.75], src:'exact', base:'Hip thrust (barbell)',
                                    note:'Logged weight is the whole bar, plates included.' },
   'Heel-Elevated Front Squats':  { bar:true, rng:[5,8], r:[0.75,1.00,1.25,1.75,2.25], src:'proxy', base:'Front squat',
                                    note:'Heel elevation makes the movement slightly easier than the published version. Logged weight is the whole bar, plates included.' },
 
   /* ── closest published movement ── */
-  'Heel-Elevated Goblet Squats': { rng:[8,12], r:[0.20,0.35,0.55,0.75,1.05], src:'proxy', base:'Goblet squat',
+  'Heel-Elevated Goblet Squats': { rng:[10,15], r:[0.20,0.35,0.55,0.75,1.05], src:'proxy', base:'Goblet squat',
                                    note:'Heel elevation makes the movement slightly easier than the published version.' },
-  'Preacher Curls':              { rng:[8,12], r:[0.10,0.15,0.25,0.35,0.45], src:'proxy', base:'Incline dumbbell curl',
+  'Preacher Curls':              { rng:[10,15], r:[0.10,0.15,0.25,0.35,0.45], src:'proxy', base:'Incline dumbbell curl',
                                    note:'No dumbbell preacher-curl data exists — the published preacher curl is the barbell version. Incline curl is the closest dumbbell match: both are strict, elbow-isolated curls, though the pad shortens the long head where the incline stretches it.' },
 
 };

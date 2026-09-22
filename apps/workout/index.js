@@ -6,28 +6,28 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, MMAP } from './data.js?v=rungs-sep26';
-import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=rungs-sep26';
-import { toast } from '../../assets/js/ui.js?v=rungs-sep26';
-import { pctColor, ord, LIFTS } from './standards.js?v=rungs-sep26';
+import { PROGRAM, MMAP } from './data.js?v=verdict-sep26';
+import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=verdict-sep26';
+import { toast } from '../../assets/js/ui.js?v=verdict-sep26';
+import { pctColor, ord, LIFTS } from './standards.js?v=verdict-sep26';
 import {
   setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, icon,
   liftScores, standingOf, resEx, resetTargets, applyReset,
-  rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice,
-} from './rank.js?v=rungs-sep26';
+  rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX,
+} from './rank.js?v=verdict-sep26';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
-import { MUSCLE_SVG } from './bodymap.js?v=rungs-sep26';
-import { standingsFor } from './anthro.js?v=rungs-sep26';
+import { MUSCLE_SVG } from './bodymap.js?v=verdict-sep26';
+import { standingsFor } from './anthro.js?v=verdict-sep26';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor, whtrBand,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=rungs-sep26';
+} from './body.js?v=verdict-sep26';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -294,8 +294,10 @@ function mmRepsHTML() {
   if (!(wv > 0)) return '';
 
   const n = setCountOf(mmEx), rec = exReps(mmEx.n);
-  const fresh = rec && rec.w === wv;
-  const vals = fresh ? rec.s : [];
+  /* The boxes empty out the moment a count goes stale: the numbers in them
+     were true of a different weight, and leaving them there would invite
+     you to keep one. */
+  const vals = rec && rec.w === wv ? rec.s : [];
   const per = isUnilateral(mmEx) ? ' per side' : '';
 
   const boxes = Array.from({ length: n }, (_, i) =>
@@ -304,36 +306,54 @@ function mmRepsHTML() {
              inputmode="numeric" placeholder="—" value="${vals[i] > 0 ? vals[i] : ''}">
     </label>`).join('');
 
-  /* Read off the RECORD, not off the boxes — the boxes are deliberately
-     empty once a recording goes stale, which made the stale branch below
-     unreachable. */
-  const counted = rec && Array.isArray(rec.s) ? rec.s.filter(v => v > 0) : [];
-  /* Only two things left worth saying: the count is stale, or which set is
-     scoring. The empty state says nothing — the boxes are self-evident. */
-  const note = !counted.length ? ''
-    : !fresh ? `Counted at <b>${rec.w} lbs</b>, now <b>${wv}</b> — stale.`
-    : `Scoring off <b>${Math.max(...counted)}</b>, counted ${fmtWhen(rec.d)}.`;
+  /* ── the verdict strip ──
 
-  /* The one thing the boxes can't tell you by themselves: whether the
-     number in them fits the weight above. Both directions, per movement —
-     see loadAdvice() in rank.js for where the range and the size of the
-     move come from. Tapping it fills the weight field and leaves the save
-     to the same handler typing into it would use. */
+     One line under the boxes, in every state, because the target range is
+     worth seeing even when there is nothing to do about it — it is what
+     you are aiming at on the set you are about to do. Green and amber are
+     buttons and mean act; red is inert and means the opposite, so the
+     colour alone says whether there is anything here to press.
+
+     It also absorbs what the old note line said. When a count is stale or
+     missing the strip says so itself, and the date it was counted moved
+     into the tooltip, which is where the rest of this app keeps the
+     reasoning it does not want to print. */
   const adv = loadAdvice(mmEx.n, wv);
-  const bump = adv ? `<button class="mm-bump ${adv.up ? 'up' : 'down'}" data-act="mm-bump" data-to="${adv.to}"
-      title="${adv.up
-        ? `Your best set reached ${adv.best}, past the ${adv.hi} this movement is meant to fail by — the weight is no longer what stops you.`
-        : `Your best set stopped at ${adv.best}, short of the ${adv.lo} this movement is meant to reach — the weight is heavier than the slot is asking for.`
-      } ${fmtW(adv.to)} lbs holds the same estimated 1RM at ${adv.edge} reps. Tap to set it — your reps then need counting again at the new load.">
-      <span class="mm-bump-k">Best ${adv.best}${per} · target ${adv.lo}–${adv.hi}</span>
-      <span class="mm-bump-v">${fmtW(wv)} → ${fmtW(adv.to)} lbs</span>
-    </button>` : '';
+  const reps = !adv ? '' : (() => {
+    const when = adv.d ? ` · counted ${fmtWhen(adv.d)}` : '';
+    const span = `${adv.lo}–${adv.hi}`;
+    const k = adv.best === null ? `Target ${span}`
+                                : `Best ${adv.best}${per} · target ${span}`;
+    const act = adv.state === 'up' || adv.state === 'down';
+    const v = {
+      up:        () => `${fmtW(wv)} → ${fmtW(adv.to)} lbs`,
+      down:      () => `${fmtW(wv)} → ${fmtW(adv.to)} lbs`,
+      hold:      () => `Hold ${fmtW(wv)} lbs`,
+      capped:    () => adv.up ? `Max ${fmtW(DB_MAX)} lbs` : `Lightest there is`,
+      uncounted: () => adv.staleW ? `Stale · counted at ${fmtW(adv.staleW)} lbs` : 'Not counted',
+    }[adv.state]();
+    const tip = {
+      up:        `Your best set reached ${adv.best}, past the ${adv.hi} this movement is meant to fail by — the weight is no longer what stops you. ${fmtW(adv.to)} lbs holds the same estimated 1RM at ${adv.edge} reps, and is a setting your dumbbells actually have. Tap to set it — your reps then need counting again at the new load.`,
+      down:      `Your best set stopped at ${adv.best}, short of the ${adv.lo} this movement is meant to reach — the weight is heavier than the slot is asking for. ${fmtW(adv.to)} lbs holds the same estimated 1RM at ${adv.edge} reps, and is a setting your dumbbells actually have. Tap to set it — your reps then need counting again at the new load.`,
+      hold:      `${adv.best} reps sits inside the ${span} this movement is meant to fail in, so the weight is doing its job. Nothing to change${when}.`,
+      capped:    adv.up
+        ? `Your best set reached ${adv.best}, past the ${adv.hi} this movement is meant to fail by — but ${fmtW(DB_MAX)} lbs is the top of your dumbbells, so there is no heavier setting to move to. Add reps or slow the tempo instead.`
+        : `Your best set stopped at ${adv.best}, short of the ${adv.lo} this movement is meant to reach, and there is nothing lighter to drop to.`,
+      uncounted: adv.staleW
+        ? `The last count was taken at ${fmtW(adv.staleW)} lbs${when} and says nothing about this lift at ${fmtW(wv)}. Count a set at the current weight and this starts reading again.`
+        : `Count your sets above and this reads whether ${fmtW(wv)} lbs is the right weight — this movement is meant to fail somewhere in ${span} reps.`,
+    }[adv.state];
+    const attrs = `class="mm-bump ${adv.state}" title="${tip}"`;
+    const inner = `<span class="mm-bump-k">${k}</span><span class="mm-bump-v">${v}</span>`;
+    return act
+      ? `<button ${attrs} data-act="mm-bump" data-to="${adv.to}">${inner}</button>`
+      : `<div ${attrs}>${inner}</div>`;
+  })();
 
-  return `<div class="mm-reps-row${fresh && counted.length ? ' on' : ''}">
+  return `<div class="mm-reps-row">
     <div class="mm-reps-lbl">Reps per set</div>
     <div class="mm-sets">${boxes}</div>
-    ${note ? `<div class="mm-reps-note">${note}</div>` : ''}
-    ${bump}
+    ${reps}
   </div>`;
 }
 
@@ -1338,7 +1358,7 @@ export default {
      dangerous UI and the confirmation, the app owns the knowledge of what
      each record is and how much is in it. */
   resetTargets, applyReset,
-  styles: 'apps/workout/workout.css?v=rungs-sep26',
+  styles: 'apps/workout/workout.css?v=verdict-sep26',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {

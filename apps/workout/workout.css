@@ -227,27 +227,30 @@
 .mm-set-in{width:42px;background:transparent;border:none;color:var(--text);font-family:var(--mono);
   font-size:16px;font-weight:700;text-align:right;outline:none;-webkit-appearance:none}
 .mm-set-in::placeholder{color:var(--text-3)}
-.mm-reps-note{margin-top:9px;font-size:11px;line-height:1.55;color:var(--text-3);
-  border-left:2px solid var(--border-lt);padding-left:9px}
-.mm-reps-note b{color:var(--text-2);font-weight:700;font-family:var(--mono)}
-/* Counted: the one state where the estimate rests on something measured. */
-.mm-reps-row.on .mm-reps-note{border-left-color:var(--green)}
 
-/* The load advisory — a button, because the only thing you would do about
-   it is type the number it is already showing you. Green going up, amber
-   coming down: a back-off is not a failure, but it is not good news
-   either, and the colour should not pretend otherwise. */
+/* The verdict strip. Green and amber are buttons and mean act on this;
+   red is a plain div and means the opposite — in range, out of dumbbells,
+   or nothing counted yet. The colour is the affordance, so the inert
+   states take no pointer, no hover and no press. */
 .mm-bump{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;
-  margin-top:10px;padding:10px 12px;text-align:left;cursor:pointer;border-radius:var(--rs);
+  margin-top:10px;padding:10px 12px;text-align:left;border-radius:var(--rs);
   font-family:var(--font);transition:filter .12s,transform .12s}
-.mm-bump:hover{filter:brightness(1.12)}
-.mm-bump:active{transform:scale(.99)}
-.mm-bump.up{background:var(--green-d);border:1px solid var(--green)}
-.mm-bump.down{background:var(--amber-d);border:1px solid var(--amber)}
+button.mm-bump{cursor:pointer}
+button.mm-bump:hover{filter:brightness(1.12)}
+button.mm-bump:active{transform:scale(.99)}
 .mm-bump-k{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.85}
 .mm-bump-v{font-family:var(--mono);font-size:14px;font-weight:700;white-space:nowrap}
-.mm-bump.up   .mm-bump-k,.mm-bump.up   .mm-bump-v{color:var(--ink-green)}
+
+.mm-bump.up{background:var(--green-d);border:1px solid var(--green)}
+.mm-bump.up .mm-bump-k,.mm-bump.up .mm-bump-v{color:var(--ink-green)}
+.mm-bump.down{background:var(--amber-d);border:1px solid var(--amber)}
 .mm-bump.down .mm-bump-k,.mm-bump.down .mm-bump-v{color:var(--ink-amber)}
+.mm-bump.hold,.mm-bump.capped,.mm-bump.uncounted{background:var(--red-d);border:1px solid var(--red)}
+.mm-bump.hold .mm-bump-k,.mm-bump.hold .mm-bump-v,
+.mm-bump.capped .mm-bump-k,.mm-bump.capped .mm-bump-v,
+.mm-bump.uncounted .mm-bump-k,.mm-bump.uncounted .mm-bump-v{color:var(--ink-red)}
+/* Nothing counted is an absence, not a verdict — same strip, quieter. */
+.mm-bump.uncounted{border-style:dashed}
 
 /* â”€â”€ Where this lift stands, right under the input that changes it â”€â”€ */
 .mm-rank{display:flex;align-items:center;gap:13px;padding:13px 20px;border-bottom:1px solid var(--border)}

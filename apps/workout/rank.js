@@ -36,14 +36,14 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js?v=rungs-sep26';
-import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, verseFor, VERSE_NOTICE } from './standards.js?v=rungs-sep26';
-import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=rungs-sep26';
+import { PROGRAM } from './data.js?v=verdict-sep26';
+import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, verseFor, VERSE_NOTICE } from './standards.js?v=verdict-sep26';
+import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=verdict-sep26';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=rungs-sep26';
-import { checkup } from './checkup.js?v=rungs-sep26';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=verdict-sep26';
+import { checkup } from './checkup.js?v=verdict-sep26';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -206,35 +206,46 @@ const LOAD_STEP = 2.5;
 export function loadAdvice(name, wv) {
   const spec = LIFTS[name];
   if (!spec || !spec.rng || !(wv > 0)) return null;
+  const [lo, hi] = spec.rng;
+  const out = { lo, hi, best: null, to: null };
+
+  /* Nothing counted AT THIS WEIGHT. There is no verdict to give, but the
+     range is worth showing anyway — it is what you are aiming at on the
+     set you are about to do, and it was previously only discoverable by
+     overshooting it. Stale is its own answer and says so. */
   const rec = exReps(name);
-  if (!rec || rec.w !== wv) return null;          // never counted, or stale
-  const counted = (rec.s || []).filter(n => n > 0);
-  if (!counted.length) return null;
+  if (!rec || rec.w !== wv || !(rec.s || []).some(n => n > 0))
+    return { ...out, state: 'uncounted', staleW: rec && rec.w !== wv ? rec.w : null,
+             d: rec ? rec.d : null };
 
   /* The best set is the one that scores (see RECORDED REPS), so it is also
      the one the load is judged on — reading the advice off a fatigued
      second set would have the app recommend a drop after every hard day. */
-  const best = Math.max(...counted);
-  const [lo, hi] = spec.rng;
-  if (best >= lo && best <= hi) return null;
+  const best = Math.max(...rec.s.filter(n => n > 0));
+  Object.assign(out, { best, d: rec.d });
+  if (best >= lo && best <= hi) return { ...out, state: 'hold' };
   const up = best > hi, edge = up ? hi : lo;
 
   /* what the reps are actually lifting, which on an 'added' lift is you */
   let base = wv;
   if (spec.mode === 'added') {
     const bw = bodySnap().w;
-    if (!(bw > 0)) return null;
+    if (!(bw > 0)) return { ...out, state: 'hold' };
     base = bw + wv;
   }
   const ideal = up ? wv + base * (best - edge) / (30 + edge)
                    : wv - base * (edge - best) / (30 + edge);
   const to = snapLoad(spec, wv, ideal, up);
-  /* Nothing to offer when the dumbbells have run out at the top, and
-     below zero the answer is not a weight at all — it is "take the belt
-     off" or "use a lighter pair", neither of which this field can say. */
-  if (to === null || !(to > 0)) return null;
-  return { up, best, lo, hi, edge, by: Math.abs(to - wv), to };
+  /* The dumbbells have run out at the top, or below zero the answer is
+     not a weight at all — it is "take the belt off" or "use a lighter
+     pair", neither of which this field can say. The reading still stands
+     and the range still shows; only the button goes. */
+  if (to === null || !(to > 0)) return { ...out, state: 'capped', up, edge };
+  return { ...out, state: up ? 'up' : 'down', up, edge, to, by: Math.abs(to - wv) };
 }
+
+/* The top of the ladder, for saying where the dumbbells stop. */
+export const DB_MAX = DB_LADDER[DB_LADDER.length - 1];
 
 /* The nearest weight you can actually set, in the direction asked for.
 
