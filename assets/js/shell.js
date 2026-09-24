@@ -7,10 +7,10 @@
    To add a new app: import it and drop it into the APPS array.
    ═══════════════════════════════════════════════════════════ */
 
-import workout from '../../apps/workout/index.js?v=levels-sep26';
-import finance from '../../apps/finance/index.js?v=levels-sep26';
-import { toast } from './ui.js?v=levels-sep26';
-import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=levels-sep26';
+import workout from '../../apps/workout/index.js?v=counts-sep26';
+import finance from '../../apps/finance/index.js?v=counts-sep26';
+import { toast } from './ui.js?v=counts-sep26';
+import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=counts-sep26';
 
 // Scripture is parked in archive/ for now — to bring it back, move
 // archive/apps/scripture and archive/assets/data back to their old paths,
@@ -303,7 +303,7 @@ function paintLevels() {
       <div class="sx-lv-ex">${st.n}</div>
       <div class="sx-lv-bar">${pips}</div>
       <div class="sx-lv-foot">
-        <span class="sx-lv-next">${nx ? `Next: <b>${nx.n}</b> at ${st.up}` : 'Top of the ladder.'}</span>
+        <span class="sx-lv-next">${l.ready ? '<span class="sx-lv-ready">Passed</span> ' : ''}${nx ? `Next: <b>${nx.n}</b> at ${st.up}` : 'Top of the ladder.'}</span>
         <button class="sx-lv-all" data-sx="lv-all" data-k="${l.uid}" aria-expanded="${open}">${open ? 'Hide' : 'All levels'}</button>
       </div>
       ${list}

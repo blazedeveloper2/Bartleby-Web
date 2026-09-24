@@ -20,7 +20,18 @@
    A day carrying a `since` date was added to the program on that date.
    Streaks, the heatmap and perfect weeks in rank.js honour it, so the
    weekday reads as what it actually was before then — a rest day — instead
-   of a wall of retroactive misses. */
+   of a wall of retroactive misses.
+
+   What the exercise lab asks for is read off the exercise (trackOf() in
+   rank.js), so it only ever offers a box that means something:
+     weight   every scored lift in LIFTS, plus anything marked `ld:1` —
+              loaded but unscored. Everything else is bodyweight and gets
+              no weight field at all.
+     unit     seconds when the prescription's target is timed ('3×15-30s'),
+              nothing when it is 'easy', reps otherwise. `k` overrides it:
+              's' to count seconds anyway (a kick-up set is scored by the
+              hold it catches, not by the attempts), '-' for nothing (a
+              stretch has no better or worse). */
 export const PROGRAM = [
   {day:'mon',label:'Upper · Push Focus',sections:[
     {tag:null,ex:[
@@ -76,10 +87,10 @@ export const PROGRAM = [
          erectors is exactly how the pelvis untucks into lumbar extension.
          No wheel swaps the crunch straight back in. */
       {line:'rollout',
-       req:'wheel', alt:{n:'Dumbbell Crunch',m:'Upper Abs, Rectus Abdominis, Obliques',s:'2×8-15',b:'Flat 0°',bc:'bench-flat'}},
-      {n:'Weighted Hanging Leg Raises',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',
-       req:'bar', alt:{n:'Weighted Reverse Crunches',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',b:'Flat 0°',bc:'bench-flat'}},
-      {n:'Weighted Side Plank w/ Reach-Through',m:'Obliques, TVA, Core',s:'2×F /side'},
+       req:'wheel', alt:{n:'Dumbbell Crunch',ld:1,m:'Upper Abs, Rectus Abdominis, Obliques',s:'2×8-15',b:'Flat 0°',bc:'bench-flat'}},
+      {n:'Weighted Hanging Leg Raises',ld:1,m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',
+       req:'bar', alt:{n:'Weighted Reverse Crunches',ld:1,m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',b:'Flat 0°',bc:'bench-flat'}},
+      {n:'Weighted Side Plank w/ Reach-Through',ld:1,m:'Obliques, TVA, Core',s:'2×F /side'},
     ]},
   ]},
   {day:'thu',label:'Upper · Pull Focus',sections:[
@@ -112,7 +123,7 @@ export const PROGRAM = [
          went B-stance and why that version is unscored; a padded bar across
          the hips has no such ceiling and a published standard. */
       {n:'Barbell Hip Thrusts',m:'Glutes, Hamstrings',s:'2×F',b:'Flat 0°',bc:'bench-flat',
-       req:'barbell', alt:{n:'B-Stance Hip Thrusts',m:'Glutes, Hamstrings',s:'2×F /leg',b:'Flat 0°',bc:'bench-flat'}},
+       req:'barbell', alt:{n:'B-Stance Hip Thrusts',ld:1,m:'Glutes, Hamstrings',s:'2×F /leg',b:'Flat 0°',bc:'bench-flat'}},
       {n:'Bulgarian Split Squats',m:'Quads, Glutes, Adductors',s:'2×F /leg',b:'Flat 0°',bc:'bench-flat'},
       /* Was a second RDL. A B-stance RDL is a unilateral version of the lift
          that already opened this day, so the slot spent four sets on a hinge
@@ -125,7 +136,7 @@ export const PROGRAM = [
          rank.js on purpose — published leg-curl standards are for a loaded
          stack (~0.9× bodyweight at Intermediate), nothing like what a pair
          of feet can clamp. */
-      {n:'Prone Dumbbell Leg Curl',m:'Hamstrings, Gastrocnemius',s:'2×F',b:'Flat 0°',bc:'bench-flat'},
+      {n:'Prone Dumbbell Leg Curl',ld:1,m:'Hamstrings, Gastrocnemius',s:'2×F',b:'Flat 0°',bc:'bench-flat'},
     ]},
     {tag:'Accessories',ex:[
       {n:'Standing Calf Raises',m:'Gastrocnemius, Soleus',s:'2×F'},
@@ -189,10 +200,10 @@ export const PROGRAM = [
          cooked erectors for no anti-extension isometric at all. Unscored in
          rank.js, same as every crunch here -- no usable published standard
          exists for one. */
-      {n:'Dumbbell Crunch',m:'Upper Abs, Rectus Abdominis, Obliques',s:'2×F',b:'Flat 0°',bc:'bench-flat'},
-      {n:'Weighted Hanging Leg Raises',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',
-       req:'bar', alt:{n:'Weighted Reverse Crunches',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',b:'Flat 0°',bc:'bench-flat'}},
-      {n:'Weighted Side Plank w/ Reach-Through',m:'Obliques, TVA, Core',s:'2×F /side'},
+      {n:'Dumbbell Crunch',ld:1,m:'Upper Abs, Rectus Abdominis, Obliques',s:'2×F',b:'Flat 0°',bc:'bench-flat'},
+      {n:'Weighted Hanging Leg Raises',ld:1,m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',
+       req:'bar', alt:{n:'Weighted Reverse Crunches',ld:1,m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',b:'Flat 0°',bc:'bench-flat'}},
+      {n:'Weighted Side Plank w/ Reach-Through',ld:1,m:'Obliques, TVA, Core',s:'2×F /side'},
     ]},
   ]},
   /* Upper-body + core only, on purpose: Friday's RDLs and thrusts are ~24h
@@ -294,7 +305,7 @@ export const PROGRAM = [
       /* Hands on the bench, hips back, chest sinking toward the floor.
          Tight overhead shoulders are what bend a handstand into a banana,
          and this is the one thing on the day that is not the skill itself. */
-      {n:'Bench Shoulder Stretch',m:'Lats, Triceps Long Head, Chest',s:'2×30s',b:'Flat 0°',bc:'bench-flat'},
+      {n:'Bench Shoulder Stretch',k:'-',m:'Lats, Triceps Long Head, Chest',s:'2×30s',b:'Flat 0°',bc:'bench-flat'},
     ]},
   ]},
 ];
@@ -346,7 +357,7 @@ export const LADDERS = {
       s:'3×15-30s', p:'5×10-20s', l:'3×10-15s', up:'3×30s in a straight line, chest to the wall' },
     { n:'Wall Toe Pulls', tier:'Novice', m:'Front Delts, Side Delts, Traps, Triceps, Forearms, Core',
       s:'5×5-15s off the wall', p:'5×5-10s off the wall', l:'3×5-10s off the wall', up:'15-20s off the wall' },
-    { n:'Freestanding Kick-Ups', tier:'Novice', m:'Front Delts, Side Delts, Traps, Triceps, Forearms, Core',
+    { n:'Freestanding Kick-Ups', k:'s', tier:'Novice', m:'Front Delts, Side Delts, Traps, Triceps, Forearms, Core',
       s:'6×3 attempts', p:'5×3 attempts', l:'3×3 attempts', up:'30s freestanding, most sessions' },
     { n:'Freestanding Handstand', tier:'Intermediate', m:'Front Delts, Side Delts, Traps, Triceps, Forearms, Core',
       s:'6×15-45s', p:'5×10-30s', l:'3×10-30s', up:'60s, comfortably' },
@@ -440,7 +451,7 @@ export const LADDERS = {
     { n:'Standing Rollout Negatives', tier:'Advanced', m:'Rectus Abdominis, Obliques, TVA, Lats, Serratus Anterior', s:'3×3-5',
       up:'3×5 slow, pelvis tucked' },
     { n:'Standing Ab Wheel Rollouts', tier:'Advanced', m:'Rectus Abdominis, Obliques, TVA, Lats, Serratus Anterior, Hip Flexors', s:'3×5-8', up:'3×8' },
-    { n:'Weighted Standing Rollouts', tier:'Elite', m:'Rectus Abdominis, Obliques, TVA, Lats, Serratus Anterior, Hip Flexors', s:'3×3-5' },
+    { n:'Weighted Standing Rollouts', ld:1, tier:'Elite', m:'Rectus Abdominis, Obliques, TVA, Lats, Serratus Anterior, Hip Flexors', s:'3×3-5' },
   ]},
   /* A position drill, not a strength ladder, so it stops at rocks and at
      Intermediate — past that the ab wheel is where core strength goes.
@@ -461,7 +472,7 @@ export const LADDERS = {
     { n:'Arch Body Rocks', tier:'Intermediate', m:'Erectors, Glutes, Rear Delts, Traps', s:'3×10-20', up:'3×20' },
     { n:'Reverse Hyperextensions', tier:'Intermediate', m:'Glutes, Hamstrings, Erectors', s:'3×8-12',
       b:'Flat 0°', bc:'bench-flat', up:'3×12' },
-    { n:'Weighted Reverse Hyperextensions', tier:'Advanced', m:'Glutes, Hamstrings, Erectors', s:'3×8-12',
+    { n:'Weighted Reverse Hyperextensions', ld:1, tier:'Advanced', m:'Glutes, Hamstrings, Erectors', s:'3×8-12',
       b:'Flat 0°', bc:'bench-flat' },
   ]},
 };

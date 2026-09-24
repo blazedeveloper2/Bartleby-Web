@@ -232,11 +232,13 @@ Bartleby Web/
 ├── apps/
 │   ├── workout/              # index.js + data.js + rank.js + standards.js
 │   │                         #   + body.js + anthro.js + checkup.js
-│   │                         #   + bodymap.js + workout.css
+│   │                         #   + bodymap.js + howto.js + workout.css
 │   └── finance/              # index.js + networth.js + data.js + finance.css
 ├── archive/                  # parked apps, kept but not loaded by the shell
 │   ├── apps/scripture/       # index.js + bible.js + scripture.css
 │   └── assets/data/          # kjv/ (~4 MB) + commentary/ (~100 MB)
+├── tools/howto/              # how the exercise how-tos were made + the checks
+│                             #   (README.md, check.mjs, vidcheck.py, ytsearch.py)
 ├── manifest.json             # Add to Home Screen (standalone app window)
 ├── .github/workflows/deploy.yml   # auto-deploy to GitHub Pages on every push
 ├── start.bat                 # one-click: run locally (double-click this)
@@ -256,6 +258,14 @@ Bartleby Web/
    quietly stays out of every backup.
 
 That's it — it shows up as a tab automatically.
+
+### Changing an exercise
+
+Every exercise has written cues and a checked tutorial video in
+`apps/workout/howto.js`. After adding, renaming or removing one in `data.js`,
+run `node tools/howto/check.mjs`. It names every exercise left without a
+how-to. [`tools/howto/README.md`](tools/howto/README.md) has the method for
+writing the cues and verifying a video.
 
 ---
 

@@ -6,28 +6,30 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, WEEK_ORDER, LADDERS, MMAP } from './data.js?v=levels-sep26';
-import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=levels-sep26';
-import { toast } from '../../assets/js/ui.js?v=levels-sep26';
-import { pctColor, ord, LIFTS } from './standards.js?v=levels-sep26';
+import { PROGRAM, WEEK_ORDER, LADDERS, MMAP } from './data.js?v=counts-sep26';
+import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=counts-sep26';
+import { toast } from '../../assets/js/ui.js?v=counts-sep26';
+import { pctColor, ord, LIFTS } from './standards.js?v=counts-sep26';
 import {
   setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, icon,
   liftScores, standingOf, resEx, resKit, lvlOf, setLvl, resetTargets, applyReset,
+  trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX,
-} from './rank.js?v=levels-sep26';
+} from './rank.js?v=counts-sep26';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
-import { MUSCLE_SVG } from './bodymap.js?v=levels-sep26';
-import { standingsFor } from './anthro.js?v=levels-sep26';
+import { MUSCLE_SVG } from './bodymap.js?v=counts-sep26';
+import { HOWTO } from './howto.js?v=counts-sep26';
+import { standingsFor } from './anthro.js?v=counts-sep26';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor, whtrBand,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=levels-sep26';
+} from './body.js?v=counts-sep26';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -117,7 +119,10 @@ function renderProg() {
         const ex = resEx(rawEx);
         const k = ek(di,si,ei), on = ch[k] || false;
         const wv = w[ex.n];
-        const wtH = wv ? `<span class="ex-wt">${wv}</span>` : '';
+        /* A passed skill step says so on the row, so the way up does not
+           depend on opening every exercise to look for it. */
+        const wtH = ex.line && lineReady(ex.line) ? `<span class="ex-up" title="Your count passes this step — open it to move up">Move up</span>`
+                  : wv && trackOf(ex).load ? `<span class="ex-wt">${wv}</span>` : '';
         const bH  = ex.b ? `<span class="bench-tag ${ex.bc||''}">${ex.b}</span>` : '';
         const l   = sc.get(ex.n);
         const nA  = l ? ` style="color:${pctColor(l.pct)}" title="${l.rank.l} · ${ord(l.pct)} percentile at your ${sc.basisWord}"` : '';
@@ -264,7 +269,9 @@ function mmRankHTML(st) {
   if (st.state === 'nobw')
     return `<div class="mm-rank none">Log your bodyweight in the <b>Weight</b> tab — every standard is relative to it.</div>`;
   if (st.state === 'noweight')
-    return `<div class="mm-rank none">Set a working weight above and this lift starts scoring.</div>`;
+    return `<div class="mm-rank none">${trackOf(mmEx).load === 'added'
+      ? 'Bodyweight reps are counted, not scored — add weight above and this lift starts scoring.'
+      : 'Set a working weight above and this lift starts scoring.'}</div>`;
   const l = st.lift;
   const src = l.srcLabel ? `<span class="rk-lift-src ${l.src}" title="${l.note || ''}">${l.srcLabel}</span>`
             : (l.note ? `<span class="rk-lift-src info" title="${l.note}">i</span>` : '');
@@ -280,83 +287,164 @@ function mmRankHTML(st) {
   </div>`;
 }
 
-/* ── reps per set ──
+/* ── counting sets ──
 
-   One box per set the program prescribes, which for most of this program
-   is two. The best of them is what the 1RM is read off; see the RECORDED
-   REPS block in rank.js for why that is the only defensible choice and
-   why the others are still worth having on screen.
+   One box per set the program prescribes, in whatever the movement is
+   measured in: reps on a lift, seconds on a hold, reps on bodyweight
+   work. What each exercise tracks is read off the exercise (trackOf in
+   rank.js), and a movement with nothing worth counting — wrist prep, a
+   stretch — gets no boxes at all.
 
-   Only offered on lifts that are actually scored and actually have a
-   weight — on anything else there is no estimate for a rep count to
-   improve, and an input that changes nothing is worse than no input. */
+   On a loaded lift the best set is what the 1RM is read off; see the
+   RECORDED REPS block in rank.js for why that is the only defensible
+   choice. Those boxes appear once there is a weight for the count to be
+   true of, and only where there is an estimate or a range for it to feed
+   — a '2×F' lift that is not scored has neither. An 'added' lift is the
+   exception on both counts: bodyweight is its starting weight, so it is
+   counted from the first set, and the count is what says when to start
+   adding.
+
+   Bodyweight counts are kept apart from the lifts' (bp_xsets) and feed the
+   skill ladders instead: the strip under them says how far the count is
+   from the step's `up`, and turns into the way up once it clears it. */
+function mmTrack() {
+  if (!mmEx) return null;
+  const t = trackOf(mmEx);
+  if (t.unit === '-') return null;
+  if (t.load) {
+    if (!LIFT_NAMES.has(mmEx.n) && !t.rng) return null;
+    const set = wts()[mmEx.n];
+    const wv = t.load === 'added' ? (set > 0 ? set : 0) : set;
+    if (t.load === 'set' && !(wv > 0)) return null;
+    const rec = exReps(mmEx.n);
+    /* The boxes empty out the moment a count goes stale: the numbers in
+       them were true of a different weight, and leaving them there would
+       invite you to keep one. */
+    return { t, wv, vals: rec && (rec.w || 0) === wv ? rec.s : [], lbl: 'Reps per set' };
+  }
+  const rec = exSets(mmEx);
+  return { t, vals: rec ? rec.s : [], lbl: t.unit === 's' ? 'Seconds per set' : 'Reps per set' };
+}
+
+/* "Planche · level 2 of 7 · Novice", for anything on a ladder. */
+function lvlLine(ex) {
+  const L = ex && ex.line && LADDERS[ex.line];
+  if (!L) return '';
+  const i = lvlOf(ex.line);
+  return `${L.n} · level ${i + 1} of ${L.steps.length} · ${L.steps[i].tier}${ex.dose && ex.dose !== 's' ? ' · practice' : ''}`;
+}
+
 function mmRepsHTML() {
-  if (!mmEx || !LIFT_NAMES.has(mmEx.n)) return '';
-  const wv = wts()[mmEx.n];
-  if (!(wv > 0)) return '';
-
-  const n = setCountOf(mmEx), rec = exReps(mmEx.n);
-  /* The boxes empty out the moment a count goes stale: the numbers in them
-     were true of a different weight, and leaving them there would invite
-     you to keep one. */
-  const vals = rec && rec.w === wv ? rec.s : [];
-  const per = isUnilateral(mmEx) ? ' per side' : '';
-
-  const boxes = Array.from({ length: n }, (_, i) =>
+  const tr = mmTrack();
+  if (!tr) return '';
+  const secs = tr.t.unit === 's', vals = tr.vals;
+  const boxes = Array.from({ length: setCountOf(mmEx) }, (_, i) =>
     `<label class="mm-set"><span>Set ${i + 1}</span>
-      <input class="mm-set-in" data-set="${i}" type="number" min="1" max="100" step="1"
-             inputmode="numeric" placeholder="—" value="${vals[i] > 0 ? vals[i] : ''}">
+      <input class="mm-set-in" data-set="${i}" type="number" min="1" max="${secs ? 600 : 100}" step="1"
+             inputmode="numeric" placeholder="—" value="${vals[i] > 0 ? vals[i] : ''}">${secs ? '<em>s</em>' : ''}
     </label>`).join('');
-
-  /* ── the verdict strip ──
-
-     One line under the boxes, in every state, because the target range is
-     worth seeing even when there is nothing to do about it — it is what
-     you are aiming at on the set you are about to do. Green and amber are
-     buttons and mean act; red is inert and means the opposite, so the
-     colour alone says whether there is anything here to press.
-
-     It also absorbs what the old note line said. When a count is stale or
-     missing the strip says so itself, and the date it was counted moved
-     into the tooltip, which is where the rest of this app keeps the
-     reasoning it does not want to print. */
-  const adv = loadAdvice(mmEx.n, wv);
-  const reps = !adv ? '' : (() => {
-    const when = adv.d ? ` · counted ${fmtWhen(adv.d)}` : '';
-    const span = `${adv.lo}–${adv.hi}`;
-    const k = adv.best === null ? `Target ${span}`
-                                : `Best ${adv.best}${per} · target ${span}`;
-    const act = adv.state === 'up' || adv.state === 'down';
-    const v = {
-      up:        () => `${fmtW(wv)} → ${fmtW(adv.to)} lbs`,
-      down:      () => `${fmtW(wv)} → ${fmtW(adv.to)} lbs`,
-      hold:      () => `Hold ${fmtW(wv)} lbs`,
-      capped:    () => adv.up ? `Max ${fmtW(DB_MAX)} lbs` : `Lightest there is`,
-      uncounted: () => adv.staleW ? `Stale · counted at ${fmtW(adv.staleW)} lbs` : 'Not counted',
-    }[adv.state]();
-    const tip = {
-      up:        `Your best set reached ${adv.best}, past the ${adv.hi} this movement is meant to fail by — the weight is no longer what stops you. ${fmtW(adv.to)} lbs holds the same estimated 1RM at ${adv.edge} reps, and is a setting your dumbbells actually have. Tap to set it — your reps then need counting again at the new load.`,
-      down:      `Your best set stopped at ${adv.best}, short of the ${adv.lo} this movement is meant to reach — the weight is heavier than the slot is asking for. ${fmtW(adv.to)} lbs holds the same estimated 1RM at ${adv.edge} reps, and is a setting your dumbbells actually have. Tap to set it — your reps then need counting again at the new load.`,
-      hold:      `${adv.best} reps sits inside the ${span} this movement is meant to fail in, so the weight is doing its job. Nothing to change${when}.`,
-      capped:    adv.up
-        ? `Your best set reached ${adv.best}, past the ${adv.hi} this movement is meant to fail by — but ${fmtW(DB_MAX)} lbs is the top of your dumbbells, so there is no heavier setting to move to. Add reps or slow the tempo instead.`
-        : `Your best set stopped at ${adv.best}, short of the ${adv.lo} this movement is meant to reach, and there is nothing lighter to drop to.`,
-      uncounted: adv.staleW
-        ? `The last count was taken at ${fmtW(adv.staleW)} lbs${when} and says nothing about this lift at ${fmtW(wv)}. Count a set at the current weight and this starts reading again.`
-        : `Count your sets above and this reads whether ${fmtW(wv)} lbs is the right weight — this movement is meant to fail somewhere in ${span} reps.`,
-    }[adv.state];
-    const attrs = `class="mm-bump ${adv.state}" title="${tip}"`;
-    const inner = `<span class="mm-bump-k">${k}</span><span class="mm-bump-v">${v}</span>`;
-    return act
-      ? `<button ${attrs} data-act="mm-bump" data-to="${adv.to}">${inner}</button>`
-      : `<div ${attrs}>${inner}</div>`;
-  })();
-
+  const sub = lvlLine(mmEx);
   return `<div class="mm-reps-row">
-    <div class="mm-reps-lbl">Reps per set</div>
+    <div class="mm-reps-lbl">${tr.lbl}${sub ? `<span>${sub}</span>` : ''}</div>
     <div class="mm-sets">${boxes}</div>
-    ${reps}
+    <div id="mm-verdict">${mmVerdictHTML(tr)}</div>
   </div>`;
+}
+
+/* ── the verdict strip ──
+
+   One line under the boxes, in every state, because the target is worth
+   seeing even when there is nothing to do about it — it is what you are
+   aiming at on the set you are about to do. Green and amber are buttons
+   and mean act; red is inert and means the opposite, so the colour alone
+   says whether there is anything here to press.
+
+   The date a count was taken lives in the tooltip, which is where the rest
+   of this app keeps the reasoning it does not want to print. Painted on
+   its own so it can follow the boxes while one of them still has focus. */
+function mmVerdictHTML(tr = mmTrack()) {
+  if (!tr) return '';
+  return tr.t.load ? loadVerdictHTML(tr) : skillVerdictHTML(tr);
+}
+
+const strip = (cls, k, v, tip, act) => {
+  const attrs = `class="mm-bump ${cls}" title="${tip}"`;
+  const inner = `<span class="mm-bump-k">${k}</span><span class="mm-bump-v">${v}</span>`;
+  return act ? `<button ${attrs} ${act}>${inner}</button>` : `<div ${attrs}>${inner}</div>`;
+};
+
+function loadVerdictHTML({ t, wv }) {
+  const adv = loadAdvice(mmEx.n, wv, t.rng);
+  if (!adv) return '';
+  const per = isUnilateral(mmEx) ? ' per side' : '';
+  /* On a belt the number is what is added to you, and nothing added is
+     bodyweight rather than "0 lbs". */
+  const W = n => t.load === 'added' ? (n > 0 ? `+${fmtW(n)} lbs` : 'bodyweight') : `${fmtW(n)} lbs`;
+  const when = adv.d ? ` · counted ${fmtWhen(adv.d)}` : '';
+  const span = `${adv.lo}–${adv.hi}`;
+  const stale = adv.staleW !== null && adv.staleW !== undefined;
+  const k = adv.best === null ? `Target ${span}` : `Best ${adv.best}${per} · target ${span}`;
+  const v = {
+    up:        () => `${W(wv)} → ${W(adv.to)}`,
+    down:      () => `${W(wv)} → ${W(adv.to)}`,
+    hold:      () => `Hold ${W(wv)}`,
+    capped:    () => adv.up ? `Max ${fmtW(DB_MAX)} lbs` : 'Lightest there is',
+    uncounted: () => stale ? `Stale · counted at ${W(adv.staleW)}` : 'Not counted',
+  }[adv.state]();
+  const tip = {
+    up:        `Your best set reached ${adv.best}, past the ${adv.hi} this movement is meant to fail by — the weight is no longer what stops you. ${W(adv.to)} holds the same estimated 1RM at ${adv.edge} reps. Tap to set it — your reps then need counting again at the new load.`,
+    down:      `Your best set stopped at ${adv.best}, short of the ${adv.lo} this movement is meant to reach — the weight is heavier than the slot is asking for. ${W(adv.to)} holds the same estimated 1RM at ${adv.edge} reps. Tap to set it — your reps then need counting again at the new load.`,
+    hold:      `${adv.best} reps sits inside the ${span} this movement is meant to fail in, so the weight is doing its job. Nothing to change${when}.`,
+    capped:    adv.up
+      ? `Your best set reached ${adv.best}, past the ${adv.hi} this movement is meant to fail by — but ${fmtW(DB_MAX)} lbs is the top of your dumbbells, so there is no heavier setting to move to. Add reps or slow the tempo instead.`
+      : `Your best set stopped at ${adv.best}, short of the ${adv.lo} this movement is meant to reach, and there is nothing lighter to drop to.`,
+    uncounted: stale
+      ? `The last count was taken at ${W(adv.staleW)}${when} and says nothing about this lift at ${W(wv)}. Count a set at the current weight and this starts reading again.`
+      : `Count your sets above and this reads whether ${W(wv)} is the right load — this movement is meant to fail somewhere in ${span} reps.`,
+  }[adv.state];
+  const act = adv.state === 'up' || adv.state === 'down';
+  return strip(adv.state, k, v, tip, act ? `data-act="mm-bump" data-to="${adv.to}"` : '');
+}
+
+function skillVerdictHTML({ t }) {
+  const a = skillAdvice(mmEx);
+  if (!a) return '';
+  const u = t.unit === 's' ? 's' : '';
+  const per = isUnilateral(mmEx) ? ' /side' : '';
+  const val = n => `${n}${u}`;
+  const target = a.rng ? `${a.rng[0]}–${a.rng[1]}${u}` : null;
+  const when = a.d ? ` Counted ${fmtWhen(a.d)}.` : '';
+  const passTxt = a.pass ? `${a.pass.n > 1 ? a.pass.n + '×' : ''}${a.pass.min}${a.pass.unit === 's' ? 's' : ''}${per}` : '';
+  switch (a.state) {
+    case 'pass':
+      return strip('up', `Passed ${passTxt}`, `→ ${a.next}`,
+        `Your count clears “${a.need}” — the number is the part a count can check, and the rest is form only you can judge. Tap to move up to ${a.next}. Settings steps you back down.`,
+        'data-act="mm-lvl-up"');
+    case 'short':
+      return strip('hold', `Pass at ${passTxt}`,
+        a.pass.n > 1 ? `${a.hit}/${a.pass.n} sets there` : `Best ${val(a.best)}`,
+        `Moving up to ${a.next} asks for ${a.need}. Your best set so far is ${val(a.best)}.${when}`);
+    case 'uncounted': {
+      /* The pass test is Saturday's; a practice day aims at its own dose */
+      const test = a.pass && (!mmEx.dose || mmEx.dose === 's');
+      return strip('uncounted', test ? `Pass at ${passTxt}` : target ? `Target ${target}` : 'Count your sets',
+        'Not counted',
+        test ? `Put in what you did on each set and this says how close you are to ${a.next} — the step asks for ${a.need}.`
+             : `Put in what you did on each set${target ? ` — the target is ${target} a set` : ''}.`);
+    }
+    case 'over':
+      return strip('hold', `Best ${val(a.best)} · practice ${target}`, 'Ease off',
+        `Practice days are meant to stop short of Saturday's test — end each set with a few seconds still in it. The step is tested at the full dose on Saturday.${when}`);
+    case 'top':
+      return strip('hold', `Best ${val(a.best)}${per} · target ${target}`, 'Make it harder',
+        `Past the top of the ${target} this is prescribed at${mmEx.line ? ', with no step above it' : ''}. Slow the tempo or add a pause at the hardest point rather than piling on more.${when}`);
+    case 'under':
+      return strip('hold', `Best ${val(a.best)}${per} · target ${target}`, 'Build into it',
+        `Short of the ${target} target — normal on a step you have just moved to. Stay here until the sets reach it.${when}`);
+    default:
+      return strip('hold', target ? `Best ${val(a.best)}${per} · target ${target}` : `Best ${val(a.best)}${per}`, 'On target',
+        `Inside the range, so nothing to change.${when}`);
+  }
 }
 
 /* 62.5 stays 62.5, 65.0 becomes 65 — the half-steps are real and the
@@ -377,32 +465,45 @@ const fmtWhen = ds => {
    blank clears correctly and the stored array always matches what is on
    screen. */
 function setMMReps() {
-  if (!mmEx) return;
-  const wv = wts()[mmEx.n];
-  if (!(wv > 0)) return;
+  const tr = mmTrack();
+  if (!tr) return;
   const sets = [...root.querySelectorAll('.mm-set-in')]
     .sort((a, b) => +a.dataset.set - +b.dataset.set)
     .map(el => (el.value === '' ? null : parseInt(el.value, 10)));
-  setExReps(mmEx.n, sets, wv);
-  paintMMStanding();
+  if (!tr.t.load) {
+    setExSets(mmEx, sets);
+    paintMMStanding(true);
+    renderProg();                    // a passed step marks its rows
+    return;
+  }
+  setExReps(mmEx.n, sets, tr.wv);
+  paintMMStanding(true);
   renderProg();
   renderScore();
 }
 
 /* Derived from the weight in bp_wt, so it repaints on open and again after
-   any save that leaves the editor on screen. */
-function paintMMStanding() {
+   any save that leaves the editor on screen.
+
+   `keepBoxes` is for a save FROM the boxes, which already show exactly what
+   was saved — only the strip under them has anything new to say. Focus is
+   not a usable test for that: tabbing or tapping from one box to the next
+   fires the change while focus is in flight and sits on <body>, so a
+   rebuild at that moment replaces the box you are moving to before it
+   receives focus, and the next number lands back in the first box. */
+function paintMMStanding(keepBoxes = false) {
   if (!mmEx) return;
   const st = standingOf(mmEx.n);
   /* carry the row's tint through, so the modal reads as the same lift */
   q('#mm-name').style.color = st.state === 'scored' ? pctColor(st.lift.pct) : '';
   q('#mm-rank').innerHTML = mmRankHTML(st) + rebaseHTML();
-  /* Rebuilt rather than patched: the box count follows the prescription
-     and the whole block disappears when the weight is cleared. Skipped
-     while a box has focus, so saving one does not yank the next out from
-     under the finger already reaching for it. */
-  const reps = q('#mm-reps');
-  if (!reps.contains(document.activeElement)) reps.innerHTML = mmRepsHTML();
+  /* Otherwise rebuilt rather than patched: the box count follows the
+     prescription and the whole block disappears when the weight is
+     cleared. Still skipped while a box has focus, for the same reason. */
+  const reps = q('#mm-reps'), verdict = q('#mm-verdict');
+  if (verdict && (keepBoxes || reps.contains(document.activeElement))) verdict.innerHTML = mmVerdictHTML();
+  else reps.innerHTML = mmRepsHTML();
+  q('#mm-lvl').innerHTML = mmLvlHTML();
 }
 
 /* Offered on any lift with a history, because the moment you need it is the
@@ -432,20 +533,14 @@ Your other lifts are untouched.`)) return;
 
 /* ── skill level ──
 
-   A laddered movement says which step it is and what passing it looks
-   like, in the same strip the weight advice uses: green and tappable while
-   there is a step above, inert at the top. Settings holds the whole ladder
-   and is the way back down. */
+   Where a laddered movement sits. It normally rides on the label of the
+   count below, which is also where the way up appears once the count
+   clears the step — moving up is earned by the numbers, and Settings is
+   where a level is set by hand. This line only stands on its own when
+   there is no count to carry it: a loaded step with no weight set yet. */
 function mmLvlHTML() {
-  if (!mmEx?.line || !LADDERS[mmEx.line]) return '';
-  const L = LADDERS[mmEx.line], i = lvlOf(mmEx.line), st = L.steps[i], nx = L.steps[i + 1];
-  const strip = nx
-    ? `<button class="mm-bump up" data-act="mm-lvl-up" title="Tap once you can do this on Saturday. Settings steps you back down."><span class="mm-bump-k">Next at ${st.up}</span><span class="mm-bump-v">→ ${nx.n}</span></button>`
-    : `<div class="mm-bump top"><span class="mm-bump-k">Top of the ladder</span><span class="mm-bump-v">${st.tier}</span></div>`;
-  return `<div class="mm-reps-row">
-    <div class="mm-reps-lbl">${L.n} · level ${i + 1} of ${L.steps.length}<span>${st.tier}</span></div>
-    ${strip}
-  </div>`;
+  if (!mmEx?.line || !LADDERS[mmEx.line] || mmTrack()) return '';
+  return `<div class="mm-reps-row"><div class="mm-reps-lbl">${lvlLine(mmEx)}</div></div>`;
 }
 
 function mmLvlUp() {
@@ -465,12 +560,18 @@ function openMM(ex) {
   mmEx = ex;
   mmView('both');
   q('#mm-name').textContent = ex.n;
-  q('#mm-lvl').innerHTML = mmLvlHTML();
   paintMMStanding();
   let info = `<span class="mm-tag">${ex.s}</span>`;
   if (ex.b) info += `<span class="mm-tag">${ex.b}</span>`;
   q('#mm-info').innerHTML = info;
+  q('#mm-howto').innerHTML = mmHowtoHTML(ex);
 
+  /* Only a movement that can carry a load gets a weight field. On a belt
+     the number is what is added to you, so blank reads as bodyweight. */
+  const t = trackOf(ex);
+  q('.mm-wt-row').style.display = t.load ? '' : 'none';
+  q('.mm-wt-lbl').textContent = t.load === 'added' ? 'Added weight' : 'Working weight';
+  q('#mm-wt').placeholder = t.load === 'added' ? '0' : '—';
   const wt = wts()[ex.n];
   q('#mm-wt').value = wt || '';
 
@@ -498,7 +599,45 @@ function openMM(ex) {
   q('.mm-card').scrollTop = 0;
   q('.mm-close').focus({preventScroll:true});
 }
+/* ── how to ──
+
+   Written cues first, because they are always there: offline, instantly,
+   and never taken down. The video under them is a facade — a plain button
+   that contacts nothing until it is tapped, and only then becomes a
+   youtube-nocookie player, so opening an exercise never phones YouTube.
+   Each one was checked against its own frames before it went in (see
+   howto.js). The link under the player is the way out when the embed
+   cannot load: offline, or a video pulled since. */
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+const fmtDur = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+function mmHowtoHTML(ex) {
+  const h = HOWTO[ex.n];
+  if (!h) return '';
+  const v = h.v;
+  const vid = !v ? '' : `<button class="mm-vid" data-act="mm-vid" aria-label="Play video: ${esc(v.t)}">
+      <span class="mm-vid-play" aria-hidden="true"></span>
+      <span class="mm-vid-txt"><b>${esc(v.t)}</b><em>${esc(v.c)}${v.d ? ` · ${fmtDur(v.d)}` : ''}${v.s ? ` · from ${fmtDur(v.s)}` : ''}</em></span>
+    </button>`;
+  return `<div class="mm-howto-h">How to</div>
+    <ol class="mm-cues">${h.do.map(c => `<li>${esc(c)}</li>`).join('')}</ol>
+    ${h.avoid?.length ? `<div class="mm-avoid"><span>Avoid</span><ul>${h.avoid.map(c => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}
+    ${vid}`;
+}
+
+function playVideo() {
+  const v = mmEx && HOWTO[mmEx.n]?.v;
+  const btn = q('.mm-vid');
+  if (!v || !btn) return;
+  const start = v.s ? `&start=${v.s}` : '';
+  btn.outerHTML = `<div class="mm-vid-frame"><iframe
+      src="https://www.youtube-nocookie.com/embed/${v.id}?autoplay=1&rel=0&playsinline=1${start}"
+      title="${esc(v.t)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>
+    <a class="mm-vid-out" href="https://www.youtube.com/watch?v=${v.id}${v.s ? `&t=${v.s}s` : ''}" target="_blank" rel="noopener">Open on YouTube</a>`;
+}
+
 function closeMM() {
+  q('#mm-howto').innerHTML = '';            // a playing video stops with the modal
   q('#mm-ol').classList.remove('on'); mmEx = null; mmSlot = null;
   mmReturnFocus?.focus({preventScroll:true});
 }
@@ -1274,6 +1413,7 @@ function onClick(e) {
       mmSlot = [+a.di, +a.si, +a.ei];
       openMM(resEx(PROGRAM[+a.di].sections[+a.si].ex[+a.ei])); break;
     case 'mm-lvl-up': mmLvlUp(); break;
+    case 'mm-vid':    playVideo(); break;
     case 'chk':       toggleChk(a.k); break;
     case 'clear':     clearChk(); break;
     case 'mm-close':  closeMM(); break;
@@ -1367,6 +1507,7 @@ function template() {
         </div>
         <div id="mm-reps"></div>
         <div id="mm-rank"></div>
+        <section class="mm-howto" id="mm-howto"></section>
         <section class="mm-anatomy">
         <div class="mm-map-toolbar"><span>Muscle map</span><div class="mm-views" aria-label="Body view">
           <button data-act="mm-view" data-view="both" aria-pressed="true">Both</button>
@@ -1396,7 +1537,7 @@ function skillLines() {
     if (e.line && LADDERS[e.line]) live.add(e.line);
   })));
   return Object.keys(LADDERS).filter(k => live.has(k)).map(k => ({
-    id: k, n: LADDERS[k].n, at: lvlOf(k),
+    id: k, n: LADDERS[k].n, at: lvlOf(k), ready: lineReady(k),
     steps: LADDERS[k].steps.map(s => ({ n: s.n, tier: s.tier, up: s.up || null })),
   }));
 }
@@ -1413,7 +1554,7 @@ export default {
      each record is and how much is in it. */
   resetTargets, applyReset,
   skillLines, setSkill,
-  styles: 'apps/workout/workout.css?v=levels-sep26',
+  styles: 'apps/workout/workout.css?v=counts-sep26',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {

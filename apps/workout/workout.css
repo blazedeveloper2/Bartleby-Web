@@ -138,6 +138,10 @@
 .wk .ex-wt{font-family:var(--mono);font-size:10.5px;font-weight:700;color:var(--ink-green);background:var(--green-d);
   padding:3px 7px;border-radius:2px;white-space:nowrap;box-shadow:inset 0 0 0 1px var(--green-d)}
 .wk .ex-wt::after{content:' lb';font-size:8px;font-weight:600;opacity:.6}
+/* A skill step whose Saturday count clears its bar — same green as a weight,
+   no unit, because it is an instruction rather than a number */
+.wk .ex-up{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;
+  color:var(--ink-green);background:var(--green-d);padding:3px 7px;border-radius:2px}
 .wk .bench-tag{font-size:9.5px;font-weight:700;letter-spacing:.3px;padding:3px 7px;border-radius:2px;white-space:nowrap}
 .wk .bench-flat,.wk .bench-55{background:var(--blue-d);color:var(--ink-blue)}.wk .bench-30{background:var(--red-d);color:var(--ink-pink)}.wk .bench-85{background:var(--green-d);color:var(--ink-amber)}
 /* A finished row dims but stays legible â€” the ticked box is the real signal,
@@ -167,6 +171,36 @@
 .mm-map{display:flex;justify-content:center;align-items:flex-start;padding:16px 16px 4px;gap:14px}
 .m-side{margin:0;flex:1 1 0;max-width:190px;display:flex;flex-direction:column;align-items:center;gap:4px}
 .m-fig{width:100%;height:auto;display:block}
+/* ── how to ──
+   Numbered because the cues are an order — set up, move, the point that
+   matters — and the mistakes sit apart in the colour this app already uses
+   for "not this". The video is a plain button until tapped (see
+   mmHowtoHTML), then a 16:9 frame in the same rounded box as the map. */
+.mm-howto:empty{display:none}
+.mm-howto{padding:16px 20px 4px;border-bottom:1px solid var(--border)}
+.mm-howto-h{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-3);margin-bottom:10px}
+.mm-cues{margin:0;padding:0;list-style:none;counter-reset:cue;display:flex;flex-direction:column;gap:7px}
+.mm-cues li{counter-increment:cue;position:relative;padding-left:24px;font-size:13px;line-height:1.45;color:var(--text)}
+.mm-cues li::before{content:counter(cue);position:absolute;left:0;top:1px;width:16px;height:16px;border-radius:4px;
+  background:var(--bg);box-shadow:inset 0 0 0 1px var(--border-lt);font-family:var(--mono);font-size:10px;font-weight:700;
+  color:var(--blue);display:flex;align-items:center;justify-content:center}
+.mm-avoid{margin-top:12px;padding:9px 11px;border-left:2px solid var(--red);background:var(--red-d);border-radius:0 6px 6px 0}
+.mm-avoid>span{display:block;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--ink-red);margin-bottom:4px}
+.mm-avoid ul{margin:0;padding-left:16px;display:flex;flex-direction:column;gap:3px}
+.mm-avoid li{font-size:12.5px;line-height:1.45;color:var(--text-2)}
+.mm-vid{display:flex;align-items:center;gap:12px;width:100%;margin:14px 0 12px;padding:10px 12px;text-align:left;cursor:pointer;
+  background:var(--bg);border:1px solid var(--border);border-radius:10px;font-family:var(--font);color:var(--text);transition:border-color .15s}
+.mm-vid:hover{border-color:var(--border-lt)}
+.mm-vid-play{flex-shrink:0;width:38px;height:38px;border-radius:50%;background:var(--blue);position:relative}
+.mm-vid-play::after{content:'';position:absolute;left:15px;top:11px;border-style:solid;border-width:8px 0 8px 13px;
+  border-color:transparent transparent transparent var(--on-accent)}
+.mm-vid-txt{min-width:0;display:flex;flex-direction:column;gap:2px}
+.mm-vid-txt b{font-size:12.5px;font-weight:600;line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.mm-vid-txt em{font-style:normal;font-size:11px;color:var(--text-3)}
+.mm-vid-frame{margin:14px 0 6px;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#000;border:1px solid var(--border)}
+.mm-vid-frame iframe{width:100%;height:100%;border:0;display:block}
+.mm-vid-out{display:inline-block;margin-bottom:12px;font-size:11px;font-weight:600;color:var(--text-3);text-decoration:none}
+.mm-vid-out:hover{color:var(--blue)}
 .mm-muscles{padding:10px 20px 20px}
 .mm-muscles-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-3);margin-bottom:8px}
 .mm-muscle-list{display:flex;flex-wrap:wrap;gap:6px}
@@ -229,6 +263,7 @@
 .mm-set-in{width:42px;background:transparent;border:none;color:var(--text);font-family:var(--mono);
   font-size:16px;font-weight:700;text-align:right;outline:none;-webkit-appearance:none}
 .mm-set-in::placeholder{color:var(--text-3)}
+.mm-set>em{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--text-3);margin-left:-4px}
 
 /* The verdict strip. Green and amber are buttons and mean act on this;
    red is a plain div and means the opposite — in range, out of dumbbells,
@@ -879,7 +914,7 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 .wk .mm-muscle-chip[aria-pressed="true"]{background:var(--blue-d);border-color:var(--blue);color:var(--blue)}
 @media(max-width:480px){
  .wk .mm-overlay{padding:10px}.wk .mm-card{max-height:calc(100dvh - 20px)}.wk .mm-head{padding:16px}.wk .mm-title{font-size:18px}
- .wk .mm-info,.wk .mm-wt-row,.wk .mm-rank,.wk .mm-reps-row{padding:12px 16px}.wk .mm-anatomy{margin:12px 12px 0}.wk .mm-map{min-height:248px;padding:12px 14px 8px;gap:10px}.wk .m-fig{height:235px}
+ .wk .mm-info,.wk .mm-wt-row,.wk .mm-rank,.wk .mm-reps-row,.wk .mm-howto{padding:12px 16px}.wk .mm-anatomy{margin:12px 12px 0}.wk .mm-map{min-height:248px;padding:12px 14px 8px;gap:10px}.wk .m-fig{height:235px}
  .wk .mm-muscles{padding:4px 12px 16px}.wk .mm-map-toolbar{padding:9px 10px}.mm-views button{padding:6px 8px}.wk .mm-wt-lbl>span{max-width:130px}
 }
 html[data-theme] .wk .mm-card{overflow-x:hidden;overflow-y:auto;min-height:0;max-height:calc(100dvh - 32px);scroll-padding-top:92px;padding-bottom:8px}

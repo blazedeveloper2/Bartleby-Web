@@ -36,14 +36,14 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, LADDERS } from './data.js?v=levels-sep26';
-import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, verseFor, VERSE_NOTICE } from './standards.js?v=levels-sep26';
-import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=levels-sep26';
+import { PROGRAM, LADDERS } from './data.js?v=counts-sep26';
+import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, verseFor, VERSE_NOTICE } from './standards.js?v=counts-sep26';
+import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=counts-sep26';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=levels-sep26';
-import { checkup } from './checkup.js?v=levels-sep26';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=counts-sep26';
+import { checkup } from './checkup.js?v=counts-sep26';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -101,14 +101,130 @@ export function setLvl(line, i) {
 const DOSE = { s:['s'], p:['p', 's'], l:['l', 'p', 's'] };
 function stepEx(ex) {
   const st = LADDERS[ex.line].steps[lvlOf(ex.line)];
-  const k = (DOSE[ex.dose] || DOSE.s).find(d => st[d]);
-  return { n: st.n, m: st.m, s: st[k], b: st.b, bc: st.bc, line: ex.line };
+  const dk = (DOSE[ex.dose] || DOSE.s).find(d => st[d]);
+  return { n: st.n, m: st.m, s: st[dk], b: st.b, bc: st.bc, k: st.k, ld: st.ld,
+           line: ex.line, dose: ex.dose || 's' };
 }
 export const resKit = ex => (ex.alt && !owns(ex.req)) ? ex.alt : ex;
 export const resEx = ex => {
   const e = resKit(ex);
   return e.line && LADDERS[e.line] ? stepEx(e) : e;
 };
+
+/* ═══════════════════ WHAT AN EXERCISE TRACKS ═══════════════════
+
+   The exercise lab used to offer every movement the same thing — a
+   working-weight box — whether or not the movement could carry a weight,
+   and counted sets only on the scored lifts. A wall handstand had a weight
+   field and nowhere to put the thirty seconds it is actually measured in.
+
+     load   'set'    a weight you choose: every scored lift, and `ld:1`
+            'added'  optional weight on a belt — bodyweight counts, and
+                     the reps are what say when to start adding
+            null     bodyweight; no weight field at all
+     unit   'r' reps, 's' seconds, '-' nothing worth counting
+     rng    [lo, hi] the target, from LIFTS where the lift is scored and
+            otherwise from the prescription itself; null for '2×F' */
+const TARGET = /^\d+×(\d+)(?:-(\d+))?(s?)(?=\s|$)/;
+export function trackOf(ex) {
+  const spec = LIFTS[ex.n];
+  const unit = ex.k || (/\beasy\b/.test(ex.s || '') ? '-' : /^\d+×[\d-]+s(?=\s|$)/.test(ex.s || '') ? 's' : 'r');
+  const m = TARGET.exec(ex.s || '');
+  /* the prescription's own range only counts in the unit being tracked —
+     a kick-up set of "3 attempts" is counted in seconds held */
+  const own = m && (m[3] === 's') === (unit === 's') ? [+m[1], +(m[2] || m[1])] : null;
+  return {
+    load: spec ? (spec.mode === 'added' ? 'added' : 'set') : ex.ld ? 'set' : null,
+    unit, rng: spec?.rng || own,
+  };
+}
+
+/* ── counted bodyweight sets ──
+
+   bp_xsets  { [key]: { s:[30, 25, 22], d:'YYYY-MM-DD' } }
+
+   The same record bp_xreps keeps for a loaded lift, minus the weight it
+   was counted at — there is none, so nothing makes it stale but a newer
+   count. Seconds or reps by the exercise's unit. Keyed by name plus the
+   dose when it is not Saturday's: five practice holds on a Wednesday are
+   not a failed attempt at Saturday's three, and must not overwrite them. */
+const xsetsAll = () => load('bp_xsets', {});
+const xsKey = ex => (ex.dose && ex.dose !== 's') ? `${ex.n}·${ex.dose}` : ex.n;
+export const exSets = ex => xsetsAll()[xsKey(ex)] || null;
+export function setExSets(ex, sets) {
+  const m = xsetsAll();
+  const clean = (sets || []).map(n => (Number.isFinite(+n) && +n > 0 ? Math.round(+n) : null));
+  if (!clean.some(n => n !== null)) delete m[xsKey(ex)];
+  else m[xsKey(ex)] = { s: clean, d: todayStr() };
+  save('bp_xsets', m);
+}
+
+/* A ladder step's `up` read as a test: "3×30s in a straight line" is three
+   sets of at least 30 seconds, "15-20s off the wall" is one hold of 15, and
+   "3×8 /side" is three sets of eight. The words after the number are form,
+   which only you can judge — the number is the part a count can check. */
+export function passOf(up) {
+  let m = /^(\d+)×(\d+)(s?)/.exec(up || '');
+  if (m) return { n: +m[1], min: +m[2], unit: m[3] ? 's' : 'r' };
+  m = /^(\d+)(?:-\d+)?s\b/.exec(up || '');
+  return m ? { n: 1, min: +m[1], unit: 's' } : null;
+}
+const passed = (pass, vals) => vals.filter(v => v >= pass.min).length;
+
+/* Whether the step you are on has been passed, read off Saturday's count
+   (Tuesday's rollouts share it — same step, same dose). */
+export function lineReady(line) {
+  const L = LADDERS[line];
+  if (!L) return false;
+  const i = lvlOf(line), st = L.steps[i], pass = L.steps[i + 1] ? passOf(st.up) : null;
+  const rec = pass && xsetsAll()[st.n];
+  return !!rec && passed(pass, rec.s.filter(v => v > 0)) >= pass.n;
+}
+
+/* ── what a bodyweight count says ──
+
+   The bodyweight counterpart of loadAdvice(). There is no weight to move,
+   so the answers are about the movement instead:
+
+     pass       Saturday's count clears the step's `up` — move up the ladder
+     short      counted, not there yet; says how many sets are
+     over       a practice day's sets ran past the practice range — those
+                days are meant to stop short of the Saturday test
+     top        past the top of the range with no step above to go to
+     under      short of the range's floor — normal on a new step
+     in         inside the range; nothing to change
+     uncounted  nothing counted yet */
+export function skillAdvice(ex) {
+  const t = trackOf(ex);
+  if (t.load || t.unit === '-') return null;
+  const rec = exSets(ex);
+  const vals = rec ? rec.s.filter(v => v > 0) : [];
+  const best = vals.length ? Math.max(...vals) : null;
+  const out = { unit: t.unit, rng: t.rng, best, d: rec ? rec.d : null };
+  const test = !ex.dose || ex.dose === 's';
+
+  const L = ex.line && LADDERS[ex.line];
+  if (L) {
+    const i = lvlOf(ex.line), st = L.steps[i], nx = L.steps[i + 1];
+    const pass = nx ? passOf(st.up) : null;
+    if (pass) {
+      Object.assign(out, { pass, need: st.up, next: nx.n });
+      /* A practice day carries Saturday's verdict once it is a pass, so the
+         way up is on whichever day you open it. */
+      if (lineReady(ex.line)) return { ...out, state: 'pass' };
+      if (test) {
+        if (!vals.length) return { ...out, state: 'uncounted' };
+        return { ...out, state: 'short', hit: passed(pass, vals) };
+      }
+    }
+  }
+  if (!vals.length) return { ...out, state: 'uncounted' };
+  if (!t.rng) return { ...out, state: 'in' };
+  const [lo, hi] = t.rng;
+  if (best > hi) return { ...out, state: test ? 'top' : 'over' };
+  if (best < lo) return { ...out, state: 'under' };
+  return { ...out, state: 'in' };
+}
 
 /* Reps-to-failure ASSUMPTION behind the 1RM estimate — the fallback for a
    lift whose reps have not been counted. See RECORDED REPS below. */
@@ -155,7 +271,10 @@ const xrepsSv  = m => save('bp_xreps', m);
 export function setExReps(name, sets, w) {
   const m = xrepsAll();
   const clean = (sets || []).map(n => (Number.isFinite(+n) && +n > 0 ? Math.round(+n) : null));
-  if (!clean.some(n => n !== null) || !(w > 0)) delete m[name];
+  /* An 'added' lift is counted at bodyweight too — nothing on the belt is
+     a weight of zero, not the absence of one. */
+  const ok = w > 0 || (w === 0 && LIFTS[name]?.mode === 'added');
+  if (!clean.some(n => n !== null) || !ok) delete m[name];
   else m[name] = { s: clean, w, d: todayStr() };
   xrepsSv(m);
 }
@@ -237,9 +356,15 @@ export function dropOff(sets) {
    again at the new load rather than carrying the old reps onto it. */
 const LOAD_STEP = 2.5;
 
-export function loadAdvice(name, wv) {
-  const spec = LIFTS[name];
-  if (!spec || !spec.rng || !(wv > 0)) return null;
+/* `rng` stands in for LIFTS on a loaded lift that is not scored — the range
+   is read off its prescription instead (trackOf), and the maths is the same
+   Epley either way. An 'added' lift reads at zero: that is bodyweight
+   chin-ups, and the verdict that matters there is when to start adding. */
+export function loadAdvice(name, wv, rng) {
+  const spec = LIFTS[name] || (rng ? { rng } : null);
+  if (!spec || !spec.rng) return null;
+  if (spec.mode === 'added') wv = wv > 0 ? wv : 0;
+  else if (!(wv > 0)) return null;
   const [lo, hi] = spec.rng;
   const out = { lo, hi, best: null, to: null };
 
@@ -1188,6 +1313,8 @@ const RESETS = [
     d:'Weigh-ins and tape measurements both. Every standard is relative to bodyweight, so the rank disappears until you log one again — and the body fat estimate, lean mass and calorie targets go with it. Your height and activity setting are left alone.' },
   { id:'ach', key:'bp_ach', n:'Milestone dates', u:'unlocked', p:'unlocked',
     d:'Only the dates. Anything still true at your current numbers re-earns itself on the next render — to genuinely re-lock a milestone, clear what earned it as well.' },
+  { id:'xs',  key:'bp_xsets', n:'Counted holds & bodyweight reps', u:'exercise',
+    d:'The seconds and reps typed into bodyweight exercises. The move-up check on every skill ladder reads these, so clearing them sends each one back to "not counted". The levels themselves are left alone.' },
   { id:'chk', key:'bp_chk', n:'Checkmarks', u:'ticked', p:'ticked',
     d:"Today's ticks on the Program tab. Nothing is scored from them, so this one costs you nothing." },
 ];
@@ -1198,6 +1325,7 @@ const resetCount = {
   wt:  () => Object.keys(wts()).length,
   bw:  () => load('bp_bw', []).length,
   ach: () => Object.keys(achAll()).length,
+  xs:  () => Object.keys(xsetsAll()).length,
   chk: () => Object.values(load('bp_chk', {})).filter(Boolean).length,
 };
 
