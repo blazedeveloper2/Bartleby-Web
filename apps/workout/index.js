@@ -6,30 +6,30 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, WEEK_ORDER, LADDERS, MMAP } from './data.js?v=counts-sep26';
-import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=counts-sep26';
-import { toast } from '../../assets/js/ui.js?v=counts-sep26';
-import { pctColor, ord, LIFTS } from './standards.js?v=counts-sep26';
+import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER } from './data.js?v=users-sep26';
+import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=users-sep26';
+import { toast } from '../../assets/js/ui.js?v=users-sep26';
+import { pctColor, ord, LIFTS } from './standards.js?v=users-sep26';
 import {
   setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, icon,
   liftScores, standingOf, resEx, resKit, lvlOf, setLvl, resetTargets, applyReset,
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX,
-} from './rank.js?v=counts-sep26';
+} from './rank.js?v=users-sep26';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
-import { MUSCLE_SVG } from './bodymap.js?v=counts-sep26';
-import { HOWTO } from './howto.js?v=counts-sep26';
-import { standingsFor } from './anthro.js?v=counts-sep26';
+import { MUSCLE_SVG } from './bodymap.js?v=users-sep26';
+import { HOWTO } from './howto.js?v=users-sep26';
+import { standingsFor } from './anthro.js?v=users-sep26';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor, whtrBand,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=counts-sep26';
+} from './body.js?v=users-sep26';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -98,7 +98,7 @@ function renderProg() {
   WEEK_ORDER.forEach((di, pos) => {
     const day = PROGRAM[di];
     let tot = 0, dn = 0;
-    day.sections.forEach((sec, si) => sec.ex.forEach((_, ei) => { tot++; if (ch[ek(di,si,ei)]) dn++; }));
+    day.sections.forEach((sec, si) => sec.opt || sec.ex.forEach((_, ei) => { tot++; if (ch[ek(di,si,ei)]) dn++; }));
     const comp = dn === tot && tot > 0;
     const xpH = comp && isLoggedToday(di) ? `<span class="day-xp logged">Logged</span>` : '';
     h += `<div class="day-card" data-day="${di}">
@@ -126,7 +126,7 @@ function renderProg() {
         const bH  = ex.b ? `<span class="bench-tag ${ex.bc||''}">${ex.b}</span>` : '';
         const l   = sc.get(ex.n);
         const nA  = l ? ` style="color:${pctColor(l.pct)}" title="${l.rank.l} · ${ord(l.pct)} percentile at your ${sc.basisWord}"` : '';
-        h += `<div class="ex-row ${on?'off':''}" data-act="row" data-di="${di}" data-si="${si}" data-ei="${ei}"><span class="ex-rail"></span><div class="ex-chk ${on?'on':''}" data-act="chk" data-k="${k}"></div><span class="ex-idx">${pad(++exN)}</span><div class="ex-body"><div class="ex-name"${nA}>${ex.n}</div><div class="ex-detail"><span class="ex-musc">${ex.m}</span></div></div><div class="ex-right">${wtH}<span class="ex-sets">${ex.s}</span>${bH}</div></div>`;
+        h += `<div class="ex-row ${on?'off':''}" data-act="row" data-di="${di}" data-si="${si}" data-ei="${ei}"><span class="ex-rail"></span><div class="ex-chk ${on?'on':''}" data-act="chk" data-k="${k}"></div><span class="ex-idx">${pad(++exN)}</span><div class="ex-body"><div class="ex-name"${nA}>${ex.n}</div><div class="ex-detail"><span class="ex-musc">${ex.m}</span></div>${ex.nt ? `<div class="ex-note">${ex.nt}</div>` : ''}</div><div class="ex-right">${wtH}<span class="ex-sets">${ex.s}</span>${bH}</div></div>`;
       });
     });
     h += `</div></div>`;
@@ -141,12 +141,17 @@ const pad = n => String(n).padStart(2, '0');
 const meterHTML = (done, tot) =>
   Array.from({ length: tot }, (_, i) => `<i class="${i < done ? 'on' : ''}"></i>`).join('');
 
-/* Completed exercises + hard sets for one day, under the current bar setting. */
+/* Completed exercises + hard sets for one day, under the current bar setting.
+   An optional section (`opt` in data.js) adds its sets when it is done but
+   never stands between you and finishing the day. */
 function dayTally(di, ch) {
   let tot = 0, done = 0, sets = 0;
   PROGRAM[di].sections.forEach((sec, si) => sec.ex.forEach((raw, ei) => {
+    const on = ch[ek(di,si,ei)];
+    if (on) sets += setsOf(resEx(raw));
+    if (sec.opt) return;
     tot++;
-    if (ch[ek(di,si,ei)]) { done++; sets += setsOf(resEx(raw)); }
+    if (on) done++;
   }));
   return { tot, done, sets };
 }
@@ -1543,6 +1548,19 @@ function skillLines() {
 }
 const setSkill = (id, i) => setLvl(id, i);
 
+/* ═══════════════════ WHOSE PROGRAM (for Settings) ═══════════════════ */
+/* Same split again: Settings paints the choice, the app knows the people
+   and what picking one means — here, a reload, because PROGRAM is read once
+   at import (see data.js). Equipment only shows while the program has a
+   `req` for it to swap. */
+const people = () => PEOPLE.map(p => ({ ...p, on: p.id === USER }));
+function setPerson(id) {
+  if (id === USER || !PEOPLE.some(p => p.id === id)) return false;
+  save(USER_KEY, id);
+  return true;
+}
+const usesKit = () => PROGRAM.some(d => d.sections.some(s => s.ex.some(e => e.req)));
+
 /* ═══════════════════ LIFECYCLE ═══════════════════ */
 export default {
   id: 'workout',
@@ -1554,7 +1572,8 @@ export default {
      each record is and how much is in it. */
   resetTargets, applyReset,
   skillLines, setSkill,
-  styles: 'apps/workout/workout.css?v=counts-sep26',
+  people, setPerson, usesKit,
+  styles: 'apps/workout/workout.css?v=users-sep26',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {

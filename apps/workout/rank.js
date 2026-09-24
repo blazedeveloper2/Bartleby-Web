@@ -36,14 +36,14 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, LADDERS } from './data.js?v=counts-sep26';
-import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, verseFor, VERSE_NOTICE } from './standards.js?v=counts-sep26';
-import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=counts-sep26';
+import { PROGRAM, LADDERS, GYM_STEP } from './data.js?v=users-sep26';
+import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, verseFor, VERSE_NOTICE } from './standards.js?v=users-sep26';
+import { load, save, remove, todayStr, dateStr } from './store.js?v=users-sep26';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=counts-sep26';
-import { checkup } from './checkup.js?v=counts-sep26';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=users-sep26';
+import { checkup } from './checkup.js?v=users-sep26';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -416,9 +416,16 @@ export const DB_MAX = DB_LADDER[DB_LADDER.length - 1];
    ladder does not describe, so both are left to the generic step.
 
    Always at least one increment, never zero — a suggestion to change the
-   weight to the weight it already is would be no suggestion at all. */
+   weight to the weight it already is would be no suggestion at all.
+
+   In a gym (GYM_STEP in data.js) there is no ladder: the rack and the
+   stacks carry on past it, in steps of their own. */
 function snapLoad(spec, wv, ideal, up) {
   const top = DB_LADDER[DB_LADDER.length - 1];
+  if (GYM_STEP) {
+    const step = Math.max(GYM_STEP, Math.round(Math.abs(ideal - wv) / GYM_STEP) * GYM_STEP);
+    return up ? wv + step : wv - step;
+  }
   if (onLadder(spec) && wv <= top) {
     const side = DB_LADDER.filter(v => up ? v > wv : v < wv);
     if (!side.length) return null;                      // out of dumbbells

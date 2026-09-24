@@ -2,6 +2,8 @@
    WORKOUT — program definition + muscle-map lookup table.
    ═══════════════════════════════════════════════════════════ */
 
+import { USER } from './store.js?v=users-sep26';
+
 /* An exercise with an `alt` names the kit it needs in `req` ('bar', 'wheel',
    'barbell'). Turn that piece of equipment off in Settings and the whole app
    — rendering, scoring, badge counts — reads the `alt` version instead, so
@@ -32,7 +34,7 @@
               's' to count seconds anyway (a kick-up set is scored by the
               hold it catches, not by the attempts), '-' for nothing (a
               stretch has no better or worse). */
-export const PROGRAM = [
+const EDRIN = [
   {day:'mon',label:'Upper · Push Focus',sections:[
     {tag:null,ex:[
       {n:'Incline Dumbbell Press',m:'Upper Chest, Front Delts, Triceps',s:'2×F',b:'30°',bc:'bench-30'},
@@ -310,6 +312,133 @@ export const PROGRAM = [
   ]},
 ];
 
+/* Andrew's program: a full gym, seven days — heavy upper and lower, then
+   push, pull and legs for volume, with two active-rest days between.
+   Written as his plan gives it, ranges included; the notes in brackets
+   there are `nt`, shown under the muscles.
+
+   Nothing here is scored in rank.js. The standards in LIFTS are for the
+   dumbbell and barbell movements in Edrin's program, and the few names
+   that overlap would score against a different implement or take their
+   rep range from LIFTS instead of this plan. So every loaded movement is
+   `ld:1` — a weight box, reps, and load advice off its own range — and
+   no dumbbell ladder: a gym has the next weight up (GYM_STEP below).
+
+   A section marked `opt` is on the card and can be ticked, but does not
+   count toward finishing the day — the rest days are done at the Zone 2
+   and the mobility. */
+const ANDREW = [
+  {day:'mon',label:'Upper · Heavy',sections:[
+    {tag:null,ex:[
+      {n:'Incline DB Press',ld:1,m:'Upper Chest, Front Delts, Triceps',s:'4×6-8'},
+      {n:'Neutral/Medium-Grip Lat Pulldown',ld:1,m:'Lats, Biceps, Rhomboids, Rear Delts',s:'4×6-8',nt:'heavy'},
+      {n:'Chest-Supported Row',ld:1,m:'Lats, Rhomboids, Traps, Rear Delts, Biceps',s:'3×6-8'},
+      {n:'Machine Chest Press',ld:1,m:'Chest, Triceps, Front Delts',s:'2×8-10',nt:'or DB Shoulder Press 3×6–10'},
+    ]},
+    {tag:'Isolation',ex:[
+      {n:'Cable Lateral Raise',ld:1,m:'Side Delts',s:'3×12-20',nt:'lean-away'},
+      {n:'Cross-Body Cable Rear Delt Fly',ld:1,m:'Rear Delts, Mid Traps, Rhomboids',s:'2×15-20'},
+      {n:'Cable Curl',ld:1,m:'Biceps, Brachialis',s:'3×8-10'},
+      {n:'Overhead Cable Extension',ld:1,m:'Triceps Long Head, Lateral Head',s:'2×12-15'},
+      {n:'Cable Wrist Curl',ld:1,m:'Wrist Flexors',s:'3×12-20',nt:'last'},
+    ]},
+  ]},
+  {day:'tue',label:'Lower · Heavy',sections:[
+    {tag:null,ex:[
+      {n:'Leg Press Machine',ld:1,m:'Quads, Glutes, Adductors',s:'4×6-10'},
+      {n:'Romanian Deadlift',ld:1,m:'Hamstrings, Glutes, Erectors',s:'4×6-10'},
+      {n:'Leg Extension',ld:1,m:'Quads',s:'3×12-15'},
+      {n:'Seated Leg Curl',ld:1,m:'Hamstrings, Gastrocnemius',s:'3×10-15'},
+      {n:'Standing Calf Raise',ld:1,m:'Gastrocnemius, Soleus',s:'4×10-15'},
+    ]},
+    {tag:'Core & Grip',ex:[
+      {n:'Cable Crunch',ld:1,m:'Upper Abs, Rectus Abdominis, Obliques',s:'3×12-15'},
+      {n:'Dead Hangs',k:'s',m:'Forearms, Lats',s:'3×F',nt:'2–3 timed sets to near-failure · very last'},
+    ]},
+  ]},
+  {day:'wed',label:'Rest+ · Zone 2',sections:[
+    {tag:null,ex:[
+      {n:'Zone 2 Cardio',k:'-',m:'Cardio',s:'1×30-45 min'},
+      {n:'Mobility',k:'-',m:'Mobility',s:'1× easy'},
+    ]},
+    {tag:'Optional · ~15 min',opt:1,ex:[
+      {n:'Reverse Curls',ld:1,m:'Brachioradialis, Brachialis, Wrist Extensors',s:'3×10-15'},
+      {n:'Wrist Extensions',ld:1,m:'Wrist Extensors',s:'2×15-20'},
+      {n:'Cross-Body Cable Rear Delt Fly',ld:1,m:'Rear Delts, Mid Traps, Rhomboids',s:'3×15-20'},
+    ]},
+  ]},
+  {day:'thu',label:'Push · Hypertrophy',sections:[
+    {tag:null,ex:[
+      {n:'Incline Smith Press',ld:1,m:'Upper Chest, Front Delts, Triceps',s:'3×8-12'},
+      {n:'Machine Chest Press',ld:1,m:'Chest, Triceps, Front Delts',s:'3×8-12'},
+      {n:'Cable Fly',ld:1,m:'Chest, Front Delts',s:'3×12-15'},
+    ]},
+    {tag:'Isolation',ex:[
+      {n:'Cable Lateral Raise',ld:1,m:'Side Delts',s:'4×15-20',nt:'lean-away'},
+      {n:'Katana / Cross-Cable Extension',ld:1,m:'Triceps Long Head, Lateral Head',s:'3×10-15'},
+      {n:'Triceps Pushdown',ld:1,m:'Lateral Head, Triceps Long Head',s:'2×12-15'},
+    ]},
+  ]},
+  {day:'fri',label:'Pull · Hypertrophy',sections:[
+    {tag:null,ex:[
+      {n:'Wide-Grip Pulldown',ld:1,m:'Lats, Rear Delts, Rhomboids, Biceps',s:'3×8-12',nt:'elbows down and out, stretch in the armpit'},
+      {n:'Chest-Supported Cable Row',ld:1,m:'Lats, Rhomboids, Traps, Rear Delts, Biceps',s:'3×10-12'},
+      {n:'Single-Arm Lat Pulldown',ld:1,m:'Lats, Biceps, Rhomboids',s:'2×10-12 /arm'},
+      {n:'Cable Lat Pullover',ld:1,m:'Lats, Serratus Anterior, Triceps Long Head',s:'3×10-15'},
+    ]},
+    {tag:'Isolation',ex:[
+      {n:'Reverse Pec Deck',ld:1,m:'Rear Delts, Mid Traps, Rhomboids',s:'3×15-20'},
+      {n:'Bayesian Curl',ld:1,m:'Biceps Long Head, Short Head',s:'3×10-15'},
+      {n:'Rope Hammer Curl',ld:1,m:'Brachialis, Brachioradialis, Biceps',s:'3×10-12',nt:'slow eccentric'},
+      {n:'Cable Wrist Curl',ld:1,m:'Wrist Flexors',s:'3×12-20',nt:'last'},
+    ]},
+  ]},
+  {day:'sat',label:'Legs · Hypertrophy',sections:[
+    {tag:'First',ex:[
+      {n:'Cable Lateral Raise',ld:1,m:'Side Delts',s:'4×12-20',nt:'lean-away'},
+    ]},
+    {tag:null,ex:[
+      {n:'Leg Press',ld:1,m:'Quads, Glutes, Adductors',s:'3×10-15'},
+      {n:'Bulgarian Split Squat',ld:1,m:'Quads, Glutes, Adductors',s:'3×10-12 /leg',nt:'or Pendulum / Single-Leg Press'},
+      {n:'Seated Leg Curl',ld:1,m:'Hamstrings, Gastrocnemius',s:'3×10-15'},
+      {n:'Hip Thrust',ld:1,m:'Glutes, Hamstrings',s:'3×8-12'},
+      {n:'Seated Calf Raise',ld:1,m:'Soleus, Gastrocnemius',s:'4×12-20'},
+    ]},
+    {tag:'Core & Grip',ex:[
+      {n:'Hanging Leg Raise',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'3×10-15'},
+      {n:'Cable Wrist Curl',ld:1,m:'Wrist Flexors',s:'3×12-20'},
+      {n:'Reverse Curls',ld:1,m:'Brachioradialis, Brachialis, Wrist Extensors',s:'2×12-15',nt:'last'},
+    ]},
+  ]},
+  {day:'sun',label:'Rest+ · Zone 2',sections:[
+    {tag:null,ex:[
+      {n:'Zone 2 Cardio',k:'-',m:'Cardio',s:'1×30-45 min'},
+      {n:'Mobility',k:'-',m:'Mobility',s:'1× easy'},
+    ]},
+    {tag:'Optional',opt:1,ex:[
+      {n:'Cable Lateral Raise',ld:1,m:'Side Delts',s:'3×15-20',nt:'lean-away'},
+      {n:'Cross-Body Cable Rear Delt Fly',ld:1,m:'Rear Delts, Mid Traps, Rhomboids',s:'3×15-20',nt:'2–3 sets'},
+      {n:'Calves / Abs',k:'-',m:'Gastrocnemius, Soleus, Rectus Abdominis',s:'1× your pick'},
+    ]},
+  ]},
+];
+
+/* Whose program runs is Settings → Program (USER in store.js). Switching
+   reloads the page rather than re-rendering: PROGRAM is read once at
+   import by everything downstream, down to the weekday table streaks are
+   counted on. */
+export const PEOPLE = [
+  { id:'edrin',  n:'Edrin',  sub:'Dumbbells, bench & calisthenics — upper/lower plus skill days.' },
+  { id:'andrew', n:'Andrew', sub:'Full gym, 7 days — heavy upper/lower, then push/pull/legs.' },
+];
+export { USER };
+export const PROGRAM = USER === 'andrew' ? ANDREW : EDRIN;
+
+/* A suggested weight snaps to Edrin's adjustable dumbbells (DB_LADDER in
+   standards.js), which stop at 52.5. A gym has no such ceiling, and its
+   dumbbells and stacks go up in fives. */
+export const GYM_STEP = USER === 'andrew' ? 5 : null;
+
 /* ── skill ladders ──
 
    An exercise naming a `line` is whichever step of that ladder you are on
@@ -545,4 +674,8 @@ export const MMAP = {
   /* psoas and iliacus, NOT the quads — they run from the lumbar spine and
      the inner pelvis to the femur, and only rectus femoris crosses the hip */
   'hip flexors':['f-hipflex-l','f-hipflex-r'],
+  /* Andrew's rest days. Real entries that light nothing, so they skip the
+     fuzzy fallback instead of matching something by accident. */
+  'cardio':[],
+  'mobility':[],
 };

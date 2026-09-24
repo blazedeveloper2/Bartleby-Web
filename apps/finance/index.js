@@ -7,10 +7,10 @@
    Local-first; event-delegated; mount/unmount.
    ═══════════════════════════════════════════════════════════ */
 
-import { DEFAULT_CATS, PALETTE } from './data.js?v=counts-sep26';
-import { load, save, todayStr } from '../../assets/js/storage.js?v=counts-sep26';
-import { toast } from '../../assets/js/ui.js?v=counts-sep26';
-import { renderNetWorth, nwClick, nwKeydown, nwReset } from './networth.js?v=counts-sep26';
+import { DEFAULT_CATS, PALETTE } from './data.js?v=users-sep26';
+import { load, save, todayStr } from '../../assets/js/storage.js?v=users-sep26';
+import { toast } from '../../assets/js/ui.js?v=users-sep26';
+import { renderNetWorth, nwClick, nwKeydown, nwReset } from './networth.js?v=users-sep26';
 
 /* ── tab bar ──
 
@@ -934,7 +934,7 @@ export default {
   id: 'finance',
   name: 'Finance',
   storagePrefix: 'fin_',
-  styles: 'apps/finance/finance.css?v=counts-sep26',
+  styles: 'apps/finance/finance.css?v=users-sep26',
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
   mount(el) {
     root = el;

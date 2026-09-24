@@ -27,6 +27,14 @@ Live apps:
   against every theme.
   See `apps/workout/standards.js` for the data and its sources.
 
+  **Settings → Program** switches whose workout the app runs: **Edrin**
+  (the default, the dumbbell-and-calisthenics program above) or **Andrew**
+  (a seven-day gym program — heavy upper/lower, push/pull/legs, two Zone 2
+  rest days). Each person keeps their own log, weights, body entries and
+  awards; see `apps/workout/store.js`. Andrew's lifts are machines and
+  cables with no published standard here, so they are tracked — weight,
+  reps, load advice off his own ranges — but not graded.
+
   A **checkup** sits under the letter and answers two questions the rest of
   the tab will not: is this going as it should, and does anything in the
   data look wrong? It catches stalled lifts, runs of back-offs, attendance

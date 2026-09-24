@@ -7,10 +7,10 @@
    To add a new app: import it and drop it into the APPS array.
    ═══════════════════════════════════════════════════════════ */
 
-import workout from '../../apps/workout/index.js?v=counts-sep26';
-import finance from '../../apps/finance/index.js?v=counts-sep26';
-import { toast } from './ui.js?v=counts-sep26';
-import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=counts-sep26';
+import workout from '../../apps/workout/index.js?v=users-sep26';
+import finance from '../../apps/finance/index.js?v=users-sep26';
+import { toast } from './ui.js?v=users-sep26';
+import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=users-sep26';
 
 // Scripture is parked in archive/ for now — to bring it back, move
 // archive/apps/scripture and archive/assets/data back to their old paths,
@@ -157,14 +157,19 @@ function buildSettings() {
     <div class="sx-card">
       <div class="sx-head"><div class="sx-title">Settings</div><button class="sx-close" data-sx="close">&times;</button></div>
       <div class="sx-body">
-        <div class="sx-sec-lbl">Theme</div>
+        ${PEOPLED ? `<div class="sx-sec-lbl">Program</div>
+        <div class="sx-eq" id="sx-who"></div>` : ''}
+
+        <div class="sx-sec-lbl${PEOPLED ? ' mt' : ''}">Theme</div>
         <div class="sx-themes" id="sx-themes"></div>
 
+        <div id="sx-eq-sec">
         <div class="sx-sec-lbl mt">Equipment</div>
         <div class="sx-eq" id="sx-eq"></div>
+        </div>
 
-        ${SKILLED.length ? `<div class="sx-sec-lbl mt">Calisthenics Level</div>
-        <div class="sx-lv" id="sx-lv"></div>` : ''}
+        ${SKILLED.length ? `<div id="sx-lv-sec"><div class="sx-sec-lbl mt">Calisthenics Level</div>
+        <div class="sx-lv" id="sx-lv"></div></div>` : ''}
 
         <div class="sx-sec-lbl mt">Data &amp; Backup</div>
         <div class="sx-usage">
@@ -192,6 +197,7 @@ function buildSettings() {
     if (act === 'close') closeSettings();
     else if (act === 'export') exportBackup();
     else if (act === 'import') el.querySelector('#sx-file').click();
+    else if (act === 'who') pickPerson(btn.dataset.id);
     else if (act === 'theme') pickTheme(btn.dataset.t);
     else if (act === 'eq') pickEquip(btn.dataset.id, btn.dataset.v === '1');
     else if (act === 'lv') pickLevel(btn.dataset.k, +btn.dataset.i);
@@ -251,6 +257,40 @@ function pickEquip(id, v) {
   syncSettings();
   broadcast();
   toast(v ? eq.toastOn : eq.toastOff);
+}
+
+/* ── whose program ──
+
+   The same app-declares, shell-paints split as the levels below: the
+   workout app knows the people (`people`/`setPerson` on its module) and
+   keeps each one's data apart; this only draws the choice. Picking one
+   reloads, since the program is fixed when the app's modules load. The
+   equipment toggles only mean something to a program that swaps on kit
+   (`usesKit`), so they leave with it. */
+const PEOPLED = APPS.find(a => a.people && a.setPerson);
+const kitInUse = () => APPS.some(a => a.usesKit ? a.usesKit() : false);
+
+function paintPeople() {
+  const el = document.getElementById('sx-who');
+  if (!el || !PEOPLED) return;
+  const list = PEOPLED.people(), at = list.find(p => p.on) || list[0];
+  el.innerHTML = `
+    <div class="sx-row">
+      <div class="sx-row-l">
+        <div class="sx-row-t">Whose workout</div>
+        <div class="sx-row-s">${at.sub} Each person keeps their own log.</div>
+      </div>
+      <div class="sx-seg">${list.map(p =>
+        `<button class="sx-seg-btn ${p.on ? 'sel' : ''}" data-sx="who" data-id="${p.id}">${p.n}</button>`).join('')}
+      </div>
+    </div>`;
+}
+
+function pickPerson(id) {
+  if (!PEOPLED?.setPerson(id)) return;
+  const p = PEOPLED.people().find(x => x.id === id);
+  toast(`Switching to ${p ? p.n : id}'s program`);
+  setTimeout(() => location.reload(), 350);
 }
 
 /* Tell the mounted app that shared state changed. */
@@ -439,7 +479,11 @@ function syncSettings() {
       </div>
     </div>`;
   }).join('');
+  el.querySelector('#sx-eq-sec').hidden = !kitInUse();
+  paintPeople();
   paintLevels();                     // the bar toggle adds and removes ladders
+  const lv = el.querySelector('#sx-lv-sec');
+  if (lv) lv.hidden = !levelRows().length;
 }
 
 function openSettings() {
