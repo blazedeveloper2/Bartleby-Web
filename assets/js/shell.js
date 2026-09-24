@@ -7,10 +7,10 @@
    To add a new app: import it and drop it into the APPS array.
    ═══════════════════════════════════════════════════════════ */
 
-import workout from '../../apps/workout/index.js?v=verdict-sep26';
-import finance from '../../apps/finance/index.js?v=verdict-sep26';
-import { toast } from './ui.js?v=verdict-sep26';
-import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=verdict-sep26';
+import workout from '../../apps/workout/index.js?v=levels-sep26';
+import finance from '../../apps/finance/index.js?v=levels-sep26';
+import { toast } from './ui.js?v=levels-sep26';
+import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=levels-sep26';
 
 // Scripture is parked in archive/ for now — to bring it back, move
 // archive/apps/scripture and archive/assets/data back to their old paths,
@@ -163,6 +163,9 @@ function buildSettings() {
         <div class="sx-sec-lbl mt">Equipment</div>
         <div class="sx-eq" id="sx-eq"></div>
 
+        ${SKILLED.length ? `<div class="sx-sec-lbl mt">Calisthenics Level</div>
+        <div class="sx-lv" id="sx-lv"></div>` : ''}
+
         <div class="sx-sec-lbl mt">Data &amp; Backup</div>
         <div class="sx-usage">
           <div class="sx-usage-top"><span>On-device storage</span><span id="sx-usage-txt"></span></div>
@@ -191,6 +194,8 @@ function buildSettings() {
     else if (act === 'import') el.querySelector('#sx-file').click();
     else if (act === 'theme') pickTheme(btn.dataset.t);
     else if (act === 'eq') pickEquip(btn.dataset.id, btn.dataset.v === '1');
+    else if (act === 'lv') pickLevel(btn.dataset.k, +btn.dataset.i);
+    else if (act === 'lv-all') toggleLadder(btn.dataset.k);
     else if (act === 'rs-tgl') toggleReset(btn.dataset.k);
     else if (act === 'rs-all') toggleResetAll();
     else if (act === 'rs-go') runReset();
@@ -250,6 +255,75 @@ function pickEquip(id, v) {
 
 /* Tell the mounted app that shared state changed. */
 const broadcast = () => window.dispatchEvent(new CustomEvent('bs:datachange'));
+
+/* ── calisthenics level ──
+
+   Same split as the danger zone below: the shell paints the controls, and
+   the app declares what its ladders are (`skillLines`/`setSkill` on the
+   module). A row is one ladder — the step you are on, where it sits on the
+   way to Elite, and what you should be able to do before the next one.
+   "All levels" opens the whole ladder, and any step in it can be picked
+   directly, which is also the way back down. */
+const SKILLED = APPS.filter(a => a.skillLines && a.setSkill);
+const TIER_CLS = { Beginner:'beg', Novice:'nov', Intermediate:'int', Advanced:'adv', Elite:'eli' };
+const tierCls = t => 't-' + (TIER_CLS[t] || 'beg');
+
+/* Which ladders are expanded, as "<appId>:<line>". Survives repaints, so
+   picking a step from an open ladder does not fold it shut under you. */
+const lvOpen = new Set();
+
+const levelRows = () => SKILLED.flatMap(app =>
+  app.skillLines().map(l => ({ ...l, app, uid: `${app.id}:${l.id}` })));
+
+function paintLevels() {
+  const el = document.getElementById('sx-lv');
+  if (!el) return;
+  const rows = levelRows();
+  if (!rows.length) { el.innerHTML = '<div class="sx-hint">No skill work in the program right now.</div>'; return; }
+
+  el.innerHTML = rows.map(l => {
+    const st = l.steps[l.at], nx = l.steps[l.at + 1], open = lvOpen.has(l.uid);
+    const pips = l.steps.map((s, i) =>
+      `<i class="${tierCls(s.tier)}${i <= l.at ? ' on' : ''}" title="${s.tier} · ${s.n}"></i>`).join('');
+    const list = !open ? '' : `<ol class="sx-lv-list">${l.steps.map((s, i) => `
+      <li><button class="sx-lv-li${i === l.at ? ' sel' : ''}" data-sx="lv" data-k="${l.uid}" data-i="${i}">
+        <span class="sx-lv-li-h"><span class="sx-lv-li-n">${i + 1}. ${s.n}</span><span class="sx-lv-tier ${tierCls(s.tier)}">${s.tier}</span></span>
+        <span class="sx-lv-li-up">${s.up ? `Move up at ${s.up}` : 'Top of the ladder'}</span>
+      </button></li>`).join('')}</ol>`;
+    return `
+    <div class="sx-lv-row">
+      <div class="sx-lv-head">
+        <div class="sx-lv-t"><span class="sx-lv-n">${l.n}</span><span class="sx-lv-tier ${tierCls(st.tier)}">${st.tier}</span></div>
+        <div class="sx-lv-step">
+          <button class="sx-seg-btn" data-sx="lv" data-k="${l.uid}" data-i="${l.at - 1}"${l.at ? '' : ' disabled'} aria-label="${l.n}: level down">&minus;</button>
+          <span class="sx-lv-at">${l.at + 1}/${l.steps.length}</span>
+          <button class="sx-seg-btn" data-sx="lv" data-k="${l.uid}" data-i="${l.at + 1}"${nx ? '' : ' disabled'} aria-label="${l.n}: level up">+</button>
+        </div>
+      </div>
+      <div class="sx-lv-ex">${st.n}</div>
+      <div class="sx-lv-bar">${pips}</div>
+      <div class="sx-lv-foot">
+        <span class="sx-lv-next">${nx ? `Next: <b>${nx.n}</b> at ${st.up}` : 'Top of the ladder.'}</span>
+        <button class="sx-lv-all" data-sx="lv-all" data-k="${l.uid}" aria-expanded="${open}">${open ? 'Hide' : 'All levels'}</button>
+      </div>
+      ${list}
+    </div>`;
+  }).join('');
+}
+
+function pickLevel(uid, i) {
+  const row = levelRows().find(r => r.uid === uid);
+  if (!row || i === row.at || !row.steps[i]) return;
+  if (!row.app.setSkill(row.id, i)) return;
+  syncSettings();
+  broadcast();
+  toast(`${row.n}: ${row.steps[i].n}`);
+}
+
+function toggleLadder(uid) {
+  if (lvOpen.has(uid)) lvOpen.delete(uid); else lvOpen.add(uid);
+  paintLevels();
+}
 
 /* ── danger zone ──
 
@@ -365,6 +439,7 @@ function syncSettings() {
       </div>
     </div>`;
   }).join('');
+  paintLevels();                     // the bar toggle adds and removes ladders
 }
 
 function openSettings() {

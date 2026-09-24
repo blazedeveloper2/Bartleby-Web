@@ -6,28 +6,28 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, MMAP } from './data.js?v=verdict-sep26';
-import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=verdict-sep26';
-import { toast } from '../../assets/js/ui.js?v=verdict-sep26';
-import { pctColor, ord, LIFTS } from './standards.js?v=verdict-sep26';
+import { PROGRAM, WEEK_ORDER, LADDERS, MMAP } from './data.js?v=levels-sep26';
+import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=levels-sep26';
+import { toast } from '../../assets/js/ui.js?v=levels-sep26';
+import { pctColor, ord, LIFTS } from './standards.js?v=levels-sep26';
 import {
   setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, icon,
-  liftScores, standingOf, resEx, resetTargets, applyReset,
+  liftScores, standingOf, resEx, resKit, lvlOf, setLvl, resetTargets, applyReset,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX,
-} from './rank.js?v=verdict-sep26';
+} from './rank.js?v=levels-sep26';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
-import { MUSCLE_SVG } from './bodymap.js?v=verdict-sep26';
-import { standingsFor } from './anthro.js?v=verdict-sep26';
+import { MUSCLE_SVG } from './bodymap.js?v=levels-sep26';
+import { standingsFor } from './anthro.js?v=levels-sep26';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor, whtrBand,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=verdict-sep26';
+} from './body.js?v=levels-sep26';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -73,6 +73,7 @@ let bwMore = false;              // chest/arm/thigh fields shown on the log form
 let bwEditDate = null;
 let mmReturnFocus = null;
 let mmEx = null;             // exercise currently open in the muscle modal
+let mmSlot = null;           // [di, si, ei] it came from, so a level change can re-resolve it
 
 const BW_RANGES = [
   {k:'7',  d:7,   lbl:'7D'},
@@ -92,7 +93,8 @@ function renderProg() {
   const sc = liftScores();
   /* Before the first day card: the verse is what you read on the way in. */
   let h = verseHTML();
-  PROGRAM.forEach((day, di) => {
+  WEEK_ORDER.forEach((di, pos) => {
+    const day = PROGRAM[di];
     let tot = 0, dn = 0;
     day.sections.forEach((sec, si) => sec.ex.forEach((_, ei) => { tot++; if (ch[ek(di,si,ei)]) dn++; }));
     const comp = dn === tot && tot > 0;
@@ -100,7 +102,7 @@ function renderProg() {
     h += `<div class="day-card" data-day="${di}">
       <div class="day-top">
         <div class="day-top-l">
-          <span class="day-idx">${pad(di + 1)}</span><span class="day-sep">//</span>
+          <span class="day-idx">${pad(pos + 1)}</span><span class="day-sep">//</span>
           <span class="day-badge ${day.day}">${day.day}</span>
           <span class="day-title">${day.label}</span>
         </div>
@@ -428,11 +430,42 @@ Your other lifts are untouched.`)) return;
     : `${name} reset`);
 }
 
+/* ── skill level ──
+
+   A laddered movement says which step it is and what passing it looks
+   like, in the same strip the weight advice uses: green and tappable while
+   there is a step above, inert at the top. Settings holds the whole ladder
+   and is the way back down. */
+function mmLvlHTML() {
+  if (!mmEx?.line || !LADDERS[mmEx.line]) return '';
+  const L = LADDERS[mmEx.line], i = lvlOf(mmEx.line), st = L.steps[i], nx = L.steps[i + 1];
+  const strip = nx
+    ? `<button class="mm-bump up" data-act="mm-lvl-up" title="Tap once you can do this on Saturday. Settings steps you back down."><span class="mm-bump-k">Next at ${st.up}</span><span class="mm-bump-v">→ ${nx.n}</span></button>`
+    : `<div class="mm-bump top"><span class="mm-bump-k">Top of the ladder</span><span class="mm-bump-v">${st.tier}</span></div>`;
+  return `<div class="mm-reps-row">
+    <div class="mm-reps-lbl">${L.n} · level ${i + 1} of ${L.steps.length}<span>${st.tier}</span></div>
+    ${strip}
+  </div>`;
+}
+
+function mmLvlUp() {
+  if (!mmEx?.line || !mmSlot) return;
+  const line = mmEx.line, i = lvlOf(line);
+  if (!setLvl(line, i + 1)) return;
+  const [di, si, ei] = mmSlot;
+  renderProg();
+  openMM(resEx(PROGRAM[di].sections[si].ex[ei]));
+  toast(`${LADDERS[line].n} → ${LADDERS[line].steps[i + 1].n}`);
+}
+
 function openMM(ex) {
-  mmReturnFocus = document.activeElement;
+  /* Re-opened in place after a level change: the focus to return to is
+     still the row that opened it, not the button that just re-rendered. */
+  if (!q('#mm-ol').classList.contains('on')) mmReturnFocus = document.activeElement;
   mmEx = ex;
   mmView('both');
   q('#mm-name').textContent = ex.n;
+  q('#mm-lvl').innerHTML = mmLvlHTML();
   paintMMStanding();
   let info = `<span class="mm-tag">${ex.s}</span>`;
   if (ex.b) info += `<span class="mm-tag">${ex.b}</span>`;
@@ -466,7 +499,7 @@ function openMM(ex) {
   q('.mm-close').focus({preventScroll:true});
 }
 function closeMM() {
-  q('#mm-ol').classList.remove('on'); mmEx = null;
+  q('#mm-ol').classList.remove('on'); mmEx = null; mmSlot = null;
   mmReturnFocus?.focus({preventScroll:true});
 }
 function mmView(view) {
@@ -1237,7 +1270,10 @@ function onClick(e) {
   const a = el.dataset;
   switch (a.act) {
     case 'tab':       switchTab(a.tab); break;
-    case 'row':       openMM(resEx(PROGRAM[+a.di].sections[+a.si].ex[+a.ei])); break;
+    case 'row':
+      mmSlot = [+a.di, +a.si, +a.ei];
+      openMM(resEx(PROGRAM[+a.di].sections[+a.si].ex[+a.ei])); break;
+    case 'mm-lvl-up': mmLvlUp(); break;
     case 'chk':       toggleChk(a.k); break;
     case 'clear':     clearChk(); break;
     case 'mm-close':  closeMM(); break;
@@ -1324,6 +1360,7 @@ function template() {
       <div class="mm-card" role="dialog" aria-modal="true" aria-labelledby="mm-name">
         <div class="mm-head"><div><div class="mm-kicker">Exercise lab</div><div class="mm-title" id="mm-name"></div></div><button class="mm-close" data-act="mm-close" aria-label="Close exercise viewer">&times;</button></div>
         <div class="mm-info" id="mm-info"></div>
+        <div id="mm-lvl"></div>
         <div class="mm-wt-row">
           <label class="mm-wt-lbl" for="mm-wt">Working weight</label>
           <div class="mm-wt-box"><input class="mm-wt-in" id="mm-wt" type="number" step="2.5" min="0" inputmode="decimal" placeholder="—"><span class="mm-wt-u">lbs</span></div>
@@ -1348,6 +1385,23 @@ function template() {
   </div>`;
 }
 
+/* ═══════════════════ SKILL LEVELS (for Settings) ═══════════════════ */
+/* Declared on the module the way resetTargets is: the shell owns the
+   controls, the app owns the ladders. Only lines the program currently
+   runs are listed, so turning the bar off takes its ladder with it. */
+function skillLines() {
+  const live = new Set();
+  PROGRAM.forEach(d => d.sections.forEach(s => s.ex.forEach(raw => {
+    const e = resKit(raw);
+    if (e.line && LADDERS[e.line]) live.add(e.line);
+  })));
+  return Object.keys(LADDERS).filter(k => live.has(k)).map(k => ({
+    id: k, n: LADDERS[k].n, at: lvlOf(k),
+    steps: LADDERS[k].steps.map(s => ({ n: s.n, tier: s.tier, up: s.up || null })),
+  }));
+}
+const setSkill = (id, i) => setLvl(id, i);
+
 /* ═══════════════════ LIFECYCLE ═══════════════════ */
 export default {
   id: 'workout',
@@ -1358,14 +1412,15 @@ export default {
      dangerous UI and the confirmation, the app owns the knowledge of what
      each record is and how much is in it. */
   resetTargets, applyReset,
-  styles: 'apps/workout/workout.css?v=verdict-sep26',
+  skillLines, setSkill,
+  styles: 'apps/workout/workout.css?v=levels-sep26',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
     root = el;
     /* activeTab deliberately survives a remount — coming back to an app
        should return you to the tab you left, not to its front page. */
-    bwRange = '30'; bwMetric = 'w'; bwMore = false; bwEditDate = null; mmEx = null;
+    bwRange = '30'; bwMetric = 'w'; bwMore = false; bwEditDate = null; mmEx = null; mmSlot = null;
     root.innerHTML = template();
     root.addEventListener('click', onClick);
     root.addEventListener('change', onChange);

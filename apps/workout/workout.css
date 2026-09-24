@@ -103,6 +103,8 @@
 
 /* â”€â”€ Day / exercise rows â”€â”€ */
 .wk .day-badge.mon{background:var(--blue)}.wk .day-badge.tue{background:var(--purple)}.wk .day-badge.thu{background:var(--amber)}.wk .day-badge.fri{background:var(--red)}.wk .day-badge.sat{background:var(--green)}
+/* The two practice days share a colour: they are one kind of day, not two */
+.wk .day-badge.wed,.wk .day-badge.sun{background:var(--pink)}
 .wk .day-badge.bw{background:var(--green)}.wk .day-badge.hist{background:var(--purple)}
 .wk .day-prog{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text-2);padding:3px 9px;border-radius:2px;background:var(--bg);box-shadow:inset 0 0 0 1px var(--border);transition:all .3s}
 .wk .day-prog.done{color:var(--ink-green);background:var(--green-d);box-shadow:inset 0 0 0 1px var(--green)}
@@ -251,6 +253,9 @@ button.mm-bump:active{transform:scale(.99)}
 .mm-bump.uncounted .mm-bump-k,.mm-bump.uncounted .mm-bump-v{color:var(--ink-red)}
 /* Nothing counted is an absence, not a verdict — same strip, quieter. */
 .mm-bump.uncounted{border-style:dashed}
+/* Top of a skill ladder: nothing to press, and nothing wrong either */
+.mm-bump.top{background:var(--blue-d);border:1px solid var(--sel-bd)}
+.mm-bump.top .mm-bump-k,.mm-bump.top .mm-bump-v{color:var(--blue)}
 
 /* â”€â”€ Where this lift stands, right under the input that changes it â”€â”€ */
 .mm-rank{display:flex;align-items:center;gap:13px;padding:13px 20px;border-bottom:1px solid var(--border)}

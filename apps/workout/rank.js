@@ -36,14 +36,14 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js?v=verdict-sep26';
-import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, verseFor, VERSE_NOTICE } from './standards.js?v=verdict-sep26';
-import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=verdict-sep26';
+import { PROGRAM, LADDERS } from './data.js?v=levels-sep26';
+import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, verseFor, VERSE_NOTICE } from './standards.js?v=levels-sep26';
+import { load, save, remove, todayStr, dateStr } from '../../assets/js/storage.js?v=levels-sep26';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=verdict-sep26';
-import { checkup } from './checkup.js?v=verdict-sep26';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=levels-sep26';
+import { checkup } from './checkup.js?v=levels-sep26';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -74,7 +74,41 @@ const OWNED = {
   barbell: () => load('bp_barbell', false),
 };
 export const owns = k => (OWNED[k] || (() => true))();
-export const resEx = ex => (ex.alt && !owns(ex.req)) ? ex.alt : ex;
+
+/* Skill levels, also owned by Settings. An exercise naming a `line` (see
+   LADDERS in data.js) is whichever step of that ladder you are on, so
+   Saturday and the two practice days always agree on what you are
+   practising. `dose` picks the prescription: Saturday's test dose by
+   default, or the practice ('p') and lighter ('l') doses, each falling
+   back to the heavier one when a step does not name its own.
+
+   Equipment resolves first, then the level: a slot that swaps to its
+   `alt` without a bar lands on the alt's own line, or on a fixed movement
+   when the alt has none. An unknown line is not a ladder at all — the
+   entry reads as written rather than as a blank row. */
+const lvlAll = () => load('bp_lvl', {});
+export function lvlOf(line) {
+  const L = LADDERS[line], i = lvlAll()[line];
+  if (!L) return 0;
+  return Number.isInteger(i) ? Math.max(0, Math.min(L.steps.length - 1, i)) : (L.start || 0);
+}
+export function setLvl(line, i) {
+  const L = LADDERS[line];
+  if (!L || !Number.isInteger(i) || i < 0 || i >= L.steps.length) return false;
+  save('bp_lvl', { ...lvlAll(), [line]: i });
+  return true;
+}
+const DOSE = { s:['s'], p:['p', 's'], l:['l', 'p', 's'] };
+function stepEx(ex) {
+  const st = LADDERS[ex.line].steps[lvlOf(ex.line)];
+  const k = (DOSE[ex.dose] || DOSE.s).find(d => st[d]);
+  return { n: st.n, m: st.m, s: st[k], b: st.b, bc: st.bc, line: ex.line };
+}
+export const resKit = ex => (ex.alt && !owns(ex.req)) ? ex.alt : ex;
+export const resEx = ex => {
+  const e = resKit(ex);
+  return e.line && LADDERS[e.line] ? stepEx(e) : e;
+};
 
 /* Reps-to-failure ASSUMPTION behind the 1RM estimate — the fallback for a
    lift whose reps have not been counted. See RECORDED REPS below. */

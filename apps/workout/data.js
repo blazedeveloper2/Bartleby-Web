@@ -75,7 +75,7 @@ export const PROGRAM = [
          sits behind four consecutive hip hinges, and a rollout on cooked
          erectors is exactly how the pelvis untucks into lumbar extension.
          No wheel swaps the crunch straight back in. */
-      {n:'Ab Wheel Rollouts',m:'Rectus Abdominis, Obliques, TVA, Lats, Serratus Anterior',s:'3×5-8',
+      {line:'rollout',
        req:'wheel', alt:{n:'Dumbbell Crunch',m:'Upper Abs, Rectus Abdominis, Obliques',s:'2×8-15',b:'Flat 0°',bc:'bench-flat'}},
       {n:'Weighted Hanging Leg Raises',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',
        req:'bar', alt:{n:'Weighted Reverse Crunches',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',b:'Flat 0°',bc:'bench-flat'}},
@@ -207,13 +207,13 @@ export const PROGRAM = [
   {day:'sat',since:'2026-08-18',label:'Upper · Calisthenics',sections:[
     {tag:'Skill',ex:[
       {n:'Wrist Prep Rocks',m:'Forearms',s:'2× easy'},
-      {n:'Wall Handstand Hold',m:'Front Delts, Side Delts, Traps, Triceps, Core',s:'3×15-30s'},
-      /* The first hand-balance a beginner can actually hold: squat, knees
-         on bent elbows, lean until the feet float. It teaches the forward
-         lean and finger-pressure balance every inversion runs on. Start at
-         3-5s holds; at a clean 20-30s, move to crow (arms straighter) and
-         start taking one foot off the wall in the handstand. */
-      {n:'Frog Stand',m:'Front Delts, Triceps, Forearms, Core',s:'3×5-20s'},
+      {line:'handstand'},
+      /* Opens on the first hand-balance a beginner can actually hold:
+         squat, knees on bent elbows, lean until the feet float. It teaches
+         the forward lean and finger-pressure balance every inversion runs
+         on. The rest of the ladder and what passes each step are in
+         LADDERS below. */
+      {line:'planche'},
       /* No-bar alts on this day stay bodyweight — a dumbbell row would keep
          the pull muscles fed but trains none of the straight-arm scapular
          control the skill work is for. Scapular push-ups need no kit at all:
@@ -221,7 +221,7 @@ export const PROGRAM = [
          blades, then push the floor away until the upper back rounds —
          elbows never bend. Protraction instead of the pull's retraction,
          which is exactly the shape a handstand loads. */
-      {n:'Scapular Pulls',m:'Lats, Mid Traps, Rhomboids, Forearms',s:'3×5-8',
+      {line:'lever',
        req:'bar', alt:{n:'Scapular Push-Ups',m:'Serratus Anterior, Traps, Core',s:'3×8-12'}},
     ]},
     {tag:null,ex:[
@@ -234,11 +234,10 @@ export const PROGRAM = [
          disguise. */
       {n:'Chin-Ups',m:'Lats, Biceps, Rhomboids, Forearms',s:'3×5-8',
        req:'bar', alt:{n:'Reverse Snow Angels',m:'Rear Delts, Mid Traps, Rhomboids',s:'3×10-15',b:'Flat 0°',bc:'bench-flat'}},
-      {n:'Push-Ups',m:'Chest, Triceps, Front Delts, Serratus Anterior, Core',s:'3×5-8'},
+      {line:'pushup'},
       /* The strength line that ends at the handstand push-up: pike on the
-         floor → feet up on the bench → chest-to-wall. Elevate the feet only
-         once 3×8 on the floor is clean. */
-      {n:'Pike Push-Ups',m:'Front Delts, Side Delts, Triceps, Upper Chest',s:'3×5-8'},
+         floor → feet up on the bench → against the wall. */
+      {line:'hspu'},
       /* Bench dips are gone. This day already ran nine pressing sets
          against no loaded pull -- there is no bar here, so the pull slot
          spends itself on scapular control instead. Dips were the redundant
@@ -261,12 +260,220 @@ export const PROGRAM = [
        Friday's RDLs left the erectors ~24h old. No wheel swaps it straight
        back to the hollow hold. */
     {tag:'Core',ex:[
-      {n:'Ab Wheel Rollouts',m:'Rectus Abdominis, Obliques, TVA, Lats, Serratus Anterior',s:'3×5-8',
-       req:'wheel', alt:{n:'Hollow Body Hold',m:'Rectus Abdominis, TVA, Hip Flexors',s:'3×15-30s'}},
-      {n:'Arch Hold',m:'Erectors, Glutes, Rear Delts, Traps',s:'3×15-30s'},
+      {line:'rollout', req:'wheel', alt:{line:'hollow'}},
+      {line:'arch'},
+    ]},
+  ]},
+  /* The two practice days, appended rather than slotted in — see WEEK_ORDER.
+     Same ladders as Saturday at a lighter dose: Saturday is where a step is
+     tested, these are where it is practised. Skill work is mostly the
+     nervous system learning a position, so it takes frequency well as long
+     as no set gets near failure — every hold ends with a few seconds still
+     in it. Wednesday sits between the lower day and the pull day and gets
+     in the way of neither. Sunday is the smaller of the two on purpose: it
+     falls between Saturday's pressing and Monday's, so it is the first
+     thing to drop if Monday's presses slip or the wrists ache the morning
+     after. */
+  {day:'wed',since:'2026-09-23',label:'Skill Practice',sections:[
+    {tag:'Skill',ex:[
+      {n:'Wrist Prep Rocks',m:'Forearms',s:'2× easy'},
+      {line:'handstand',dose:'p'},
+      {line:'planche',dose:'p'},
+    ]},
+    {tag:'Body Line',ex:[
+      {line:'hollow',dose:'p'},
+    ]},
+  ]},
+  {day:'sun',since:'2026-09-23',label:'Skill · Mobility',sections:[
+    {tag:'Skill',ex:[
+      {n:'Wrist Prep Rocks',m:'Forearms',s:'2× easy'},
+      {line:'planche',dose:'l'},
+      {line:'handstand',dose:'l'},
+    ]},
+    {tag:'Mobility',ex:[
+      /* Hands on the bench, hips back, chest sinking toward the floor.
+         Tight overhead shoulders are what bend a handstand into a banana,
+         and this is the one thing on the day that is not the skill itself. */
+      {n:'Bench Shoulder Stretch',m:'Lats, Triceps Long Head, Chest',s:'2×30s',b:'Flat 0°',bc:'bench-flat'},
     ]},
   ]},
 ];
+
+/* ── skill ladders ──
+
+   An exercise naming a `line` is whichever step of that ladder you are on
+   (Settings → Calisthenics Level), resolved by resEx() in rank.js like the
+   equipment `alt` is. Each step carries:
+     n, m    name and muscles, as any exercise
+     tier    Beginner → Novice → Intermediate → Advanced → Elite
+     s       Saturday's prescription, where the step is tested
+     p, l    the practice and lighter doses (Wed, Sun); each falls back to
+             the heavier one when a step does not name its own
+     up      what you should be able to do before moving on — the top step
+             has none
+
+   `start` is the step a ladder opens on before any level is set: the one
+   the program already prescribed, so adding a ladder never changes what
+   anyone's Saturday says. Steps below it are there to step down to.
+
+   A different step is a different exercise, with its own name and so its
+   own weight and rep history. Checkmarks and the session log are keyed by
+   the slot, not the name, so changing a level never touches either.
+
+   Keep every prescription in the "sets×target" shape: the leading number
+   is what the volume tally counts.
+
+   SOURCES. The order and the level of each step follow Steven Low's
+   Overcoming Gravity (2nd ed.) progression charts; the move-up rule for
+   reps is the r/bodyweightfitness Recommended Routine's — start a step at
+   3×5, add a rep a session, move on at 3×8 — and 30s is its bar for holds.
+   Hold benchmarks with a named source are marked where they are used.
+   The tiers are relative to each ladder, so the top of one reads Elite:
+   OG2's own scale files some of these tops (the full front lever, the
+   one-arm push-up) lower than its hardest skills. Where no source gives a
+   number the one here is a judgement call, and says so. Chin-ups are not
+   laddered on purpose: they progress by added load, which the Rank tab
+   already scores up to the top tier, and OG2 rates a one-arm chin-up at
+   about the same level as a +90% bodyweight pull-up anyway. */
+export const LADDERS = {
+  /* Chest to the wall throughout: it teaches the straight line a
+     freestanding handstand needs, where back-to-wall teaches an arch.
+     Toe pulls are Low's 15–20s bar; the 60s before pressing and one-arm
+     work is GMB's. OG2 files the one-arm handstand as Advanced — nothing
+     above it on its chart needs no rings. */
+  handstand: { n:'Handstand', steps:[
+    { n:'Wall Handstand Hold', tier:'Beginner', m:'Front Delts, Side Delts, Traps, Triceps, Core',
+      s:'3×15-30s', p:'5×10-20s', l:'3×10-15s', up:'3×30s in a straight line, chest to the wall' },
+    { n:'Wall Toe Pulls', tier:'Novice', m:'Front Delts, Side Delts, Traps, Triceps, Forearms, Core',
+      s:'5×5-15s off the wall', p:'5×5-10s off the wall', l:'3×5-10s off the wall', up:'15-20s off the wall' },
+    { n:'Freestanding Kick-Ups', tier:'Novice', m:'Front Delts, Side Delts, Traps, Triceps, Forearms, Core',
+      s:'6×3 attempts', p:'5×3 attempts', l:'3×3 attempts', up:'30s freestanding, most sessions' },
+    { n:'Freestanding Handstand', tier:'Intermediate', m:'Front Delts, Side Delts, Traps, Triceps, Forearms, Core',
+      s:'6×15-45s', p:'5×10-30s', l:'3×10-30s', up:'60s, comfortably' },
+    { n:'Straddle Press to Handstand', tier:'Advanced', m:'Front Delts, Traps, Triceps, Hip Flexors, Core',
+      s:'5×1-3', p:'4×1-2', l:'3×1-2', up:'3×3 slow presses' },
+    { n:'One-Arm Handstand', tier:'Elite', m:'Front Delts, Side Delts, Traps, Triceps, Forearms, Obliques, Core',
+      s:'6×5-15s /side', p:'4×5-10s /side', l:'3×5-10s /side' },
+  ]},
+  /* Frog stand is the bottom of OG2's planche column, not a side road to
+     crow — crow is the same position with the knees higher. The planche
+     column is headed for parallel bars OR the floor, so none of this needs
+     kit; what limits it on the floor is the wrists, so the prep rocks stay
+     in front of it whatever step this is. Holds are the RR's 3×30s to
+     leave the frog stand, then 5×20s (GMB) for every lever position. */
+  planche: { n:'Planche', steps:[
+    { n:'Frog Stand', tier:'Beginner', m:'Front Delts, Triceps, Forearms, Core',
+      s:'3×5-30s', p:'5×5-15s', l:'3×5-15s', up:'3×30s' },
+    { n:'Straight-Arm Frog Stand', tier:'Novice', m:'Front Delts, Serratus Anterior, Triceps, Forearms, Core',
+      s:'5×10-20s', p:'4×5-15s', l:'3×5-15s', up:'5×20s' },
+    { n:'Tuck Planche', tier:'Intermediate', m:'Front Delts, Serratus Anterior, Triceps, Forearms, Core',
+      s:'5×5-20s', p:'4×5-10s', l:'3×5-10s', up:'5×20s' },
+    { n:'Advanced Tuck Planche', tier:'Intermediate', m:'Front Delts, Serratus Anterior, Triceps, Forearms, Core',
+      s:'5×5-20s', p:'4×5-10s', l:'3×5-10s', up:'5×20s, back flat' },
+    { n:'Straddle Planche', tier:'Advanced', m:'Front Delts, Serratus Anterior, Triceps, Forearms, Core, Glutes',
+      s:'5×5-20s', p:'4×5-10s', l:'3×5-10s', up:'5×20s' },
+    { n:'Half-Lay Planche', tier:'Advanced', m:'Front Delts, Serratus Anterior, Triceps, Forearms, Core, Glutes',
+      s:'5×5-20s', p:'4×5-10s', l:'3×5-10s', up:'5×20s' },
+    { n:'Full Planche', tier:'Elite', m:'Front Delts, Serratus Anterior, Triceps, Forearms, Core, Glutes',
+      s:'5×3-15s', p:'4×3-8s', l:'3×3-8s' },
+  ]},
+  /* Bar only — without one the slot is scapular push-ups, which have no
+     published ladder and stay as they are. Scap pulls then arch hangs are
+     the bottom of the RR's pull-up line; OG2 puts the tuck front lever
+     level with L-sit pull-ups, hence the chin-up gate on the arch hang.
+     OG2 runs straddle before half-lay, and so does this. */
+  lever: { n:'Front Lever', steps:[
+    { n:'Scapular Pulls', tier:'Beginner', m:'Lats, Mid Traps, Rhomboids, Forearms', s:'3×5-8', up:'3×8' },
+    { n:'Arch Hangs', tier:'Beginner', m:'Lats, Mid Traps, Rhomboids, Rear Delts, Forearms', s:'3×5-8',
+      up:'3×8, with chin-ups at 3×8' },
+    { n:'Tuck Front Lever', tier:'Novice', m:'Lats, Rear Delts, Mid Traps, Rhomboids, Core, Forearms',
+      s:'5×10-20s', up:'5×20s' },
+    { n:'Advanced Tuck Front Lever', tier:'Intermediate', m:'Lats, Rear Delts, Mid Traps, Rhomboids, Core, Forearms',
+      s:'5×10-20s', up:'5×20s, back flat' },
+    { n:'Straddle Front Lever', tier:'Advanced', m:'Lats, Rear Delts, Mid Traps, Rhomboids, Core, Forearms',
+      s:'5×5-20s', up:'5×20s' },
+    { n:'Half-Lay Front Lever', tier:'Advanced', m:'Lats, Rear Delts, Mid Traps, Rhomboids, Core, Forearms',
+      s:'5×5-20s', up:'5×20s' },
+    { n:'Full Front Lever', tier:'Elite', m:'Lats, Rear Delts, Mid Traps, Rhomboids, Core, Forearms', s:'5×3-15s' },
+  ]},
+  /* The RR's line to diamond and the decline, then OG2's one-arm route.
+     Pseudo-planche push-ups are the other branch out of the archer; they
+     are left out because the planche ladder above already trains that
+     lean. */
+  pushup: { n:'Push-Up', steps:[
+    { n:'Push-Ups', tier:'Beginner', m:'Chest, Triceps, Front Delts, Serratus Anterior, Core', s:'3×5-8', up:'3×8' },
+    { n:'Diamond Push-Ups', tier:'Novice', m:'Triceps, Chest, Front Delts, Serratus Anterior, Core', s:'3×5-8', up:'3×8' },
+    { n:'Decline Push-Ups', tier:'Novice', m:'Upper Chest, Front Delts, Triceps, Serratus Anterior, Core', s:'3×5-8',
+      b:'Flat 0°', bc:'bench-flat', up:'3×8' },
+    { n:'Archer Push-Ups', tier:'Intermediate', m:'Chest, Triceps, Front Delts, Core', s:'3×5-8 /side', up:'3×8 /side' },
+    { n:'Incline One-Arm Push-Ups', tier:'Advanced', m:'Chest, Triceps, Front Delts, Obliques, Core', s:'3×3-5 /side',
+      b:'Flat 0°', bc:'bench-flat', up:'3×5 /side' },
+    { n:'One-Arm Push-Ups', tier:'Advanced', m:'Chest, Triceps, Front Delts, Obliques, Core', s:'3×3-5 /side',
+      up:'3×5 /side, wide stance' },
+    { n:'One-Arm Push-Ups, Feet Together', tier:'Elite', m:'Chest, Triceps, Front Delts, Obliques, Core', s:'3×3-5 /side' },
+  ]},
+  /* OG2's handstand push-up column. A wall push-up to the head is the
+     headstand push-up (OG2 L4); full range means the hands are raised —
+     books or yoga blocks, not the adjustable dumbbells, which roll. The
+     freestanding version wants a 30s freestanding handstand first. */
+  hspu: { n:'Handstand Push-Up', steps:[
+    { n:'Pike Push-Ups', tier:'Beginner', m:'Front Delts, Side Delts, Triceps, Upper Chest', s:'3×5-8', up:'3×8' },
+    { n:'Elevated Pike Push-Ups', tier:'Novice', m:'Front Delts, Side Delts, Triceps, Upper Chest', s:'3×5-8',
+      b:'Flat 0°', bc:'bench-flat', up:'3×8' },
+    { n:'Wall Handstand Push-Up Negatives', tier:'Novice', m:'Front Delts, Side Delts, Triceps, Traps', s:'3×3-5',
+      up:'3×5, 3-5s down to the head' },
+    { n:'Wall Handstand Push-Ups', tier:'Intermediate', m:'Front Delts, Side Delts, Triceps, Traps', s:'3×5-8',
+      up:'3×8, head to the floor' },
+    { n:'Deficit Wall Handstand Push-Ups', tier:'Advanced', m:'Front Delts, Side Delts, Triceps, Traps', s:'3×5-8',
+      up:'3×8, and a 30s freestanding handstand' },
+    { n:'Freestanding Handstand Push-Ups', tier:'Elite', m:'Front Delts, Side Delts, Triceps, Traps, Core', s:'4×1-5' },
+  ]},
+  /* OG2's ab wheel column, from the kneeling rollout this program already
+     runs. The partial kneeling step below it is a judgement call — OG2
+     has planks there — and so is the load at the top: nothing here holds
+     a dumbbell through a rollout, but a loaded backpack does. */
+  rollout: { n:'Ab Wheel', start:1, steps:[
+    { n:'Kneeling Rollouts to a Wall', tier:'Beginner', m:'Rectus Abdominis, Obliques, TVA, Lats, Serratus Anterior', s:'3×5-8', up:'3×8' },
+    { n:'Ab Wheel Rollouts', tier:'Novice', m:'Rectus Abdominis, Obliques, TVA, Lats, Serratus Anterior', s:'3×5-8',
+      up:'3×8 to full extension, pelvis tucked' },
+    { n:'Standing Rollouts to a Wall', tier:'Intermediate', m:'Rectus Abdominis, Obliques, TVA, Lats, Serratus Anterior', s:'3×5-8', up:'3×8' },
+    { n:'Standing Rollout Negatives', tier:'Advanced', m:'Rectus Abdominis, Obliques, TVA, Lats, Serratus Anterior', s:'3×3-5',
+      up:'3×5 slow, pelvis tucked' },
+    { n:'Standing Ab Wheel Rollouts', tier:'Advanced', m:'Rectus Abdominis, Obliques, TVA, Lats, Serratus Anterior, Hip Flexors', s:'3×5-8', up:'3×8' },
+    { n:'Weighted Standing Rollouts', tier:'Elite', m:'Rectus Abdominis, Obliques, TVA, Lats, Serratus Anterior, Hip Flexors', s:'3×3-5' },
+  ]},
+  /* A position drill, not a strength ladder, so it stops at rocks and at
+     Intermediate — past that the ab wheel is where core strength goes.
+     The overhead hold's minute is Antranik's "one solid minute". */
+  hollow: { n:'Hollow Body', start:2, steps:[
+    { n:'Tuck Hollow Hold', tier:'Beginner', m:'Rectus Abdominis, TVA, Hip Flexors', s:'3×15-30s', p:'2×15-20s', up:'3×30s, lower back flat' },
+    { n:'One-Leg Hollow Hold', tier:'Beginner', m:'Rectus Abdominis, TVA, Hip Flexors', s:'3×15-30s', p:'2×15-20s', up:'3×30s, lower back flat' },
+    { n:'Hollow Body Hold', tier:'Novice', m:'Rectus Abdominis, TVA, Hip Flexors', s:'3×15-30s', p:'2×15-20s', up:'3×30s, lower back flat' },
+    { n:'Overhead Hollow Hold', tier:'Intermediate', m:'Rectus Abdominis, TVA, Hip Flexors, Lats', s:'3×20-60s', p:'2×15-30s', up:'60s, lower back flat' },
+    { n:'Hollow Body Rocks', tier:'Intermediate', m:'Rectus Abdominis, TVA, Hip Flexors', s:'3×15-20', p:'2×10-15' },
+  ]},
+  /* Short on purpose: nothing published takes the arch hold much further
+     without a bar. The rocks' numbers and the loaded top step are a
+     judgement call; the bench reverse hyper is the RR's own back exercise. */
+  arch: { n:'Arch Body', steps:[
+    { n:'Arch Hold', tier:'Beginner', m:'Erectors, Glutes, Rear Delts, Traps', s:'3×15-30s', up:'3×30s' },
+    { n:'Overhead Arch Hold', tier:'Novice', m:'Erectors, Glutes, Rear Delts, Traps', s:'3×20-60s', up:'60s' },
+    { n:'Arch Body Rocks', tier:'Intermediate', m:'Erectors, Glutes, Rear Delts, Traps', s:'3×10-20', up:'3×20' },
+    { n:'Reverse Hyperextensions', tier:'Intermediate', m:'Glutes, Hamstrings, Erectors', s:'3×8-12',
+      b:'Flat 0°', bc:'bench-flat', up:'3×12' },
+    { n:'Weighted Reverse Hyperextensions', tier:'Advanced', m:'Glutes, Hamstrings, Erectors', s:'3×8-12',
+      b:'Flat 0°', bc:'bench-flat' },
+  ]},
+};
+
+/* Display order, Monday first. A day's position in PROGRAM is its stored
+   id — bp_log's `di` and every checkmark key are that index — so a new day
+   is appended to the array, never inserted, and put in its place here.
+   Inserting Wednesday between Tuesday and Thursday would quietly turn every
+   Thursday already logged into a Wednesday. */
+const MON_FIRST = { mon:0, tue:1, wed:2, thu:3, fri:4, sat:5, sun:6 };
+export const WEEK_ORDER = PROGRAM.map((_, i) => i)
+  .sort((a, b) => MON_FIRST[PROGRAM[a].day] - MON_FIRST[PROGRAM[b].day]);
 
 /* Muscle name → SVG region id(s) on the body map.
 
