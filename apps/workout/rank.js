@@ -36,15 +36,15 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, LADDERS, GYM_STEP } from './data.js?v=since-sep24';
-import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, ord, verseFor, VERSE_NOTICE } from './standards.js?v=since-sep24';
-import { load, save, remove, todayStr, dateStr } from './store.js?v=since-sep24';
+import { PROGRAM, LADDERS, GYM_STEP } from './data.js?v=nodrop-sep24';
+import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, ord, verseFor, VERSE_NOTICE } from './standards.js?v=nodrop-sep24';
+import { load, save, remove, todayStr, dateStr } from './store.js?v=nodrop-sep24';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=since-sep24';
-import { checkup } from './checkup.js?v=since-sep24';
-import { gripOn, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_HOW } from './grip.js?v=since-sep24';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=nodrop-sep24';
+import { checkup } from './checkup.js?v=nodrop-sep24';
+import { gripOn, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_HOW } from './grip.js?v=nodrop-sep24';
 
 /* ── storage ── */
 /* Sorted on the way in as well as on the way out: everything here reads
@@ -263,10 +263,7 @@ const sReps = r => save('bp_reps', r);
    about the same lift at 60, so a recording whose weight no longer matches
    is stale and scoring falls back to the assumption rather than carrying
    the old count forward onto a new load. Stale is shown, not silently
-   dropped — it is the prompt to count again.
-
-   The spread between sets is not strength data, but it is data: see
-   dropOff() for what it is worth and what it is not. */
+   dropped — it is the prompt to count again. */
 const xrepsAll = () => load('bp_xreps', {});
 const xrepsSv  = m => save('bp_xreps', m);
 
@@ -303,32 +300,6 @@ export function repsRead(name, spec, wv, dial, all) {
    design, so the flag is common rather than exceptional, and it marks the
    1RM approximate rather than hiding it. */
 const EPLEY_SOFT_MAX = 12;
-
-/* What the spread between sets says. Not strength — the drop is fatigue,
-   and fatigue is what the second set is for. What it does say is whether
-   the FIRST set was the honest max the 1RM is being read off:
-
-     no drop at all  a set that repeats exactly is usually a set that
-                     stopped short of failure on the way, so the best set
-                     understates and so does the rank
-     a huge drop     either the first set went well past failure or the
-                     rest between them was too short to call them the same
-                     effort; either way the pair is not one clean reading
-
-   Both are reasons to trust the estimate less. Neither is a reason to
-   change the number, so this only ever annotates. */
-export function dropOff(sets) {
-  const s = (sets || []).filter(n => n > 0);
-  if (s.length < 2) return null;
-  const best = Math.max(...s), worst = Math.min(...s);
-  const lost = (best - worst) / best;
-  if (best - worst === 0) return { kind:'flat', best, worst,
-    t:'Identical sets usually mean the first stopped short — the estimate is probably low.' };
-  if (lost > 0.4) return { kind:'steep', best, worst,
-    t:`${best}→${worst} is a steep fall: too little rest, or a first set taken past failure. Trust the estimate less.` };
-  return { kind:'normal', best, worst,
-    t:`${best}→${worst} is ordinary fatigue. Only the ${best} scores.` };
-}
 
 /* ── when the reps say the weight is wrong ──
 
@@ -873,7 +844,7 @@ function scoreAll(w, bodyweight, ref, r, reach, grip) {
       oneRMLabel: spec.mode === 'added' ? 'est. 1RM added' : 'est. 1RM',
       /* how that 1RM was arrived at — counted, or assumed and from where */
       reps: rr.n, repsLogged: rr.logged, repsStale: rr.stale, repsStaleW: rr.staleW,
-      repSets: rr.sets, repsDate: rr.d, drop: rr.logged ? dropOff(rr.sets) : null,
+      repSets: rr.sets, repsDate: rr.d,
       /* Epley past ~12 reps is a long extrapolation off one linear term,
          so the number is printed with a qualifier rather than a decimal. */
       approx: rr.n > EPLEY_SOFT_MAX,
@@ -1609,7 +1580,6 @@ function liftsHTML(st) {
               ? `+${l.need < 1 ? l.need.toFixed(1) : Math.round(l.need)} lbs → ${l.rank.next.l}`
               : 'maxed'}</span>
       </div>
-      ${l.drop && l.drop.kind !== 'normal' ? `<div class="rk-lift-drop">${l.drop.t}</div>` : ''}
     </div>`).join('');
 
   const repBtns = REP_OPTS.map(r =>

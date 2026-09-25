@@ -711,8 +711,6 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 /* Scored and kept, but not in the average — dimmed so the eye reads the
    sheet first and finds the rest when it goes looking. */
 .rk-lift.off-sheet{opacity:.62}
-.rk-lift-drop{margin-top:8px;font-size:11px;line-height:1.55;color:var(--text-3);
-  border-left:2px solid var(--border-lt);padding-left:9px}
 .rk-lift-r{font-family:var(--mono);font-size:17px;font-weight:700;line-height:1;flex-shrink:0}
 .rk-lift-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:9px;font-size:10px;color:var(--text-3);font-family:var(--mono);flex-wrap:wrap}
 .rk-lift-foot b{color:var(--text-2);font-weight:700}
