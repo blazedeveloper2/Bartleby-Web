@@ -258,6 +258,11 @@
 .mm-reps-lbl{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-3)}
 .mm-reps-lbl>span{display:block;font-size:10px;letter-spacing:0;text-transform:none;font-weight:400;margin-top:3px;opacity:.85}
 .mm-sets{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.mm-reps-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.mm-sets-clr{flex:none;font-family:var(--font);font-size:11px;font-weight:600;color:var(--text-2);background:var(--bg);
+  border:1px solid var(--border);border-radius:var(--rs);padding:5px 10px;cursor:pointer;transition:color .15s,border-color .15s}
+.mm-sets-clr:hover{color:var(--text);border-color:var(--border-lt);background:var(--bg-hover)}
+.mm-sets-clr:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
 .mm-set{display:flex;align-items:center;gap:7px;background:var(--bg);border:1px solid var(--border);
   border-radius:var(--rs);padding:6px 10px;transition:border-color .15s}
 .mm-set:focus-within{border-color:var(--green)}
