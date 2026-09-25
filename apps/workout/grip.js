@@ -27,8 +27,8 @@
    off hides the card; the readings stay.
    ═══════════════════════════════════════════════════════════ */
 
-import { load, save, todayStr } from './store.js?v=eqrow-sep24';
-import { normCdf } from './anthro.js?v=eqrow-sep24';
+import { load, save, todayStr } from './store.js?v=since-sep24';
+import { normCdf } from './anthro.js?v=since-sep24';
 
 export const GRIP_KEY = 'bp_dyno';
 export const gripOn = () => load(GRIP_KEY, true);

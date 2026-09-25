@@ -36,18 +36,21 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, LADDERS, GYM_STEP } from './data.js?v=eqrow-sep24';
-import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, ord, verseFor, VERSE_NOTICE } from './standards.js?v=eqrow-sep24';
-import { load, save, remove, todayStr, dateStr } from './store.js?v=eqrow-sep24';
+import { PROGRAM, LADDERS, GYM_STEP } from './data.js?v=since-sep24';
+import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, ord, verseFor, VERSE_NOTICE } from './standards.js?v=since-sep24';
+import { load, save, remove, todayStr, dateStr } from './store.js?v=since-sep24';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=eqrow-sep24';
-import { checkup } from './checkup.js?v=eqrow-sep24';
-import { gripOn, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_HOW } from './grip.js?v=eqrow-sep24';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=since-sep24';
+import { checkup } from './checkup.js?v=since-sep24';
+import { gripOn, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_HOW } from './grip.js?v=since-sep24';
 
 /* ── storage ── */
-const logAll = () => load('bp_log', []);
+/* Sorted on the way in as well as on the way out: everything here reads
+   log[0] as the first session and the last entry as the latest, and a log
+   that arrived by import or by hand is not guaranteed to be in order. */
+const logAll = () => sortByDate(load('bp_log', []));
 const logSv  = l => save('bp_log', sortByDate(l));
 const prAll  = () => load('bp_pr', []);
 const prSv   = l => save('bp_pr', sortByDate(l));
@@ -1803,6 +1806,47 @@ function owedThisWeek(s) {
   return out;
 }
 
+/* How long you have been at it, the way you would say it when asked:
+   "3 weeks", "4 months, 2 weeks", "1 year, 3 months". Calendar months
+   rather than 30-day blocks, so Jan 31 to Feb 28 is not "4 weeks" one
+   year and "1 month" the next. Measured from the first session, breaks
+   included — it answers "how long have you been training", not "how many
+   days did you train", which is what the session count is for. */
+function trainingFor(firstDate) {
+  const a = dOf(firstDate), b = dOf(todayStr());
+  let months = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+  /* the same day m months on, held to that month's last day — Jan 31 plus
+     one month is Feb 28, not Mar 3 */
+  const at = m => {
+    const y = a.getFullYear(), mo = a.getMonth() + m;
+    return new Date(y, mo, Math.min(a.getDate(), new Date(y, mo + 1, 0).getDate()));
+  };
+  if (at(months) > b) months--;
+  const days = Math.round((b - at(months)) / 86400000);
+  const n = (v, w) => `${v} ${w}${v === 1 ? '' : 's'}`;
+  if (months >= 12) {
+    const y = Math.floor(months / 12), m = months % 12;
+    return m ? `${n(y, 'year')}, ${n(m, 'month')}` : n(y, 'year');
+  }
+  if (months >= 1) {
+    const w = Math.floor(days / 7);
+    return w ? `${n(months, 'month')}, ${n(w, 'week')}` : n(months, 'month');
+  }
+  if (days >= 7) {
+    const w = Math.floor(days / 7), r = days % 7;
+    return r ? `${n(w, 'week')}, ${n(r, 'day')}` : n(w, 'week');
+  }
+  return days ? n(days, 'day') : 'Started today';
+}
+
+function sinceHTML(s) {
+  if (!s.firstDate) return '';
+  const yr = dOf(s.firstDate).getFullYear() !== new Date().getFullYear()
+    ? `, ${dOf(s.firstDate).getFullYear()}` : '';
+  return `<div class="pg-card rk-next"><span class="pg-kicker">Training For</span>
+    <div><span class="pg-next-w">${trainingFor(s.firstDate)}</span> · since ${fmtD(s.firstDate)}${yr}</div></div>`;
+}
+
 function nextUpHTML(s) {
   const now = new Date();
   const owed = owedThisWeek(s);
@@ -2057,6 +2101,7 @@ export function renderStreak(root) {
     ${tile('This Week', `${s.weekDone}/${s.weekTarget}`, '', s.weekDone >= s.weekTarget ? 'perfect' : '')}
     ${tile('Sessions', fmtN(s.sessions), '', s.sets ? `${fmtN(s.sets)} sets` : '', s.sessions)}
   </div>`;
+  h += sinceHTML(s);
   h += `<div class="pg-card rk-next"><span class="pg-kicker">Next Session</span><div>${nextUpHTML(s)}</div></div>`;
   h += heatmapHTML(s);
   h += historyHTML(s);
