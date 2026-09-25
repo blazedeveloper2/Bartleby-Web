@@ -7,10 +7,10 @@
    To add a new app: import it and drop it into the APPS array.
    ═══════════════════════════════════════════════════════════ */
 
-import workout from '../../apps/workout/index.js?v=users-sep26';
-import finance from '../../apps/finance/index.js?v=users-sep26';
-import { toast } from './ui.js?v=users-sep26';
-import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=users-sep26';
+import workout from '../../apps/workout/index.js?v=grip-sep24';
+import finance from '../../apps/finance/index.js?v=grip-sep24';
+import { toast } from './ui.js?v=grip-sep24';
+import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=grip-sep24';
 
 // Scripture is parked in archive/ for now — to bring it back, move
 // archive/apps/scripture and archive/assets/data back to their old paths,
@@ -244,6 +244,14 @@ const EQUIP = [
     subOn:'RDLs, front squats & hip thrusts run on the bar.',
     subOff:'Dumbbell versions, as the program is written.',
     toastOn:'Barbell lifts on', toastOff:'Back to the dumbbell versions' },
+  /* Not a swap: no exercise has a `req` for it. It shows or hides the grip
+     card on the Rank tab (apps/workout/grip.js, whose default must match),
+     and a grip means something in any program — so it stays in the list
+     when the kit rows above leave with a program that has no use for them. */
+  { id:'dyno', key:'bp_dyno', always:true, name:'Grip Dynamometer', on:'Have One', off:'No Dynamometer',
+    subOn:'Log your grip on the Rank tab and it ranks against men your age.',
+    subOff:'Grip card hidden. Any readings you logged are kept.',
+    toastOn:'Grip strength on the Rank tab', toastOff:'Grip card hidden — readings kept' },
 ];
 const eqOn = eq => {
   const d = eq.def ?? true;
@@ -465,7 +473,9 @@ function syncSettings() {
       <span class="sx-tick"></span>
     </button>`).join('');
 
-  el.querySelector('#sx-eq').innerHTML = EQUIP.map(eq => {
+  const kit = kitInUse();
+  const shown = EQUIP.filter(eq => eq.always || kit);
+  el.querySelector('#sx-eq').innerHTML = shown.map(eq => {
     const on = eqOn(eq);
     return `
     <div class="sx-row">
@@ -479,7 +489,7 @@ function syncSettings() {
       </div>
     </div>`;
   }).join('');
-  el.querySelector('#sx-eq-sec').hidden = !kitInUse();
+  el.querySelector('#sx-eq-sec').hidden = !shown.length;
   paintPeople();
   paintLevels();                     // the bar toggle adds and removes ladders
   const lv = el.querySelector('#sx-lv-sec');

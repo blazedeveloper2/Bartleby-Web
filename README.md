@@ -35,6 +35,21 @@ Live apps:
   cables with no published standard here, so they are tracked — weight,
   reps, load advice off his own ranges — but not graded.
 
+  **Grip strength** has its own card on the Rank tab, for a hand
+  dynamometer. Log the best squeeze of each hand (pounds or kilograms — tap
+  the unit in the field label) and the better hand is ranked against men your
+  age, with its own letter on the same scale as the lifts, the percentile,
+  and what the next letter takes. The norms are
+  [Dodds et al. 2014](https://pmc.ncbi.nlm.nih.gov/articles/PMC4256164/)
+  (49,964 people, twelve British studies, centiles at every fifth year of
+  age, best of either hand). With no age set it compares you with men at
+  their peak, 30–39, and says so. It stays out of the lift average: the
+  letter above is a composite of working weights, and a different kind of
+  measurement folded in would move it without anyone lifting anything.
+  **Settings → Equipment → Grip Dynamometer** (on by default, shown for
+  every program) hides the card; the readings are kept. See
+  `apps/workout/grip.js`.
+
   A **checkup** sits under the letter and answers two questions the rest of
   the tab will not: is this going as it should, and does anything in the
   data look wrong? It catches stalled lifts, runs of back-offs, attendance
@@ -195,6 +210,7 @@ Archived (parked in `archive/`, not loaded by the shell — see
 equipment toggles, and backup. Pull-up bar and ab wheel default on; the
 barbell defaults off, and turning it on swaps the RDLs, the goblet squat and
 the hip thrust for their barbell versions, each scored on its own standard.
+The grip dynamometer defaults on and shows or hides the grip card.
 
 All data is stored locally in your browser (`localStorage`). Nothing is sent
 anywhere. Use **Settings → Export Backup** to save a `.json` file before
@@ -239,7 +255,7 @@ Bartleby Web/
 │       └── ui.js             # toast helper
 ├── apps/
 │   ├── workout/              # index.js + data.js + rank.js + standards.js
-│   │                         #   + body.js + anthro.js + checkup.js
+│   │                         #   + body.js + anthro.js + grip.js + checkup.js
 │   │                         #   + bodymap.js + howto.js + workout.css
 │   └── finance/              # index.js + networth.js + data.js + finance.css
 ├── archive/                  # parked apps, kept but not loaded by the shell

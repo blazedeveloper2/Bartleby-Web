@@ -22,15 +22,15 @@
    wrong person's data.
    ═══════════════════════════════════════════════════════════ */
 
-import { load as ld, save as sv, remove as rm } from '../../assets/js/storage.js?v=users-sep26';
-export { todayStr, dateStr } from '../../assets/js/storage.js?v=users-sep26';
+import { load as ld, save as sv, remove as rm } from '../../assets/js/storage.js?v=grip-sep24';
+export { todayStr, dateStr } from '../../assets/js/storage.js?v=grip-sep24';
 
 export const USER_KEY = 'bp_user';
 export const USERS = ['edrin', 'andrew'];      // the ids in PEOPLE, data.js
 const who = ld(USER_KEY, 'edrin');
 export const USER = USERS.includes(who) ? who : 'edrin';
 
-const SHARED = new Set([USER_KEY, 'bp_bar', 'bp_wheel', 'bp_barbell']);
+const SHARED = new Set([USER_KEY, 'bp_bar', 'bp_wheel', 'bp_barbell', 'bp_dyno']);
 const own = key => USER === 'edrin' || SHARED.has(key) || !key.startsWith('bp_')
   ? key : `bp_${USER}_${key.slice(3)}`;
 

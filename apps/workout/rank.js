@@ -36,14 +36,15 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, LADDERS, GYM_STEP } from './data.js?v=users-sep26';
-import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, verseFor, VERSE_NOTICE } from './standards.js?v=users-sep26';
-import { load, save, remove, todayStr, dateStr } from './store.js?v=users-sep26';
+import { PROGRAM, LADDERS, GYM_STEP } from './data.js?v=grip-sep24';
+import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, ord, verseFor, VERSE_NOTICE } from './standards.js?v=grip-sep24';
+import { load, save, remove, todayStr, dateStr } from './store.js?v=grip-sep24';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=users-sep26';
-import { checkup } from './checkup.js?v=users-sep26';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=grip-sep24';
+import { checkup } from './checkup.js?v=grip-sep24';
+import { gripOn, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_SRC, GRIP_HOW } from './grip.js?v=grip-sep24';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -1322,6 +1323,8 @@ const RESETS = [
     d:'Only the dates. Anything still true at your current numbers re-earns itself on the next render — to genuinely re-lock a milestone, clear what earned it as well.' },
   { id:'xs',  key:'bp_xsets', n:'Counted holds & bodyweight reps', u:'exercise',
     d:'The seconds and reps typed into bodyweight exercises. The move-up check on every skill ladder reads these, so clearing them sends each one back to "not counted". The levels themselves are left alone.' },
+  { id:'grip', key:'bp_grip', n:'Grip readings', u:'reading',
+    d:'Every dynamometer reading. The grip letter on the Rank tab is read off the latest, so it goes back to empty. Nothing else is scored from these.' },
   { id:'chk', key:'bp_chk', n:'Checkmarks', u:'ticked', p:'ticked',
     d:"Today's ticks on the Program tab. Nothing is scored from them, so this one costs you nothing." },
 ];
@@ -1333,6 +1336,7 @@ const resetCount = {
   bw:  () => load('bp_bw', []).length,
   ach: () => Object.keys(achAll()).length,
   xs:  () => Object.keys(xsetsAll()).length,
+  grip: () => load('bp_grip', []).length,
   chk: () => Object.values(load('bp_chk', {})).filter(Boolean).length,
 };
 
@@ -1596,6 +1600,78 @@ function liftsHTML(st) {
     ${basisNote}
     ${st.lifts.length ? `<div class="rk-lift-list">${rows}</div>`
       : `<div class="pg-empty">No weights set on any scored lift yet.</div>`}
+  </div>`;
+}
+
+/* ── grip ──
+   Its own card and its own letter, off the lift average — see grip.js for
+   why. Laid out as one lift row so it reads as the same kind of thing: a
+   letter, a band, and what the next one takes. Absent entirely when
+   Settings says there is no dynamometer. */
+const TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
+
+function gripHTML() {
+  if (!gripOn()) return '';
+  const g = gripStanding(prof().age), u = gripUnit();
+  const other = u === 'lb' ? 'kg' : 'lb';
+  const fmt = kg => `${+toGU(kg, u).toFixed(1)}`;
+  const unitB = `<button class="bw-unit" data-act="gr-unit" data-u="${other}"`
+    + ` title="Showing ${GRIP_UNITS[u].full.toLowerCase()} — tap for ${GRIP_UNITS[other].full.toLowerCase()}"`
+    + ` aria-label="Unit: ${GRIP_UNITS[u].full}. Switch to ${GRIP_UNITS[other].full}.">${u}</button>`;
+
+  const form = `<div class="bw-add gr-add">
+    <div class="bw-add-fld"><div class="bw-add-lbl">Date</div><input class="bw-in" type="date" id="gr-date" value="${todayStr()}" max="${todayStr()}"></div>
+    <div class="bw-add-fld"><div class="bw-add-lbl" title="${GRIP_HOW}">Right ${unitB}</div><input class="bw-in" type="number" step="0.1" min="0" id="gr-r" placeholder="—" inputmode="decimal"></div>
+    <div class="bw-add-fld"><div class="bw-add-lbl" title="${GRIP_HOW}">Left <em>${u}</em></div><input class="bw-in" type="number" step="0.1" min="0" id="gr-l" placeholder="—" inputmode="decimal"></div>
+    <button class="bw-add-btn" data-act="gr-save">Log</button>
+  </div>`;
+
+  if (!g.last) {
+    return `<div class="pg-card">
+      <div class="pg-card-head"><div class="pg-card-title">Grip Strength</div><div class="pg-card-note">dynamometer</div></div>
+      <div class="rk-basis-note">${GRIP_HOW}</div>
+      ${form}
+      <div class="gr-src">${GRIP_SRC}</div>
+    </div>`;
+  }
+
+  const rk = rankFor(g.pct);
+  /* The table stops at the 90th, and the clamp at 99 means SS is not
+     something a grip reading can claim — so past S there is no next. */
+  const nx = rk.next && rk.next.min <= 99 ? rk.next : null;
+  const need = g.beyond === 'top' ? 'past the top of the table'
+    : nx ? `+${fmt(g.need(nx.min))} ${u} → ${nx.l}` : 'maxed';
+  const since = g.since && Math.abs(g.since.kg) >= 0.05
+    ? ` · ${g.since.kg > 0 ? '+' : '−'}${fmt(Math.abs(g.since.kg))} since ${fmtD(g.since.d)}` : '';
+
+  const hist = [...g.log].reverse().slice(0, 6).map(e => `
+    <div class="gr-h">
+      <span class="gr-h-d">${fmtD(e.d)}</span>
+      <span class="gr-h-v">${e.r ? `R <b>${fmt(e.r)}</b>` : ''}${e.r && e.l ? ' · ' : ''}${e.l ? `L <b>${fmt(e.l)}</b>` : ''}</span>
+      <button class="bw-h-btn del" data-act="gr-del" data-d="${e.d}" title="Delete reading" aria-label="Delete the reading from ${fmtD(e.d)}">${TRASH}</button>
+    </div>`).join('');
+
+  return `<div class="pg-card">
+    <div class="pg-card-head"><div class="pg-card-title">Grip Strength</div><div class="pg-card-note">vs ${g.group}</div></div>
+    <div class="rk-lift gr-lift">
+      <div class="rk-lift-top">
+        <div class="rk-lift-n">${rk.name}<span class="rk-lift-src ${g.aged ? 'counted' : 'assumed'}" title="${g.aged
+          ? `Compared with ${g.group}, read between the ages the table publishes.`
+          : 'No age set on the Body tab, so this compares you with men at the age grip peaks — the strongest group there is. Set an age to match.'}">${g.aged ? 'age-matched' : 'no age'}</span>${g.beyond
+          ? `<span class="rk-lift-src approx" title="The table publishes the 10th to the 90th centile. Past either end the percentile comes from a normal tail fitted to that end, so it is the right neighbourhood rather than an exact figure.">approx</span>` : ''}</div>
+        <div class="rk-lift-r" style="color:var(${rk.c})">${rk.l}</div>
+      </div>
+      ${bandTrack(g.pct, false)}
+      <div class="rk-lift-foot">
+        <span><b>${fmt(g.kg)}</b> ${u} ${g.hand} · ${ord(g.pct)} percentile${since}</span>
+        <span class="rk-lift-need">${need}</span>
+      </div>
+      <div class="gr-med">Stronger than ${Math.round(g.pct)}% of ${g.group}. Their median is ${fmt(g.median)} ${u}.</div>
+    </div>
+    ${g.aged ? '' : `<div class="rk-basis-note">No age set, so this compares you with men at their peak (30–39), the strongest group there is. Set an age on the <b>Body</b> tab to match.</div>`}
+    ${form}
+    <div class="gr-hist">${hist}</div>
+    <div class="gr-src">${GRIP_SRC} A home dynamometer can read a few kilograms off a clinical one, so the trend is worth more than the exact figure.</div>
   </div>`;
 }
 
@@ -1928,6 +2004,7 @@ export function renderRank(root) {
   h += checkupHTML(s, st);
   h += verdictHTML(st);
   h += liftsHTML(st);
+  h += gripHTML();
   h += progressionHTML(s, st);
   p.innerHTML = h;
   tickCounts(p);
