@@ -14,8 +14,8 @@
    it is no use to the people who most need the line.
    ═══════════════════════════════════════════════════════════ */
 
-import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=sets-sep24';
-import { toast } from '../../assets/js/ui.js?v=sets-sep24';
+import { load, save, todayStr, dateStr } from '../../assets/js/storage.js?v=gripsrc-sep24';
+import { toast } from '../../assets/js/ui.js?v=gripsrc-sep24';
 
 /* ── storage ── */
 const sortByDate = l => [...l].sort((a, b) => a.d.localeCompare(b.d));

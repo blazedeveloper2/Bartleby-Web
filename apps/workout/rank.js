@@ -36,15 +36,15 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, LADDERS, GYM_STEP } from './data.js?v=sets-sep24';
-import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, ord, verseFor, VERSE_NOTICE } from './standards.js?v=sets-sep24';
-import { load, save, remove, todayStr, dateStr } from './store.js?v=sets-sep24';
+import { PROGRAM, LADDERS, GYM_STEP } from './data.js?v=gripsrc-sep24';
+import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, ord, verseFor, VERSE_NOTICE } from './standards.js?v=gripsrc-sep24';
+import { load, save, remove, todayStr, dateStr } from './store.js?v=gripsrc-sep24';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=sets-sep24';
-import { checkup } from './checkup.js?v=sets-sep24';
-import { gripOn, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_SRC, GRIP_HOW } from './grip.js?v=sets-sep24';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=gripsrc-sep24';
+import { checkup } from './checkup.js?v=gripsrc-sep24';
+import { gripOn, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_HOW } from './grip.js?v=gripsrc-sep24';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -1631,7 +1631,6 @@ function gripHTML() {
       <div class="pg-card-head"><div class="pg-card-title">Grip Strength</div><div class="pg-card-note">dynamometer</div></div>
       <div class="rk-basis-note">${GRIP_HOW}</div>
       ${form}
-      <div class="gr-src">${GRIP_SRC}</div>
     </div>`;
   }
 
@@ -1671,7 +1670,6 @@ function gripHTML() {
     ${g.aged ? '' : `<div class="rk-basis-note">No age set, so this compares you with men at their peak (30–39), the strongest group there is. Set an age on the <b>Body</b> tab to match.</div>`}
     ${form}
     <div class="gr-hist">${hist}</div>
-    <div class="gr-src">${GRIP_SRC} A home dynamometer can read a few kilograms off a clinical one, so the trend is worth more than the exact figure.</div>
   </div>`;
 }
 

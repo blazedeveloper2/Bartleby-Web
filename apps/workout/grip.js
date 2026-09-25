@@ -27,8 +27,8 @@
    off hides the card; the readings stay.
    ═══════════════════════════════════════════════════════════ */
 
-import { load, save, todayStr } from './store.js?v=sets-sep24';
-import { normCdf } from './anthro.js?v=sets-sep24';
+import { load, save, todayStr } from './store.js?v=gripsrc-sep24';
+import { normCdf } from './anthro.js?v=gripsrc-sep24';
 
 export const GRIP_KEY = 'bp_dyno';
 export const gripOn = () => load(GRIP_KEY, true);
@@ -166,5 +166,4 @@ export function gripStanding(age) {
   };
 }
 
-export const GRIP_SRC = 'Dodds et al. 2014, PLoS ONE — 49,964 people across twelve British studies. Best of either hand, as the table was built.';
 export const GRIP_HOW = 'Seated, elbow at 90°, wrist straight, arm not touching your side. Squeeze as hard as you can for three seconds, three tries a hand with a rest between; log the best of each.';
