@@ -36,15 +36,15 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, LADDERS, GYM_STEP } from './data.js?v=avg-sep24';
-import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, ord, verseFor, VERSE_NOTICE } from './standards.js?v=avg-sep24';
-import { load, save, remove, todayStr, dateStr } from './store.js?v=avg-sep24';
+import { PROGRAM, LADDERS, GYM_STEP } from './data.js?v=eqrow-sep24';
+import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, ord, verseFor, VERSE_NOTICE } from './standards.js?v=eqrow-sep24';
+import { load, save, remove, todayStr, dateStr } from './store.js?v=eqrow-sep24';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=avg-sep24';
-import { checkup } from './checkup.js?v=avg-sep24';
-import { gripOn, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_HOW } from './grip.js?v=avg-sep24';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=eqrow-sep24';
+import { checkup } from './checkup.js?v=eqrow-sep24';
+import { gripOn, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_HOW } from './grip.js?v=eqrow-sep24';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -578,7 +578,9 @@ export function earned(cs, st) {
   const flat = {
     ...cs,
     rankIdx: st.counted.length ? st.rank.i : 0,
-    scored: st.counted.length,
+    /* lifts only: the balance badges wait for a full sheet, and a grip
+       reading is not one more lift towards it */
+    scored: st.liftCount,
     bestLift: st.lifts.reduce((a, l) => Math.max(a, l.rank.i), 0),
     minPct: pcts.length ? Math.min(...pcts) : 0,
     spread: pcts.length ? Math.max(...pcts) - Math.min(...pcts) : 999,
@@ -826,10 +828,23 @@ function reachableLifts() {
 /* Score one map of working weights. Called twice — once with what you have
    set, once with what you have proven — so the two views can never drift
    apart in their maths. */
-function scoreAll(w, bodyweight, ref, r, reach) {
+/* Grip, as one more entry in the average. It is a measurement rather than
+   a claim — the device prints it — so it is the same in the live and the
+   proven view, and it only joins once there is a lift for it to sit
+   beside: a letter from a squeeze alone would be a grip score, which is
+   what the grip card already is. Never in `lifts`, so the Every Lift list,
+   the Program tab colours and the per-lift tier-ups stay lifts. */
+function gripEntry() {
+  if (!gripOn()) return null;
+  const g = gripStanding(prof().age);
+  if (!g.last) return null;
+  return { name: 'Grip Strength', grip: true, pct: g.pct, rank: rankFor(g.pct), ratio: 0 };
+}
+
+function scoreAll(w, bodyweight, ref, r, reach, grip) {
   const out = { lifts: [], counted: [], overall: 0, rank: rankFor(0),
                 scored: 0, scoredReachable: 0, totalScorable: reach.size,
-                offSheet: 0, loggedReps: 0 };
+                offSheet: 0, loggedReps: 0, liftCount: 0, grip: null };
   if (!bodyweight) return out;
 
   const xr = xrepsAll();
@@ -891,6 +906,12 @@ function scoreAll(w, bodyweight, ref, r, reach) {
   out.scoredReachable = out.counted.length;
   out.offSheet = out.scored - out.counted.length;
   out.loggedReps = out.counted.filter(l => l.repsLogged).length;
+  out.liftCount = out.counted.length;
+  if (grip && out.counted.length) {
+    out.counted.push(grip);
+    out.counted.sort((a, b) => b.pct - a.pct);
+    out.grip = grip;
+  }
   if (out.counted.length) {
     out.overall = out.counted.reduce((a, l) => a + l.pct, 0) / out.counted.length;
     out.rank = rankFor(out.overall);
@@ -915,12 +936,13 @@ export function strength() {
   const usingLean = ref !== null && bodyweight !== null;
   const divisor = usingLean ? ref : bodyweight;
 
+  const grip = gripEntry();
   const out = { bodyweight, lean, usingLean, ref: divisor,
-                reps: r, ...scoreAll(w, bodyweight, divisor, r, reach) };
+                reps: r, ...scoreAll(w, bodyweight, divisor, r, reach, grip) };
 
   /* The same scoring run over proven weights only. This is the view that
      earns things; the live one above is what you see while you decide. */
-  out.proven = scoreAll(pw, bodyweight, divisor, r, reach);
+  out.proven = scoreAll(pw, bodyweight, divisor, r, reach, grip);
   out.lifts.forEach(l => { l.provenW = pw[l.name] || 0; l.pending = l.provenW < l.w; });
   out.pending = out.lifts.filter(l => l.pending);
   /* Untested weights including unscored movements and the no-bodyweight
@@ -1257,6 +1279,17 @@ export function logWeight(name, prev, next, before) {
   return done(now < next ? 'up' : now > next ? 'down' : rolled.length ? 'rollback' : 'none');
 }
 
+/* A grip reading moves the overall score now, so logging or deleting one
+   gets the same before/after a weight change does — a rank-up or a
+   milestone it tips over is celebrated rather than found later. */
+export function scoreGrip(fn) {
+  const before = snapshot();
+  fn();
+  const after = snapshot();
+  latch();
+  return diff(before, after, {});
+}
+
 /* "I had this one wrong."
 
    A back-off and a correction look identical in the data and mean opposite
@@ -1463,7 +1496,7 @@ function heroHTML(st) {
   }
   const rk = st.rank;
   const beat = Math.round(st.overall);
-  const n = st.counted.length;
+  const n = st.liftCount, gr = st.grip ? ' + grip' : '';
   const nx = rk.next;
   const pv = st.proven, pend = st.pending.length;
   /* WHY THIS DOES NOT SAY "STRONGER THAN X% OF LIFTERS".
@@ -1488,14 +1521,14 @@ function heroHTML(st) {
   return `<div class="rk-hero" style="--rc:var(${rk.c})"><span class="rk-scan"></span>
     <div class="rk-hero-top">
       <div class="rk-kicker">Strength Score</div>
-      <div class="rk-kicker">${n} lift${n === 1 ? '' : 's'} · ${st.usingLean
+      <div class="rk-kicker">${n} lift${n === 1 ? '' : 's'}${gr} · ${st.usingLean
         ? `${Math.round(st.lean)} lb lean mass` : `${st.bodyweight} lb bodyweight`}</div>
     </div>
     <div class="rk-hero-row">
       <div class="rk-badge"><span class="rk-letter">${rk.l}</span></div>
       <div class="rk-hero-txt">
         <div class="rk-name">${rk.name}</div>
-        <div class="rk-pct">Bartleby score <b>${beat}</b> — the average of your ${n} lift percentile${n === 1 ? '' : 's'}</div>
+        <div class="rk-pct">Bartleby score <b>${beat}</b> — the average of your ${n} lift percentile${n === 1 ? '' : 's'}${st.grip ? ' and your grip' : ''}</div>
         <div class="rk-blurb">${rk.blurb}</div>
       </div>
     </div>
@@ -1583,7 +1616,7 @@ function liftsHTML(st) {
      the thing you tune to move your rank and becomes the thing you stop
      needing. */
   const repNote = `<div class="rk-basis-note" title="At 50 lbs, assuming five reps gives a 58 lb 1RM and assuming fifteen gives 75 — same entry, same arithmetic, different guess. Counting the set is what turns it into a measurement. Open a lift from the Program tab to log its sets; the best one scores.">${st.loggedReps
-    ? `<b>${st.loggedReps} of ${st.counted.length}</b> lifts use counted reps. The dial fills in for the rest.`
+    ? `<b>${st.loggedReps} of ${st.liftCount}</b> lifts use counted reps. The dial fills in for the rest.`
     : `No reps counted yet — every estimate here is running on this dial. Log sets from the <b>Program</b> tab.`}</div>`;
 
   /* The divisor is no longer a choice, so the only thing left to say is
@@ -1593,7 +1626,7 @@ function liftsHTML(st) {
   return `<div class="pg-card">
     <div class="pg-card-head">
       <div class="pg-card-title">Every Lift</div>
-      <div class="pg-card-note">${st.counted.length} in the score${st.offSheet ? ` · ${st.offSheet} off sheet` : ''}</div>
+      <div class="pg-card-note">${st.liftCount}${st.grip ? ' + grip' : ''} in the score${st.offSheet ? ` · ${st.offSheet} off sheet` : ''}</div>
     </div>
     <div class="rk-reps">
       <span class="rk-reps-l">Assume this many reps<span class="rk-reps-sub">when a lift has none counted</span></span>

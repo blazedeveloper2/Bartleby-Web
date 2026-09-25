@@ -6,31 +6,31 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER } from './data.js?v=avg-sep24';
-import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=avg-sep24';
-import { toast } from '../../assets/js/ui.js?v=avg-sep24';
-import { pctColor, ord, LIFTS } from './standards.js?v=avg-sep24';
+import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER } from './data.js?v=eqrow-sep24';
+import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=eqrow-sep24';
+import { toast } from '../../assets/js/ui.js?v=eqrow-sep24';
+import { pctColor, ord, LIFTS } from './standards.js?v=eqrow-sep24';
 import {
   setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, icon,
   liftScores, standingOf, resEx, resKit, lvlOf, setLvl, resetTargets, applyReset,
   trackOf, exSets, setExSets, skillAdvice, lineReady,
-  rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX,
-} from './rank.js?v=avg-sep24';
+  rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip,
+} from './rank.js?v=eqrow-sep24';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
-import { MUSCLE_SVG } from './bodymap.js?v=avg-sep24';
-import { HOWTO } from './howto.js?v=avg-sep24';
-import { standingsFor } from './anthro.js?v=avg-sep24';
-import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=avg-sep24';
+import { MUSCLE_SVG } from './bodymap.js?v=eqrow-sep24';
+import { HOWTO } from './howto.js?v=eqrow-sep24';
+import { standingsFor } from './anthro.js?v=eqrow-sep24';
+import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=eqrow-sep24';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor, whtrBand,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=avg-sep24';
+} from './body.js?v=eqrow-sep24';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -1419,13 +1419,13 @@ function grSave() {
   const u = gripUnit();
   const rd = id => grKg(q(id), u);
   const d = q('#gr-date').value || todayStr();
-  if (!logGrip(d > todayStr() ? todayStr() : d, rd('#gr-r'), rd('#gr-l'))) {
-    toast(`Enter a reading for either hand, in ${u}`); return;
-  }
-  renderRank(root);
-  toast('Grip logged');
+  let ok = false;
+  const res = scoreGrip(() => { ok = logGrip(d > todayStr() ? todayStr() : d, rd('#gr-r'), rd('#gr-l')); });
+  if (!ok) { toast(`Enter a reading for either hand, in ${u}`); return; }
+  renderScore();                     // grip is in the overall score now
+  if (!showCelebration(res)) toast('Grip logged');
 }
-function grDelete(d) { delGrip(d); renderRank(root); toast('Reading removed'); }
+function grDelete(d) { scoreGrip(() => delGrip(d)); renderScore(); toast('Reading removed'); }
 /* Carries anything already typed across the repaint, converted, so a
    reading entered before noticing the unit is not lost or misread. */
 function grUnit(u) {
@@ -1631,7 +1631,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=avg-sep24',
+  styles: 'apps/workout/workout.css?v=eqrow-sep24',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {

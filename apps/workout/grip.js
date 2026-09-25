@@ -12,10 +12,10 @@
    has been taken on tens of thousands of ordinary people rather than on
    people who chose to walk into a gym.
 
-   It gets its own letter and stays out of the lift average. The overall
-   score is a composite of working-weight percentiles, and folding a
-   different kind of measurement in would move a grade nobody lifted
-   anything to move.
+   It gets its own letter, and its percentile is also one more entry in
+   the overall score, weighted like any lift (gripEntry in rank.js). It
+   joins only once there is a lift to sit beside, and stays out of the
+   Every Lift list and the per-lift tier-ups, which are about lifts.
 
    Stored in KILOGRAMS whatever the unit toggle says, for the same reason
    body.js stores inches: that is what the reference table is in, and the
@@ -27,8 +27,8 @@
    off hides the card; the readings stay.
    ═══════════════════════════════════════════════════════════ */
 
-import { load, save, todayStr } from './store.js?v=avg-sep24';
-import { normCdf } from './anthro.js?v=avg-sep24';
+import { load, save, todayStr } from './store.js?v=eqrow-sep24';
+import { normCdf } from './anthro.js?v=eqrow-sep24';
 
 export const GRIP_KEY = 'bp_dyno';
 export const gripOn = () => load(GRIP_KEY, true);

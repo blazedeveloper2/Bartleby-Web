@@ -43,9 +43,9 @@ Live apps:
   [Dodds et al. 2014](https://pmc.ncbi.nlm.nih.gov/articles/PMC4256164/)
   (49,964 people, twelve British studies, centiles at every fifth year of
   age, best of either hand). With no age set it compares you with men at
-  their peak, 30–39, and says so. It stays out of the lift average: the
-  letter above is a composite of working weights, and a different kind of
-  measurement folded in would move it without anyone lifting anything.
+  their peak, 30–39, and says so. Grip also counts towards the overall
+  score as one more entry in the average, weighted like a lift, and a
+  reading that tips the letter up gets the same rank-up card.
   **Settings → Equipment → Grip Dynamometer** (on by default, shown for
   every program) hides the card; the readings are kept. See
   `apps/workout/grip.js`.

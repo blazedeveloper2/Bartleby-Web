@@ -34,8 +34,8 @@
    Nothing here writes. It reads state and returns findings.
    ═══════════════════════════════════════════════════════════ */
 
-import { load, todayStr } from './store.js?v=avg-sep24';
-import { weighed, taped, navyBF, prof } from './body.js?v=avg-sep24';
+import { load, todayStr } from './store.js?v=eqrow-sep24';
+import { weighed, taped, navyBF, prof } from './body.js?v=eqrow-sep24';
 
 const dOf = ds => new Date(ds + 'T00:00:00');
 const between = (a, b) => Math.round((dOf(b) - dOf(a)) / 86400000);
@@ -319,11 +319,14 @@ export function checkup(cs, st) {
   }
 
   /* — balance — */
-  const pcts = (st.lifts || []).map(l => l.pct);
+  /* The set the score averages, grip included, since that is what the
+     sentence below is warning about. */
+  const scored = st.counted || [];
+  const pcts = scored.map(l => l.pct);
   if (pcts.length >= 6) {
     const spread = Math.max(...pcts) - Math.min(...pcts);
     if (spread > 30) {
-      const weak = st.lifts.reduce((a, l) => (l.pct < a.pct ? l : a));
+      const weak = scored.reduce((a, l) => (l.pct < a.pct ? l : a));
       add('spread', 'note', 'Your lifts are a long way apart',
         `${Math.round(spread)} points between best and worst, ${weak.name} at the bottom. The score is an average, so the weakest lift drags hardest.`);
     }
