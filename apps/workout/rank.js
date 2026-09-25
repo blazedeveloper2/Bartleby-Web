@@ -36,15 +36,15 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, LADDERS, GYM_STEP } from './data.js?v=gripsrc-sep24';
-import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, ord, verseFor, VERSE_NOTICE } from './standards.js?v=gripsrc-sep24';
-import { load, save, remove, todayStr, dateStr } from './store.js?v=gripsrc-sep24';
+import { PROGRAM, LADDERS, GYM_STEP } from './data.js?v=avg-sep24';
+import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, ord, verseFor, VERSE_NOTICE } from './standards.js?v=avg-sep24';
+import { load, save, remove, todayStr, dateStr } from './store.js?v=avg-sep24';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=gripsrc-sep24';
-import { checkup } from './checkup.js?v=gripsrc-sep24';
-import { gripOn, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_HOW } from './grip.js?v=gripsrc-sep24';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=avg-sep24';
+import { checkup } from './checkup.js?v=avg-sep24';
+import { gripOn, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_HOW } from './grip.js?v=avg-sep24';
 
 /* ── storage ── */
 const logAll = () => load('bp_log', []);
@@ -1417,8 +1417,11 @@ function bandTrack(pct, showLabels) {
   const segs = BANDS.map(b =>
     `<div class="rk-seg" style="flex:${b.to - b.from};background:var(${b.c})">${showLabels ? `<span>${b.l}</span>` : ''}</div>`
   ).join('');
+  /* The 50th percentile, drawn under the marker so "above or below the
+     middle" reads at a glance without counting bands. */
   return `<div class="rk-track">
     <div class="rk-segs">${segs}</div>
+    <div class="rk-avg" title="Average — the 50th percentile">${showLabels ? '<span>avg</span>' : ''}</div>
     <div class="rk-marker" data-pos="${Math.max(0.4, Math.min(99.6, pct)).toFixed(2)}" style="left:0"></div>
   </div>`;
 }

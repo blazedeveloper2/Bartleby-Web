@@ -646,8 +646,16 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 .rk-marker{position:absolute;top:-4px;width:3px;height:24px;border-radius:2px;background:var(--text);
   box-shadow:0 0 0 2px var(--bg-card),0 0 12px var(--text);transform:translateX(-50%);
   transition:left .75s cubic-bezier(.22,.68,0,1.05)}
+/* average: a quiet hairline at 50%, taller than the bar so it shows over
+   the band colours, and dimmer than the marker so the two never read as
+   the same thing */
+.rk-avg{position:absolute;left:50%;top:-6px;bottom:-4px;width:2px;transform:translateX(-50%);
+  background:color-mix(in srgb,var(--text) 55%,transparent);border-radius:1px;pointer-events:auto}
+.rk-avg span{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:2px;
+  font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--text-3)}
 .rk-lift .rk-segs{height:9px}
 .rk-lift .rk-marker{top:-3px;height:15px;width:2.5px}
+.rk-lift .rk-avg{top:-5px;bottom:-3px}
 
 /* â”€â”€ straight-answer card â”€â”€ */
 .rk-verdict-t{font-size:13px;color:var(--text);line-height:1.55;font-weight:500}
