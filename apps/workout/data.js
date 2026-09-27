@@ -2,7 +2,7 @@
    WORKOUT — program definition + muscle-map lookup table.
    ═══════════════════════════════════════════════════════════ */
 
-import { USER } from './store.js?v=three-sep26';
+import { USER } from './store.js?v=nostretch-sep27';
 
 /* An exercise with an `alt` names the kit it needs in `req` ('bar', 'wheel',
    'barbell'). Turn that piece of equipment off in Settings and the whole app
@@ -305,17 +305,11 @@ const EDRIN = [
       {line:'hollow',dose:'p'},
     ]},
   ]},
-  {day:'sun',since:'2026-09-23',label:'Skill · Mobility',sections:[
+  {day:'sun',since:'2026-09-23',label:'Skill Practice',sections:[
     {tag:'Skill',ex:[
       {n:'Wrist Prep Rocks',m:'Forearms',s:'2× easy'},
       {line:'planche',dose:'l'},
       {line:'handstand',dose:'l'},
-    ]},
-    {tag:'Mobility',ex:[
-      /* Hands on the bench, hips back, chest sinking toward the floor.
-         Tight overhead shoulders are what bend a handstand into a banana,
-         and this is the one thing on the day that is not the skill itself. */
-      {n:'Bench Shoulder Stretch',k:'-',m:'Lats, Triceps Long Head, Chest',s:'2×30s',b:'Flat 0°',bc:'bench-flat'},
     ]},
   ]},
 ];

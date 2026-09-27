@@ -1268,18 +1268,4 @@ export const HOWTO = {
          r:"Same FitnessFAQs video, same start time (about 3:23): the straight-leg lift to body level on a bench with the hips at the end. The frames show no dumbbell. The movement is otherwise identical, and no credible dumbbell-between-feet bench version was found." },
     src: ["https://web.archive.org/web/20241209171330/https://www.reddit.com/r/bodyweightfitness/wiki/exercises/core", "https://web.archive.org/web/20200201202355/https://exrx.net/WeightExercises/GluteusMaximus/WtReverseHyperextension", "https://bretcontreras.com/industry-rant-back-extensions-reverse-hypers/"],
   },
-  "Bench Shoulder Stretch": {
-    do: [
-      "Put your hands shoulder-width on the bench and walk back until your arms are straight",
-      "Push your hips back and let your chest sink toward the floor, head between your arms",
-      "Turn your elbow creases to face up to reach the lats, the big muscles down your sides",
-      "Keep your ribs tucked so the stretch lands in the shoulders, not the lower back",
-    ],
-    avoid: [
-      "Sagging the lower back and flaring the ribs, which fakes the range",
-      "Forcing deeper through a pinch at the top of the shoulder",
-    ],
-    /* no video: The original (How To Handstand, 2,963 views) is mostly two presenters talking in a kitchen, with only about 40s of the countertop stretch in a 3:06 video, so it fails criteria 2 and 5. No credible replacement of the hands-on-bench, straight-arm version turned up. Antranik's is a wall version with an arched back, and the Barbell Physio and Tom Merrick videos are the elbows-bent butcher's-block stretch, so the written cues stand alone. */
-    src: ["https://www.daniwinksflexibility.com/bendy-blog/stretches-for-overhead-shoulder-flexibility", "https://gmb.io/handstand/", "https://www.youtube.com/watch?v=IqZcA9yodrU"],
-  },
 };
