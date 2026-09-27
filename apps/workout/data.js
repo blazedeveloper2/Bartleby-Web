@@ -2,7 +2,7 @@
    WORKOUT — program definition + muscle-map lookup table.
    ═══════════════════════════════════════════════════════════ */
 
-import { USER } from './store.js?v=nodrop-sep24';
+import { USER } from './store.js?v=three-sep26';
 
 /* An exercise with an `alt` names the kit it needs in `req` ('bar', 'wheel',
    'barbell'). Turn that piece of equipment off in Settings and the whole app
@@ -36,9 +36,17 @@ import { USER } from './store.js?v=nodrop-sep24';
               stretch has no better or worse). */
 const EDRIN = [
   {day:'mon',label:'Upper · Push Focus',sections:[
+    /* Three sets on the compound that leads each day's focus: both chest
+       presses, the front squat, pull-ups and rows, Friday's RDL. At two,
+       those muscles sat at six to nine direct sets a week, under the ten-plus
+       the volume research points to, and the lead compound is where a
+       third set is cheapest to add. It returns less than the second did,
+       so isolation stays at two, and so do the lifts on the day that is
+       not their focus — Tuesday's RDL, the shoulder press, the split
+       squats, already counted twice for the two legs. */
     {tag:null,ex:[
-      {n:'Incline Dumbbell Press',m:'Upper Chest, Front Delts, Triceps',s:'2×F',b:'30°',bc:'bench-30'},
-      {n:'Dumbbell Bench Press',m:'Chest, Triceps, Front Delts',s:'2×F',b:'Flat 0°',bc:'bench-flat'},
+      {n:'Incline Dumbbell Press',m:'Upper Chest, Front Delts, Triceps',s:'3×F',b:'30°',bc:'bench-30'},
+      {n:'Dumbbell Bench Press',m:'Chest, Triceps, Front Delts',s:'3×F',b:'Flat 0°',bc:'bench-flat'},
       {n:'Dumbbell Shoulder Press',m:'Front Delts, Side Delts, Triceps',s:'2×F',b:'85°',bc:'bench-85'},
     ]},
     {tag:'Isolation',ex:[
@@ -68,8 +76,8 @@ const EDRIN = [
          barbell converter is rated for, and the reason this is a front squat
          and not a back squat, which would mean pressing it overhead and
          behind the neck. Heels stay elevated either way. */
-      {n:'Heel-Elevated Front Squats',m:'Quads, Glutes, Core, Erectors',s:'2×F',
-       req:'barbell', alt:{n:'Heel-Elevated Goblet Squats',m:'Quads, Glutes, Core',s:'2×F'}},
+      {n:'Heel-Elevated Front Squats',m:'Quads, Glutes, Core, Erectors',s:'3×F',
+       req:'barbell', alt:{n:'Heel-Elevated Goblet Squats',m:'Quads, Glutes, Core',s:'3×F'}},
       /* The lift where a pair of dumbbells runs out first: the published
          per-hand tiers pass any adjustable set before Advanced. A bar takes
          whatever plates get bought later and moves in single-plate steps. */
@@ -97,9 +105,9 @@ const EDRIN = [
   ]},
   {day:'thu',label:'Upper · Pull Focus',sections:[
     {tag:null,ex:[
-      {n:'Pull-Ups',m:'Lats, Biceps, Rhomboids, Forearms',s:'2×F',
-       req:'bar', alt:{n:'Single-Arm Rows',m:'Lats, Rhomboids, Rear Delts, Biceps',s:'2×F /arm',b:'Flat 0°',bc:'bench-flat'}},
-      {n:'Chest-Supported Rows',m:'Lats, Rhomboids, Traps, Rear Delts, Biceps',s:'2×F',b:'30-45°',bc:'bench-30'},
+      {n:'Pull-Ups',m:'Lats, Biceps, Rhomboids, Forearms',s:'3×F',
+       req:'bar', alt:{n:'Single-Arm Rows',m:'Lats, Rhomboids, Rear Delts, Biceps',s:'3×F /arm',b:'Flat 0°',bc:'bench-flat'}},
+      {n:'Chest-Supported Rows',m:'Lats, Rhomboids, Traps, Rear Delts, Biceps',s:'3×F',b:'30-45°',bc:'bench-30'},
       {n:'Dumbbell Pullovers',m:'Lats, Chest, Serratus Anterior',s:'2×F',b:'Flat 0°',bc:'bench-flat'},
     ]},
     {tag:'Isolation',ex:[
@@ -118,8 +126,8 @@ const EDRIN = [
   ]},
   {day:'fri',label:'Lower · Ham & Glute Focus',sections:[
     {tag:null,ex:[
-      {n:'Barbell Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'2×F',
-       req:'barbell', alt:{n:'Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'2×F'}},
+      {n:'Barbell Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'3×F',
+       req:'barbell', alt:{n:'Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'3×F'}},
       /* A bar is what makes a bilateral thrust loadable. A dumbbell on the
          hips tops out at whatever will balance there, which is why the slot
          went B-stance and why that version is unscored; a padded bar across

@@ -26,7 +26,7 @@
    one means adding both, not flipping a sign here.
    ═══════════════════════════════════════════════════════════ */
 
-import { load, save, dateStr } from './store.js?v=nodrop-sep24';
+import { load, save, dateStr } from './store.js?v=three-sep26';
 
 const LB_PER_KG = 2.20462262;
 const M_PER_IN  = 0.0254;
