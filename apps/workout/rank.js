@@ -36,15 +36,15 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, LADDERS, GYM_STEP } from './data.js?v=nostretch-sep27';
-import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, ord, verseFor, VERSE_NOTICE } from './standards.js?v=nostretch-sep27';
-import { load, save, remove, todayStr, dateStr } from './store.js?v=nostretch-sep27';
+import { PROGRAM, LADDERS, GYM_STEP } from './data.js?v=nordic-sep29';
+import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, ord, verseFor, VERSE_NOTICE } from './standards.js?v=nordic-sep29';
+import { load, save, remove, todayStr, dateStr } from './store.js?v=nordic-sep29';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=nostretch-sep27';
-import { checkup } from './checkup.js?v=nostretch-sep27';
-import { gripOn, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_HOW } from './grip.js?v=nostretch-sep27';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=nordic-sep29';
+import { checkup } from './checkup.js?v=nordic-sep29';
+import { gripOn, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_HOW } from './grip.js?v=nordic-sep29';
 
 /* ── storage ── */
 /* Sorted on the way in as well as on the way out: everything here reads

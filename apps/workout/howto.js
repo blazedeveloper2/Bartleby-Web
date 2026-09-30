@@ -353,20 +353,20 @@ export const HOWTO = {
          r:"FitnessFAQs, 5:11, 1.86M views. Almost every frame shows hanging leg raises, contrasting sloppy reps with pelvis-tucked, controlled ones that go past level. That matches the cues. No dumbbell is used, but the movement is otherwise identical." },
     src: ["https://web.archive.org/web/20241209171330/https://www.reddit.com/r/bodyweightfitness/wiki/exercises/core", "https://web.archive.org/web/20200201235738/https://www.exrx.net/WeightExercises/RectusAbdominis/WtHangingLegHipRaise", "https://web.archive.org/web/20191216110207/https://www.exrx.net/WeightExercises/RectusAbdominis/BWHangingLegHipRaise", "https://zackhenderson.com/how-to-hanging-leg-raise-beginner-to-advanced-progressions", "https://builtwithscience.com/fitness-tips/how-to-work-lower-abs/"],
   },
-  "Weighted Reverse Crunches": {
+  "Decline Reverse Crunches": {
     do: [
-      "Lie on a flat bench and hold its edge behind your head, a dumbbell squeezed in your feet",
-      "Bend hips and knees to about 90 degrees so the weight sits above your hips",
-      "Curl your pelvis up toward your chest until your hips lift off the bench",
-      "Roll the hips up rather than swinging the legs; lower one vertebra at a time",
+      "Set the bench to decline and lie on it head-up: head at the high end, hips lower",
+      "Reach back and grip the bench behind your head; bend hips and knees to about 90°",
+      "Curl your pelvis up toward your chest until your hips lift off the pad",
+      "Roll the hips up rather than swinging the legs, and lower slowly against the slope",
     ],
     avoid: [
-      "Swinging the legs up and down, which turns it into a hip flexor exercise",
-      "Using a dumbbell too heavy to grip, so it can slip toward your face",
+      "Swinging the legs to fling the hips up, which turns it into a hip flexor exercise",
+      "Rolling back until your knees pass your face, where gravity starts doing the work",
     ],
-    v: { id:"7VH0UB44RT0", t:"Reverse Crunch, Correct Form", c:"Testosterone Nation", d:15,
-         r:"Borderline: a 15 s Testosterone Nation clip with no dumbbell. It's kept because it shows the exact setup: a flat bench, hands holding the edge behind the head, knees at 90 degrees, and the hips curling off the bench under control. Its description spells out the same cues. The better-produced tutorials found were floor versions, and the only bench tutorial has 1.5k views." },
-    src: ["https://web.archive.org/web/20191212052802/https://www.exrx.net/WeightExercises/RectusAbdominis/BWLyingLegHipRaise", "https://builtwithscience.com/fitness-tips/how-to-work-lower-abs/", "https://www.youtube.com/watch?v=7VH0UB44RT0"],
+    v: { id:"wLVwiAlIZGQ", t:"Incline Bench Reverse Crunch", c:"Jim Stoppani, PhD", d:188,
+         r:"Jim Stoppani, 3:08, 20.8k views. Titled 'incline' but it is this setup: head at the high end of an angled bench, hands gripping it behind the head, knees at 90° and the hips curling off the pad, with 'don't build up momentum' on screen. Most frames are demo; a short flat-bench comparison and a straighter-leg version sit in the middle, and he talks to camera only briefly at 0:10, 1:16 and the close." },
+    src: ["https://web.archive.org/web/20191212052802/https://www.exrx.net/WeightExercises/RectusAbdominis/BWLyingLegHipRaise", "https://learn.athleanx.com/articles/abs-for-men/how-to-do-reverse-crunches", "https://www.youtube.com/watch?v=wLVwiAlIZGQ"],
   },
   "Weighted Side Plank w/ Reach-Through": {
     do: [
@@ -518,20 +518,20 @@ export const HOWTO = {
          r:"Functional Bodybuilding (Marcus Filly); 2.5-minute breakdown on a bench. Filmed from a distance but the right movement." },
     src: ["https://hellostrength.com/2019/04/29/exercise-of-the-week-b-stance-hip-thrusts/", "https://bretcontreras.com/how-to-hip-thrust/"],
   },
-  "Prone Dumbbell Leg Curl": {
+  "Nordic Curl Negatives": {
     do: [
-      "Lie face down on the bench with your knees at the very end of it",
-      "Clamp the dumbbell between the arches of your feet, soles facing the ceiling",
-      "Curl your heels toward your glutes, then lower slowly until your knees are nearly straight",
-      "Keep your feet squeezed together the whole set so the dumbbell can't slip; start light",
+      "Kneel on a pillow, heels under something heavy like a couch, or held by a partner",
+      "Squeeze your glutes so your knees, hips and shoulders make one straight line",
+      "Lean forward as slowly as you can, pulling your heels up into the anchor",
+      "When you can't slow the fall any more, catch yourself with your hands and push back up",
     ],
     avoid: [
-      "Lifting your hips off the bench to swing the weight up",
-      "Letting the dumbbell drop fast on the way down",
+      "Bending at the hips as you go down, which takes the load off the hamstrings",
+      "Going to failure the first week; Nordics cause big soreness, so start a few reps short",
     ],
-    v: { id:"xSjmKTf4QbA", t:"How To: Dumbbell Hamstring Curl", c:"ScottHermanFitness", d:176,
-         r:"Scott Herman; the exact setup - prone on a flat bench, dumbbell clamped between the feet - from two angles." },
-    src: ["https://weighttraining.guide/exercises/dumbbell-leg-curl/"],
+    v: { id:"_e9vFU9-tkc", t:"How to Set Up, Perform, & Program Nordic Hamstring Curls (Progressions | Regressions | Alternatives)", c:"E3 Rehab", d:629, s:56,
+         r:"E3 Rehab (physical therapists), 10:29, 1.06M views. Starts at the setup chapter (0:56): a kneeling pad and anchor options, a partner holding the ankles among them, then the demo from 2:03 — a straight line from knees to shoulders, a slow lowering, hands catching the bottom. The later chapters are research slides and programming. The demo anchors on a bench pad rather than a couch; the movement is the same." },
+    src: ["https://e3rehab.com/how-to-perform-nordic-hamstring-curls/", "https://www.youtube.com/watch?v=_e9vFU9-tkc"],
   },
   "Dumbbell Wrist Curls": {
     do: [

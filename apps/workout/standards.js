@@ -40,12 +40,13 @@
    file errs in one consistent direction.
 
    Core work never appears here, for two different reasons. Dead bugs
-   take no load at all, so there is nothing to score. The weighted core
-   movements — dumbbell crunch, weighted reverse crunch / hanging leg
-   raise, weighted side plank — do take load, but no usable standard
-   exists for them: Strength Level scores crunches and leg raises in
-   REPS at bodyweight, not in weight, and its weighted-flexion
-   entries (cable crunches, ~0.75× bodyweight at Intermediate)
+   and the decline reverse crunch take no load at all, so there is
+   nothing to score. The weighted core movements — dumbbell crunch,
+   weighted hanging leg raise, weighted side plank — do take load, but
+   no usable standard exists for them: Strength Level scores crunches
+   and leg raises in REPS at bodyweight, not in weight, and its
+   weighted-flexion entries (cable crunches, ~0.75× bodyweight at
+   Intermediate)
    load through a rope overhead rather than a dumbbell at the chest,
    so it is nowhere near comparable. Rather than invent a number,
    these log their weight and read as unscored — which still gives the
@@ -60,7 +61,7 @@
    wanted a 112 lb dumbbell balanced on the hips, and Elite 240 lb. A lift
    pinned to the floor of its scale still averages into the overall rank,
    which is exactly why the B-Stance RDL standard was dropped in ce2a0c7. It
-   now logs weight and reads unscored, like the prone leg curl. With the
+   now logs weight and reads unscored, like the dumbbell crunch. With the
    Barbell toggle on, that slot runs a bilateral barbell hip thrust instead,
    and that one does have a published standard -- see the barbell rows below.
 

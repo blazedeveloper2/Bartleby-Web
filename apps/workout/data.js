@@ -2,7 +2,7 @@
    WORKOUT — program definition + muscle-map lookup table.
    ═══════════════════════════════════════════════════════════ */
 
-import { USER } from './store.js?v=nostretch-sep27';
+import { USER } from './store.js?v=nordic-sep29';
 
 /* An exercise with an `alt` names the kit it needs in `req` ('bar', 'wheel',
    'barbell'). Turn that piece of equipment off in Settings and the whole app
@@ -98,8 +98,18 @@ const EDRIN = [
          No wheel swaps the crunch straight back in. */
       {line:'rollout',
        req:'wheel', alt:{n:'Dumbbell Crunch',ld:1,m:'Upper Abs, Rectus Abdominis, Obliques',s:'2×8-15',b:'Flat 0°',bc:'bench-flat'}},
+      /* The no-bar version was a weighted reverse crunch on the flat bench,
+         a dumbbell clamped between the feet -- awkward to hold, and a
+         dumbbell slipping loose above your face is how that one goes wrong.
+         Head-high on the declined bench does the loading instead: the hips
+         curl up a slope, so gravity resists more of the rep than it does
+         flat, and the hands gripping the bench behind the head are the
+         anchor, so the missing leg roller doesn't matter. It progresses by
+         bench angle and a slower way down, then by straighter legs, before
+         the reps run out. Bodyweight now, so it logs reps, not weight.
+         Friday runs the same swap. */
       {n:'Weighted Hanging Leg Raises',ld:1,m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',
-       req:'bar', alt:{n:'Weighted Reverse Crunches',ld:1,m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',b:'Flat 0°',bc:'bench-flat'}},
+       req:'bar', alt:{n:'Decline Reverse Crunches',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',b:'Decline',bc:'bench-decline'}},
       {n:'Weighted Side Plank w/ Reach-Through',ld:1,m:'Obliques, TVA, Core',s:'2×F /side'},
     ]},
   ]},
@@ -135,18 +145,27 @@ const EDRIN = [
       {n:'Barbell Hip Thrusts',m:'Glutes, Hamstrings',s:'2×F',b:'Flat 0°',bc:'bench-flat',
        req:'barbell', alt:{n:'B-Stance Hip Thrusts',ld:1,m:'Glutes, Hamstrings',s:'2×F /leg',b:'Flat 0°',bc:'bench-flat'}},
       {n:'Bulgarian Split Squats',m:'Quads, Glutes, Adductors',s:'2×F /leg',b:'Flat 0°',bc:'bench-flat'},
-      /* Was a second RDL. A B-stance RDL is a unilateral version of the lift
-         that already opened this day, so the slot spent four sets on a hinge
-         the session had covered. Every other hamstring movement here is hip
-         extension, and the short head of the biceps femoris never crosses
-         the hip — it only flexes the knee, so no hinge reaches it. This does.
-         The tradeoff is the resistance curve: at the top the shin is vertical
-         and the dumbbell sits over the knee, so the moment arm nearly
-         vanishes where a machine's cam would hold tension. Unscored in
-         rank.js on purpose — published leg-curl standards are for a loaded
-         stack (~0.9× bodyweight at Intermediate), nothing like what a pair
-         of feet can clamp. */
-      {n:'Prone Dumbbell Leg Curl',ld:1,m:'Hamstrings, Gastrocnemius',s:'2×F',b:'Flat 0°',bc:'bench-flat'},
+      /* Was a second RDL, then a prone dumbbell leg curl. A B-stance RDL is
+         a unilateral version of the lift that already opened this day, so
+         the slot spent four sets on a hinge the session had covered. Every
+         other hamstring movement here is hip extension, and the short head
+         of the biceps femoris never crosses the hip — it only flexes the
+         knee, so no hinge reaches it. The slot is here for knee flexion.
+         The dumbbell curl paid it badly. The dumbbell had to be clamped
+         between the feet, which is awkward and caps the load, and at the
+         top the shin is vertical and the dumbbell sits over the knee, so
+         the moment arm nearly vanished.
+         A Nordic is knee flexion with the curve the other way round: the
+         whole body is the lever, and it is heaviest near the floor, with
+         the knees almost straight and the hamstrings long -- where the
+         dumbbell curl was lightest. Negatives because the lowering is the
+         part that builds the muscle and the part a beginner can actually
+         do; the hands catch the bottom and push back up. A set ends at the
+         rep you can no longer slow down, so 'F' here is a handful of reps,
+         not fifteen. The bench has no leg roller, so the heels go under
+         something heavy or a partner's hands. Bodyweight and unscored: no
+         published standard reads it. */
+      {n:'Nordic Curl Negatives',m:'Hamstrings, Gastrocnemius',s:'2×F'},
     ]},
     {tag:'Accessories',ex:[
       {n:'Standing Calf Raises',m:'Gastrocnemius, Soleus',s:'2×F'},
@@ -212,7 +231,7 @@ const EDRIN = [
          exists for one. */
       {n:'Dumbbell Crunch',ld:1,m:'Upper Abs, Rectus Abdominis, Obliques',s:'2×F',b:'Flat 0°',bc:'bench-flat'},
       {n:'Weighted Hanging Leg Raises',ld:1,m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',
-       req:'bar', alt:{n:'Weighted Reverse Crunches',ld:1,m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',b:'Flat 0°',bc:'bench-flat'}},
+       req:'bar', alt:{n:'Decline Reverse Crunches',m:'Lower Abs, Rectus Abdominis, Hip Flexors, Obliques',s:'2×10-20',b:'Decline',bc:'bench-decline'}},
       {n:'Weighted Side Plank w/ Reach-Through',ld:1,m:'Obliques, TVA, Core',s:'2×F /side'},
     ]},
   ]},
