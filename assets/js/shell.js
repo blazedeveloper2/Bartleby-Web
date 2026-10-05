@@ -7,10 +7,10 @@
    To add a new app: import it and drop it into the APPS array.
    ═══════════════════════════════════════════════════════════ */
 
-import workout from '../../apps/workout/index.js?v=next-oct5';
-import finance from '../../apps/finance/index.js?v=next-oct5';
-import { toast } from './ui.js?v=next-oct5';
-import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=next-oct5';
+import workout from '../../apps/workout/index.js?v=check-oct5';
+import finance from '../../apps/finance/index.js?v=check-oct5';
+import { toast } from './ui.js?v=check-oct5';
+import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=check-oct5';
 
 // Scripture is parked in archive/ for now — to bring it back, move
 // archive/apps/scripture and archive/assets/data back to their old paths,
@@ -261,7 +261,7 @@ const EQUIP = [
    each default must match where the app reads it. */
 const PREFS = [
   { id:'autonext', key:'bp_autonext', name:'Auto-Advance', on:'On', off:'Off',
-    subOn:"Logging an exercise's last set opens the next one in the list.",
+    subOn:"Logging an exercise's last set checks it off and opens the next one.",
     subOff:'You open the next exercise yourself; Go on the rest timer still does it.',
     toastOn:'Auto-advance on', toastOff:'Auto-advance off' },
 ];

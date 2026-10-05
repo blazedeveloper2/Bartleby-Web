@@ -40,7 +40,8 @@ Live apps:
   an exercise's last set it names the next exercise down the day's list,
   and **Go** opens that one in the exercise lab from whichever tab you
   are on. With **Settings → Workout → Auto-Advance** on (the default),
-  logging an exercise's last set opens the next one by itself. See `apps/workout/rest.js` and `apps/workout/timer.js`.
+  logging an exercise's last set checks it off and opens the next one
+  by itself. See `apps/workout/rest.js` and `apps/workout/timer.js`.
 
   The **Time** tab says how long each session takes, with nothing to
   start: the first set logged or exercise checked off starts the clock

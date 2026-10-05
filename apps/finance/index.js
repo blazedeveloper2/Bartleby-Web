@@ -7,10 +7,10 @@
    Local-first; event-delegated; mount/unmount.
    ═══════════════════════════════════════════════════════════ */
 
-import { DEFAULT_CATS, PALETTE } from './data.js?v=next-oct5';
-import { load, save, todayStr } from '../../assets/js/storage.js?v=next-oct5';
-import { toast } from '../../assets/js/ui.js?v=next-oct5';
-import { renderNetWorth, nwClick, nwKeydown, nwReset } from './networth.js?v=next-oct5';
+import { DEFAULT_CATS, PALETTE } from './data.js?v=check-oct5';
+import { load, save, todayStr } from '../../assets/js/storage.js?v=check-oct5';
+import { toast } from '../../assets/js/ui.js?v=check-oct5';
+import { renderNetWorth, nwClick, nwKeydown, nwReset } from './networth.js?v=check-oct5';
 
 /* ── tab bar ──
 
@@ -934,7 +934,7 @@ export default {
   id: 'finance',
   name: 'Finance',
   storagePrefix: 'fin_',
-  styles: 'apps/finance/finance.css?v=next-oct5',
+  styles: 'apps/finance/finance.css?v=check-oct5',
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
   mount(el) {
     root = el;
