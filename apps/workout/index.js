@@ -6,33 +6,34 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER } from './data.js?v=rest-oct5';
-import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=rest-oct5';
-import { toast } from '../../assets/js/ui.js?v=rest-oct5';
-import { pctColor, ord, LIFTS } from './standards.js?v=rest-oct5';
+import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER } from './data.js?v=time-oct5';
+import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=time-oct5';
+import { toast } from '../../assets/js/ui.js?v=time-oct5';
+import { pctColor, ord, LIFTS } from './standards.js?v=time-oct5';
 import {
   setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, icon,
   liftScores, standingOf, resEx, resKit, lvlOf, setLvl, resetTargets, applyReset,
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip,
-} from './rank.js?v=rest-oct5';
+} from './rank.js?v=time-oct5';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
-import { MUSCLE_SVG } from './bodymap.js?v=rest-oct5';
-import { restBand, BANDS, fmtRest } from './rest.js?v=rest-oct5';
-import * as rest from './timer.js?v=rest-oct5';
-import { HOWTO } from './howto.js?v=rest-oct5';
-import { standingsFor } from './anthro.js?v=rest-oct5';
-import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=rest-oct5';
+import { MUSCLE_SVG } from './bodymap.js?v=time-oct5';
+import { restBand, BANDS, fmtRest } from './rest.js?v=time-oct5';
+import * as rest from './timer.js?v=time-oct5';
+import * as timing from './sessions.js?v=time-oct5';
+import { HOWTO } from './howto.js?v=time-oct5';
+import { standingsFor } from './anthro.js?v=time-oct5';
+import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=time-oct5';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor, whtrBand,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=rest-oct5';
+} from './body.js?v=time-oct5';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -60,6 +61,7 @@ const TABS = [
   { k:'bw',      n:'Body',    i:'scale',  r:() => renderBW() },
   { k:'rank',    n:'Rank',    i:'peak',   r:() => renderRank(root) },
   { k:'streak',  n:'Streak',  i:'flame',  r:() => renderStreak(root) },
+  { k:'time',    n:'Time',    i:'clock',  r:() => timing.renderTime(root) },
   { k:'awards',  n:'Awards',  i:'trophy', r:() => renderAwards(root) },
 ];
 
@@ -79,6 +81,8 @@ let bwEditDate = null;
 let mmReturnFocus = null;
 let mmEx = null;             // exercise currently open in the muscle modal
 let mmSlot = null;           // [di, si, ei] it came from, so a level change can re-resolve it
+let mmOpenedAt = 0;          // when it was opened: a session's first set began about then
+let clockTick = null;        // repaints the running session clocks once a second
 
 const BW_RANGES = [
   {k:'7',  d:7,   lbl:'7D'},
@@ -104,6 +108,7 @@ function renderProg() {
     day.sections.forEach((sec, si) => sec.opt || sec.ex.forEach((_, ei) => { tot++; if (ch[ek(di,si,ei)]) dn++; }));
     const comp = dn === tot && tot > 0;
     const xpH = comp && isLoggedToday(di) ? `<span class="day-xp logged">Logged</span>` : '';
+    const tmH = dayClockHTML(di);
     h += `<div class="day-card" data-day="${di}">
       <div class="day-top">
         <div class="day-top-l">
@@ -111,7 +116,7 @@ function renderProg() {
           <span class="day-badge ${day.day}">${day.day}</span>
           <span class="day-title">${day.label}</span>
         </div>
-        <div class="day-top-r">${xpH}<span class="day-prog ${comp?'done':''}">${dn}/${tot}</span></div>
+        <div class="day-top-r">${tmH}${xpH}<span class="day-prog ${comp?'done':''}">${dn}/${tot}</span></div>
       </div>
       <div class="day-meter">${meterHTML(dn, tot)}</div>
       <div class="day-body">`;
@@ -164,10 +169,59 @@ function dayTally(di, ch) {
 /* Patch the row and its day header in place. A full renderProg() here
    would rebuild all five cards, which reads as a page-wide flicker and
    restarts every card's entrance animation. */
+/* ── session time ──
+
+   Today's session on a day card: a running clock while it is open, the
+   final time once the day is finished, and the day's usual length when
+   there is nothing today yet. The numbers come from sessions.js. */
+function dayClockHTML(di) {
+  const t = timing.today(di);
+  if (t) return `<span class="day-clock${t.live ? ' live' : ''}" ${t.live ? `data-clock="${di}"` : ''} title="${t.live ? 'This session so far' : 'How long today took'}${t.part ? ' — started before timing could see it' : ''}">${t.live ? timing.fmtClock(t.ms) : timing.fmtDur(t.ms)}</span>`;
+  const avg = timing.avgFor(di);
+  return avg ? `<span class="day-clock avg" title="This day's average">~${timing.fmtDur(avg)}</span>` : '';
+}
+
+/* Every clock on screen reads off the same records, so one tick moves
+   them all; a clock whose session just closed waits for the next render. */
+function paintClocks() {
+  if (!root) return;
+  const els = root.querySelectorAll('[data-clock]');
+  if (!els.length) return;
+  const cache = {};
+  els.forEach(el => {
+    const di = +el.dataset.clock;
+    const t = cache[di] ??= timing.today(di);
+    if (t && t.live) el.textContent = timing.fmtClock(t.ms);
+  });
+}
+
+/* How much of day `di` was already done today — checks plus logged sets —
+   read BEFORE a change is saved. A session that timing first sees with
+   work already on it began earlier than it can know, and is marked so. */
+function dayActivity(di) {
+  const c = chks();
+  let n = 0;
+  PROGRAM[di].sections.forEach((sec, si) => sec.ex.forEach((raw, ei) => {
+    if (c[ek(di, si, ei)]) n++;
+    n += doneToday(resEx(raw));
+  }));
+  return n;
+}
+
+function timeMark(di, name, type) {
+  timing.mark(di, name, type, dayActivity(di), mmOpenedAt);
+  if (activeTab === 'time') timing.renderTime(root);
+}
+
 function toggleChk(k) {
+  const di = +k.split('.')[0];
+  const [, si, ei] = k.split('.').map(Number);
+  if (!chks()[k]) {
+    const ex = PROGRAM[di]?.sections[si]?.ex[ei];
+    if (ex) timeMark(di, resEx(ex).n, 'c');
+  }
   const c = chks(); c[k] = !c[k]; sChk(c);
   const on = !!c[k];
-  const di = +k.split('.')[0];
 
   const box = q(`[data-act="chk"][data-k="${k}"]`);
   if (box) {
@@ -180,6 +234,9 @@ function toggleChk(k) {
 
   const res = syncDay(di, tally);
   if (!res) return;
+  if (res.logged) timing.finish(di);
+  if (res.unlogged) timing.reopen(di);
+  if (res.logged || res.unlogged) { renderProg(); if (activeTab === 'time') timing.renderTime(root); }
   paintDayHead(di, tally);            // the "Logged" pill may have appeared
   renderScore();
   if (res.logged && !showCelebration(res)) toast(`${res.label} logged`);
@@ -534,9 +591,11 @@ function setMMReps(box) {
   const sets = [...root.querySelectorAll('.mm-set-in')]
     .sort((a, b) => +a.dataset.set - +b.dataset.set)
     .map(el => (el.value === '' ? null : parseInt(el.value, 10)));
-  saveSets(tr, sets);
   const i = box ? +box.dataset.set : -1;
-  if (i >= 0 && !(before[i] > 0) && sets[i] > 0) startRest(sets);
+  const fresh = i >= 0 && !(before[i] > 0) && sets[i] > 0;
+  if (fresh && mmSlot) timeMark(mmSlot[0], mmEx.n, 's');
+  saveSets(tr, sets);
+  if (fresh) startRest(sets);
 }
 
 /* A tick is a set with no number: tapped, it is done. */
@@ -547,6 +606,7 @@ function tickSet(btn) {
   const sets = Array.from({ length: tr.n }, (_, i) => (vals[i] > 0 ? 1 : null));
   const i = +btn.dataset.set, on = !sets[i];
   sets[i] = on ? 1 : null;
+  if (on && mmSlot) timeMark(mmSlot[0], mmEx.n, 's');
   saveSets(tr, sets);
   paintMMStanding();                 // nothing here holds focus, so a rebuild is safe
   if (on) startRest(sets);
@@ -560,11 +620,65 @@ function saveSets(tr, sets) {
   if (tr.store === 'reps') renderScore();
 }
 
+/* The rest is this exercise's either way; what comes after it is not.
+   Mid-exercise it is the next set of the same one. After the last set it
+   is the next exercise down the day's list, because that is the order the
+   day is done in — so the bar names it and Go opens it. */
 function startRest(sets) {
   const n = setCountOf(mmEx), cur = curSet(sets, n);
   const band = BANDS[restBand(mmEx)];
-  rest.start({ s: band.s, ex: mmEx.n, why: band.n,
-               next: cur >= n ? 'Next exercise' : `Set ${cur + 1} of ${n}` });
+  const base = { s: band.s, why: band.n };
+  if (cur < n) {
+    rest.start({ ...base, ex: mmEx.n, go: mmEx.n, slot: mmSlot ? [...mmSlot] : null, next: `Set ${cur + 1} of ${n}` });
+    return;
+  }
+  const nx = mmSlot && nextSlot(mmSlot);
+  if (!nx) { rest.start({ ...base, ex: `${mmEx.n} done`, next: 'Last exercise of the day', slot: null }); return; }
+  const ex = resEx(PROGRAM[nx[0]].sections[nx[1]].ex[nx[2]]);
+  rest.start({ ...base, ex: `${mmEx.n} done`, go: ex.n, slot: nx,
+               next: `Next: ${ex.n} · ${setCountOf(ex)} set${setCountOf(ex) === 1 ? '' : 's'}` });
+}
+
+/* The exercise after [di, si, ei] in the order the day lists them,
+   across section headings. One already checked off is skipped, in case
+   you did it out of order earlier. */
+function nextSlot([di, si, ei]) {
+  const flat = [];
+  PROGRAM[di].sections.forEach((sec, s) => sec.ex.forEach((_, e) => flat.push([di, s, e])));
+  const at = flat.findIndex(([, s, e]) => s === si && e === ei);
+  const c = chks();
+  const after = flat.slice(at + 1);
+  return after.find(([d, s, e]) => !c[ek(d, s, e)]) || null;
+}
+
+/* Go, when a rest runs out: back into that exercise's lab from wherever
+   you wandered off to. A rest started before slots were stored has only
+   the name, so it is looked up — today's weekday first, since that is
+   the day you are most likely training. */
+function restGo() {
+  const st = rest.current();
+  rest.stop();
+  const slot = st?.slot || findSlot(st?.ex);
+  if (!slot) return;
+  const [di, si, ei] = slot;
+  const raw = PROGRAM[di]?.sections[si]?.ex[ei];
+  if (!raw) return;
+  if (activeTab !== 'program') switchTab('program');
+  mmSlot = [di, si, ei];
+  openMM(resEx(raw));
+}
+
+function findSlot(name) {
+  if (!name) return null;
+  const dow = ['sun','mon','tue','wed','thu','fri','sat'][new Date().getDay()];
+  const order = PROGRAM.map((d, di) => di).sort((a, b) => (PROGRAM[b].day === dow) - (PROGRAM[a].day === dow));
+  for (const di of order) {
+    const secs = PROGRAM[di].sections;
+    for (let si = 0; si < secs.length; si++)
+      for (let ei = 0; ei < secs[si].ex.length; ei++)
+        if (resEx(secs[si].ex[ei]).n === name) return [di, si, ei];
+  }
+  return null;
 }
 
 /* A redo of today's sets. Only the boxes empty: nothing is saved until a
@@ -661,7 +775,7 @@ function mmLvlUp() {
 function openMM(ex) {
   /* Re-opened in place after a level change: the focus to return to is
      still the row that opened it, not the button that just re-rendered. */
-  if (!q('#mm-ol').classList.contains('on')) mmReturnFocus = document.activeElement;
+  if (!q('#mm-ol').classList.contains('on')) { mmReturnFocus = document.activeElement; mmOpenedAt = Date.now(); }
   mmEx = ex;
   mmView('both');
   q('#mm-name').textContent = ex.n;
@@ -1569,6 +1683,7 @@ function onClick(e) {
     case 'mm-tick':   tickSet(el); break;
     case 'rest-adj':  rest.adjust(+a.d); break;
     case 'rest-skip': rest.stop(); break;
+    case 'rest-go':   restGo(); break;
     case 'mm-bump':   takeBump(a.to); break;
     case 'bw-range':  bwSetRange(a.k); break;
     case 'bw-metric': bwSetMetric(a.k); break;
@@ -1722,7 +1837,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=rest-oct5',
+  styles: 'apps/workout/workout.css?v=time-oct5',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
@@ -1738,6 +1853,7 @@ export default {
     root.addEventListener('pointerout', onOut);
     window.addEventListener('bs:datachange', onExternalChange);
     rest.mount(q('#rest-bar'));
+    clearInterval(clockTick); clockTick = setInterval(paintClocks, 1000);
     renderProg(); renderBW();
     switchTab(activeTab);
   },
@@ -1751,6 +1867,7 @@ export default {
     }
     window.removeEventListener('bs:datachange', onExternalChange);
     rest.unmount();
+    clearInterval(clockTick); clockTick = null;
     root = null;
   },
 };

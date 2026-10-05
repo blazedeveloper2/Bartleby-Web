@@ -16,7 +16,7 @@
    backups, resets and whose-program switches leave it alone.
    ═══════════════════════════════════════════════════════════ */
 
-import { load, save, remove } from './store.js?v=rest-oct5';
+import { load, save, remove } from './store.js?v=time-oct5';
 
 const KEY = 'wk_rest';
 const DONE_FOR = 12000;          // how long "rest over" stays up before it tidies itself away
@@ -45,9 +45,11 @@ export function unmount() {
   el = null;
 }
 
-/* { s: seconds, ex: exercise name, next: 'Set 2 of 3', why: band name } */
-export function start({ s, ex, next, why }) {
-  save(KEY, { end: Date.now() + s * 1000, dur: s, ex, next, why });
+/* { s: seconds, ex: the line under the clock, next: 'Set 2 of 3' or the
+     next exercise, why: band name, go: the exercise Go opens,
+     slot: [di, si, ei] — where that exercise is } */
+export function start({ s, ex, next, why, slot, go }) {
+  save(KEY, { end: Date.now() + s * 1000, dur: s, ex, next, why, slot, go });
   rang = false;
   unlock();
   run();
@@ -66,6 +68,9 @@ export function adjust(d) {
   rang = st.end <= Date.now();
   paint();
 }
+
+/* The rest in hand, for Go: which exercise to open. */
+export const current = () => load(KEY, null);
 
 export function stop() {
   remove(KEY);
@@ -103,15 +108,19 @@ function paint() {
       </div>
       <div class="rest-sub"><b></b><span></span></div>
       <div class="rest-btns">${done
-        ? `<button type="button" data-act="rest-adj" data-d="30">+30s</button><button type="button" class="go" data-act="rest-skip">Go</button>`
+        ? `<button type="button" data-act="rest-adj" data-d="30">+30s</button><button type="button" class="go" data-act="rest-go" title="${goTo(st) ? `Open ${goTo(st)} in the exercise lab` : 'Close'}">${goTo(st) ? 'Go' : 'Done'}</button>`
         : `<button type="button" data-act="rest-adj" data-d="-15" aria-label="15 seconds less">−15</button><button type="button" data-act="rest-adj" data-d="15" aria-label="15 seconds more">+15</button><button type="button" data-act="rest-skip">Skip</button>`}</div>`;
   }
   el.classList.toggle('done', done);
   el.querySelector('.rest-fill').style.transform = `scaleX(${Math.min(1, Math.max(0, p))})`;
   el.querySelector('.rest-t').textContent = done ? '0:00' : fmt(left);
-  el.querySelector('.rest-sub b').textContent = done ? `${st.next} — go` : st.next;
+  el.querySelector(".rest-sub b").textContent = done && goTo(st) ? `${st.next} — go` : st.next;
   el.querySelector('.rest-sub span').textContent = `${st.ex} · ${st.why || 'rest'} ${fmt(st.dur * 1000)}`;
 }
+
+/* What Go opens. A rest saved before `go` existed has no slot key at all
+   and means its own exercise; a null slot is the end of the day. */
+const goTo = st => st.go || (st.slot === undefined ? st.ex : null);
 
 function unlock() {
   try {

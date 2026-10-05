@@ -36,8 +36,21 @@ Live apps:
   for compound lifts (Schoenfeld et al. 2016), 2:30 for skill holds, 2:00
   for one-side-at-a-time and bodyweight compounds, 1:30 for isolation,
   1:00 for abs, calves and forearms, 0:30 for warm-ups. It survives a
-  locked phone or a reload, and buzzes and beeps when it runs out. See
-  `apps/workout/rest.js` and `apps/workout/timer.js`.
+  locked phone or a reload, and buzzes and beeps when it runs out. After
+  an exercise's last set it names the next exercise down the day's list,
+  and **Go** opens that one in the exercise lab from whichever tab you
+  are on. See `apps/workout/rest.js` and `apps/workout/timer.js`.
+
+  The **Time** tab says how long each session takes, with nothing to
+  start: the first set logged or exercise checked off starts the clock
+  (from when you opened that exercise), finishing the day stops it. Each
+  day card shows a running clock, today's time, or that day's average.
+  The tab has the average session, this week's total, the longest
+  session, time per set, each program day's average with where the
+  minutes go exercise by exercise, eight weeks of weekly totals and the
+  recent sessions. Breaks over 45 minutes count as 45, and a day that
+  already had work on it before timing saw it is marked partial and kept
+  out of the averages. See `apps/workout/sessions.js`.
 
   **Settings → Program** switches whose workout the app runs: **Edrin**
   (the default, the dumbbell-and-calisthenics program above) or **Andrew**
