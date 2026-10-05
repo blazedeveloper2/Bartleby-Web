@@ -6,34 +6,34 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER } from './data.js?v=check-oct5';
-import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=check-oct5';
-import { toast } from '../../assets/js/ui.js?v=check-oct5';
-import { pctColor, ord, LIFTS } from './standards.js?v=check-oct5';
+import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER } from './data.js?v=last-oct5';
+import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=last-oct5';
+import { toast } from '../../assets/js/ui.js?v=last-oct5';
+import { pctColor, ord, LIFTS } from './standards.js?v=last-oct5';
 import {
   setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, icon,
   liftScores, standingOf, resEx, resKit, lvlOf, setLvl, resetTargets, applyReset,
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip,
-} from './rank.js?v=check-oct5';
+} from './rank.js?v=last-oct5';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
-import { MUSCLE_SVG } from './bodymap.js?v=check-oct5';
-import { restBand, BANDS, fmtRest } from './rest.js?v=check-oct5';
-import * as rest from './timer.js?v=check-oct5';
-import * as timing from './sessions.js?v=check-oct5';
-import { HOWTO } from './howto.js?v=check-oct5';
-import { standingsFor } from './anthro.js?v=check-oct5';
-import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=check-oct5';
+import { MUSCLE_SVG } from './bodymap.js?v=last-oct5';
+import { restBand, BANDS, fmtRest } from './rest.js?v=last-oct5';
+import * as rest from './timer.js?v=last-oct5';
+import * as timing from './sessions.js?v=last-oct5';
+import { HOWTO } from './howto.js?v=last-oct5';
+import { standingsFor } from './anthro.js?v=last-oct5';
+import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=last-oct5';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor, whtrBand,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=check-oct5';
+} from './body.js?v=last-oct5';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -633,7 +633,17 @@ function startRest(sets) {
     return;
   }
   const nx = mmSlot && nextSlot(mmSlot);
-  if (!nx) { rest.start({ ...base, ex: `${mmEx.n} done`, next: 'Last exercise of the day', slot: null }); return; }
+  /* The day's last set: nothing after this one and everything before it
+     checked, so the workout is over and there is no rest to time — and
+     a rest still running from an earlier set goes with it. Nothing after
+     it but an earlier exercise skipped is not the end, so that rest is
+     still timed. */
+  if (!nx && mmSlot) {
+    const [di, si, ei] = mmSlot;
+    const t = dayTally(di, { ...chks(), [ek(di, si, ei)]: true });
+    if (t.done >= t.tot) { rest.stop(); return; }
+  }
+  if (!nx) { rest.start({ ...base, ex: `${mmEx.n} done`, next: 'Last in the list · go back for what you skipped', slot: null }); return; }
   const ex = resEx(PROGRAM[nx[0]].sections[nx[1]].ex[nx[2]]);
   rest.start({ ...base, ex: `${mmEx.n} done`, go: ex.n, slot: nx,
                next: `Next: ${ex.n} · ${setCountOf(ex)} set${setCountOf(ex) === 1 ? '' : 's'}` });
@@ -1871,7 +1881,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=check-oct5',
+  styles: 'apps/workout/workout.css?v=last-oct5',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
