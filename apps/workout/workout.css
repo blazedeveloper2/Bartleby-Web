@@ -1009,3 +1009,61 @@ html[data-theme] .wk .mm-card .mm-muscles{overflow:visible}
      pinned to none. */
   html[data-theme] .wk .mm-card{animation:none;transform:none}
 }
+
+/* ── Sets you are on, and the rest timer ──
+
+   The set you are on gets the accent border; a tick set (wrist prep,
+   mobility, cardio) is a button that fills in. Last session's numbers sit
+   in the empty boxes as placeholders, and the line under them says so. */
+.mm-reps-tools{display:flex;align-items:center;gap:8px;flex:none}
+.mm-set-now{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--ink-green);background:var(--green-d);
+  padding:5px 9px;border-radius:var(--rs);white-space:nowrap}
+.mm-set-now.done{color:var(--text-2);background:var(--bg)}
+.mm-set.cur{border-color:var(--green);box-shadow:0 0 0 1px var(--green) inset}
+.mm-tick{cursor:pointer;font-family:var(--font);color:var(--text);min-width:86px;justify-content:space-between}
+.mm-tick>b{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;
+  border:1px solid var(--border-lt,var(--border));font-size:13px;color:var(--ink-green)}
+.mm-tick.on{background:var(--green-d)}
+.mm-tick.on>b{background:var(--green);border-color:var(--green);color:var(--bg)}
+.mm-tick:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.mm-sets-last{font-size:10.5px;color:var(--text-3);margin-top:8px}
+.wk .mm-rest-tag{color:var(--text-2)}
+.wk .ex-done{font-family:var(--mono);font-size:10.5px;font-weight:700;color:var(--text-2);background:var(--bg);
+  padding:3px 7px;border-radius:2px;white-space:nowrap;box-shadow:inset 0 0 0 1px var(--border)}
+.wk .ex-done.full{color:var(--ink-green);background:var(--green-d);box-shadow:inset 0 0 0 1px var(--green-d)}
+
+/* Pinned to the bottom over everything, the exercise lab included, so it
+   is visible from whichever screen you are on when the rest runs out. */
+.rest-bar{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:300;
+  max-width:520px;margin:0 auto;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:4px 14px;
+  padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;
+  box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.rest-bar[hidden]{display:none}
+.rest-fill{position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--green);transform-origin:left;transform:scaleX(0)}
+.rest-main{display:flex;flex-direction:column;line-height:1}
+.rest-k{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-3)}
+.rest-t{font-family:var(--mono);font-size:28px;font-weight:700;color:var(--text);margin-top:4px;font-variant-numeric:tabular-nums}
+.rest-sub{min-width:0;display:flex;flex-direction:column;gap:3px}
+.rest-sub b{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rest-sub span{font-size:10.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rest-btns{display:flex;gap:6px}
+.rest-btns button{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text-2);background:var(--bg);
+  border:1px solid var(--border);border-radius:var(--rs);min-width:44px;height:40px;padding:0 10px;cursor:pointer}
+.rest-btns button:hover{color:var(--text);background:var(--bg-hover)}
+.rest-btns button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.rest-bar.done{border-color:var(--green);background:linear-gradient(var(--green-d),var(--green-d)),var(--bg-card)}
+.rest-bar.done .rest-k,.rest-bar.done .rest-t,.rest-bar.done .rest-sub b{color:var(--ink-green)}
+.rest-bar.done .rest-btns .go{color:var(--bg);background:var(--green);border-color:var(--green)}
+@media (prefers-reduced-motion:no-preference){
+  .rest-bar.done{animation:rest-pulse 1s ease-in-out 3}
+}
+@keyframes rest-pulse{50%{box-shadow:0 0 0 4px var(--green-d),0 10px 30px rgba(0,0,0,.45)}}
+@media (max-width:420px){
+  .rest-bar{grid-template-columns:auto 1fr;left:8px;right:8px}
+  .rest-btns{grid-column:1 / -1}
+  .rest-btns button{flex:1}
+}
+/* Room under the last row, and under the bottom of the exercise lab, so
+   the bar never sits on top of anything you need to reach. */
+body.wk-resting .wk .app-wrap{padding-bottom:120px}
+html[data-theme] body.wk-resting .wk .mm-card{padding-bottom:calc(150px + env(safe-area-inset-bottom,0px))}

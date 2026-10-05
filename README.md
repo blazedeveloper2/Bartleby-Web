@@ -27,6 +27,18 @@ Live apps:
   against every theme.
   See `apps/workout/standards.js` for the data and its sources.
 
+  **Every exercise logs its sets.** Open one and there is a box per
+  prescribed set — reps, seconds, or a tap-to-tick for warm-ups, mobility
+  and cardio — with "Set 2 of 3" marking the one you are on and last
+  session's numbers sitting in the empty boxes as the ones to beat. The
+  program row shows how many are done today. Logging a set starts a **rest
+  timer** pinned to the bottom of the screen, sized to the exercise: 3:00
+  for compound lifts (Schoenfeld et al. 2016), 2:30 for skill holds, 2:00
+  for one-side-at-a-time and bodyweight compounds, 1:30 for isolation,
+  1:00 for abs, calves and forearms, 0:30 for warm-ups. It survives a
+  locked phone or a reload, and buzzes and beeps when it runs out. See
+  `apps/workout/rest.js` and `apps/workout/timer.js`.
+
   **Settings → Program** switches whose workout the app runs: **Edrin**
   (the default, the dumbbell-and-calisthenics program above) or **Andrew**
   (a seven-day gym program — heavy upper/lower, push/pull/legs, two Zone 2

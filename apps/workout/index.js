@@ -6,31 +6,33 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER } from './data.js?v=nordic-sep29';
-import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=nordic-sep29';
-import { toast } from '../../assets/js/ui.js?v=nordic-sep29';
-import { pctColor, ord, LIFTS } from './standards.js?v=nordic-sep29';
+import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER } from './data.js?v=rest-oct5';
+import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=rest-oct5';
+import { toast } from '../../assets/js/ui.js?v=rest-oct5';
+import { pctColor, ord, LIFTS } from './standards.js?v=rest-oct5';
 import {
   setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, icon,
   liftScores, standingOf, resEx, resKit, lvlOf, setLvl, resetTargets, applyReset,
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip,
-} from './rank.js?v=nordic-sep29';
+} from './rank.js?v=rest-oct5';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
-import { MUSCLE_SVG } from './bodymap.js?v=nordic-sep29';
-import { HOWTO } from './howto.js?v=nordic-sep29';
-import { standingsFor } from './anthro.js?v=nordic-sep29';
-import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=nordic-sep29';
+import { MUSCLE_SVG } from './bodymap.js?v=rest-oct5';
+import { restBand, BANDS, fmtRest } from './rest.js?v=rest-oct5';
+import * as rest from './timer.js?v=rest-oct5';
+import { HOWTO } from './howto.js?v=rest-oct5';
+import { standingsFor } from './anthro.js?v=rest-oct5';
+import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=rest-oct5';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor, whtrBand,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=nordic-sep29';
+} from './body.js?v=rest-oct5';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -125,9 +127,11 @@ function renderProg() {
         const wtH = ex.line && lineReady(ex.line) ? `<span class="ex-up" title="Your count passes this step — open it to move up">Move up</span>`
                   : wv && trackOf(ex).load ? `<span class="ex-wt">${wv}</span>` : '';
         const bH  = ex.b ? `<span class="bench-tag ${ex.bc||''}">${ex.b}</span>` : '';
+        const dn = doneToday(ex), nS = setCountOf(ex);
+        const dH  = dn ? `<span class="ex-done${dn >= nS ? ' full' : ''}" title="Sets logged today">${Math.min(dn, nS)}/${nS}</span>` : '';
         const l   = sc.get(ex.n);
         const nA  = l ? ` style="color:${pctColor(l.pct)}" title="${l.rank.l} · ${ord(l.pct)} percentile at your ${sc.basisWord}"` : '';
-        h += `<div class="ex-row ${on?'off':''}" data-act="row" data-di="${di}" data-si="${si}" data-ei="${ei}"><span class="ex-rail"></span><div class="ex-chk ${on?'on':''}" data-act="chk" data-k="${k}"></div><span class="ex-idx">${pad(++exN)}</span><div class="ex-body"><div class="ex-name"${nA}>${ex.n}</div><div class="ex-detail"><span class="ex-musc">${ex.m}</span></div>${ex.nt ? `<div class="ex-note">${ex.nt}</div>` : ''}</div><div class="ex-right">${wtH}<span class="ex-sets">${ex.s}</span>${bH}</div></div>`;
+        h += `<div class="ex-row ${on?'off':''}" data-act="row" data-di="${di}" data-si="${si}" data-ei="${ei}"><span class="ex-rail"></span><div class="ex-chk ${on?'on':''}" data-act="chk" data-k="${k}"></div><span class="ex-idx">${pad(++exN)}</span><div class="ex-body"><div class="ex-name"${nA}>${ex.n}</div><div class="ex-detail"><span class="ex-musc">${ex.m}</span></div>${ex.nt ? `<div class="ex-note">${ex.nt}</div>` : ''}</div><div class="ex-right">${wtH}${dH}<span class="ex-sets">${ex.s}</span>${bH}</div></div>`;
       });
     });
     h += `</div></div>`;
@@ -295,41 +299,63 @@ function mmRankHTML(st) {
 
 /* ── counting sets ──
 
-   One box per set the program prescribes, in whatever the movement is
-   measured in: reps on a lift, seconds on a hold, reps on bodyweight
-   work. What each exercise tracks is read off the exercise (trackOf in
-   rank.js), and a movement with nothing worth counting — wrist prep, a
-   stretch — gets no boxes at all.
+   One box per set the program prescribes, on every exercise, in whatever
+   the movement is measured in: reps on a lift, seconds on a hold, reps on
+   bodyweight work, and a tap-to-tick on the things with no number worth
+   writing down — wrist prep, mobility, cardio. What each exercise tracks
+   is read off the exercise (trackOf in rank.js).
+
+   The boxes are TODAY's sets. The next empty one is the set you are on,
+   and last session's numbers sit in them as placeholders, so you can see
+   what to beat without having to clear anything first. Nothing stored is
+   touched until you type: the first new set replaces the old count rather
+   than the old count being deleted in between, so the rank never drops to
+   an assumed rep count just because a new day started.
 
    On a loaded lift the best set is what the 1RM is read off; see the
    RECORDED REPS block in rank.js for why that is the only defensible
-   choice. Those boxes appear once there is a weight for the count to be
-   true of, and only where there is an estimate or a range for it to feed
-   — a '2×F' lift that is not scored has neither. An 'added' lift is the
-   exception on both counts: bodyweight is its starting weight, so it is
-   counted from the first set, and the count is what says when to start
-   adding.
+   choice. Those counts go to bp_xreps, stamped with the weight they were
+   counted at, wherever there is a weight for the count to be true of and
+   an estimate or a range for it to feed. An 'added' lift counts from the
+   first set: bodyweight is its starting weight.
 
-   Bodyweight counts are kept apart from the lifts' (bp_xsets) and feed the
-   skill ladders instead: the strip under them says how far the count is
-   from the step's `up`, and turns into the way up once it clears it. */
+   Everything else — bodyweight work, ticks, and a loaded lift with no
+   weight set yet or nothing for a count to feed — goes to bp_xsets. The
+   bodyweight counts there feed the skill ladders: the strip under them
+   says how far the count is from the step's `up`, and turns into the way
+   up once it clears it.
+
+   Logging a set starts the rest timer for that exercise (rest.js). */
 function mmTrack() {
   if (!mmEx) return null;
-  const t = trackOf(mmEx);
-  if (t.unit === '-') return null;
-  if (t.load) {
-    if (!LIFT_NAMES.has(mmEx.n) && !t.rng) return null;
+  const t = trackOf(mmEx), n = setCountOf(mmEx);
+  if (t.load && t.unit !== '-') {
     const set = wts()[mmEx.n];
     const wv = t.load === 'added' ? (set > 0 ? set : 0) : set;
-    if (t.load === 'set' && !(wv > 0)) return null;
-    const rec = exReps(mmEx.n);
-    /* The boxes empty out the moment a count goes stale: the numbers in
-       them were true of a different weight, and leaving them there would
-       invite you to keep one. */
-    return { t, wv, vals: rec && (rec.w || 0) === wv ? rec.s : [], lbl: 'Reps per set' };
+    if ((LIFT_NAMES.has(mmEx.n) || t.rng) && (wv > 0 || t.load === 'added')) {
+      /* A count taken at another weight was true of a different lift, so
+         it is neither today's set nor a number to beat. */
+      const rec = exReps(mmEx.n);
+      return { t, n, wv, store: 'reps', rec: rec && (rec.w || 0) === wv ? rec : null, lbl: 'Reps per set' };
+    }
   }
-  const rec = exSets(mmEx);
-  return { t, vals: rec ? rec.s : [], lbl: t.unit === 's' ? 'Seconds per set' : 'Reps per set' };
+  return { t, n, store: 'sets', rec: exSets(mmEx),
+           lbl: t.unit === 's' ? 'Seconds per set' : t.unit === '-' ? 'Sets' : 'Reps per set' };
+}
+
+/* Today's values, and the last session's as the numbers to beat. */
+const todayVals = tr => (tr.rec && tr.rec.d === todayStr() ? tr.rec.s : []);
+const lastVals  = tr => (tr.rec && tr.rec.d !== todayStr() ? tr.rec.s : []);
+/* The set you are on: the first one not logged today. */
+const curSet = (vals, n) => { for (let i = 0; i < n; i++) if (!(vals[i] > 0)) return i; return n; };
+
+/* How many of an exercise's sets are logged today, for its row on the
+   program. Either store, since which one a lift writes to depends on
+   whether it had a weight at the time. */
+function doneToday(ex) {
+  const d = todayStr();
+  const c = r => (r && r.d === d && Array.isArray(r.s) ? r.s.filter(v => v > 0).length : 0);
+  return Math.max(c(exReps(ex.n)), c(exSets(ex)));
 }
 
 /* "Planche · level 2 of 7 · Novice", for anything on a ladder. */
@@ -343,20 +369,40 @@ function lvlLine(ex) {
 function mmRepsHTML() {
   const tr = mmTrack();
   if (!tr) return '';
-  const secs = tr.t.unit === 's', vals = tr.vals;
-  const boxes = Array.from({ length: setCountOf(mmEx) }, (_, i) =>
-    `<label class="mm-set"><span>Set ${i + 1}</span>
-      <input class="mm-set-in" data-set="${i}" type="number" min="1" max="${secs ? 600 : 100}" step="1"
-             inputmode="numeric" placeholder="—" value="${vals[i] > 0 ? vals[i] : ''}">${secs ? '<em>s</em>' : ''}
-    </label>`).join('');
+  const secs = tr.t.unit === 's', tick = tr.t.unit === '-';
+  const vals = todayVals(tr), last = lastVals(tr), cur = curSet(vals, tr.n);
+  const boxes = Array.from({ length: tr.n }, (_, i) => tick
+    ? `<button type="button" class="mm-set mm-tick${vals[i] > 0 ? ' on' : ''}${i === cur ? ' cur' : ''}" data-act="mm-tick" data-set="${i}" aria-pressed="${vals[i] > 0}">
+        <span>Set ${i + 1}</span><b aria-hidden="true">${vals[i] > 0 ? '✓' : ''}</b></button>`
+    : `<label class="mm-set${i === cur ? ' cur' : ''}"><span>Set ${i + 1}</span>
+        <input class="mm-set-in" data-set="${i}" type="number" min="1" max="${secs ? 600 : 100}" step="1"
+               inputmode="numeric" placeholder="${last[i] > 0 ? last[i] : '—'}" value="${vals[i] > 0 ? vals[i] : ''}">${secs ? '<em>s</em>' : ''}
+      </label>`).join('');
   const sub = lvlLine(mmEx);
   const clr = vals.some(v => v > 0)
-    ? `<button class="mm-sets-clr" data-act="mm-sets-clear" title="Empties the boxes for today's sets. The last count keeps scoring until you enter the first new one, so closing without typing loses nothing.">Clear sets</button>` : '';
+    ? `<button class="mm-sets-clr" data-act="mm-sets-clear" title="Empties today's boxes to log them again. The last count keeps scoring until you enter the first new one, so closing without typing loses nothing.">Clear sets</button>` : '';
+  const hint = !tick && last.some(v => v > 0)
+    ? `<div class="mm-sets-last">Grey numbers are last session's — the ones to beat.</div>` : '';
   return `<div class="mm-reps-row">
-    <div class="mm-reps-head"><div class="mm-reps-lbl">${tr.lbl}${sub ? `<span>${sub}</span>` : ''}</div>${clr}</div>
+    <div class="mm-reps-head"><div class="mm-reps-lbl">${tr.lbl}${sub ? `<span>${sub}</span>` : ''}</div>
+      <div class="mm-reps-tools"><span class="mm-set-now${cur >= tr.n ? ' done' : ''}" id="mm-set-now">${setNowTxt(cur, tr.n)}</span>${clr}</div></div>
     <div class="mm-sets">${boxes}</div>
+    ${hint}
     <div id="mm-verdict">${mmVerdictHTML(tr)}</div>
   </div>`;
+}
+
+const setNowTxt = (cur, n) => (cur >= n ? `All ${n} done` : `Set ${cur + 1} of ${n}`);
+
+/* Moves the "you are here" marker without rebuilding the boxes, which
+   would take focus out of the one you are about to type in. */
+function paintSetNow() {
+  const tr = mmTrack(), pill = q('#mm-set-now');
+  if (!tr || !pill) return;
+  const cur = curSet(todayVals(tr), tr.n);
+  pill.textContent = setNowTxt(cur, tr.n);
+  pill.classList.toggle('done', cur >= tr.n);
+  root.querySelectorAll('.mm-sets .mm-set').forEach((el, i) => el.classList.toggle('cur', i === cur));
 }
 
 /* ── the verdict strip ──
@@ -372,7 +418,14 @@ function mmRepsHTML() {
    its own so it can follow the boxes while one of them still has focus. */
 function mmVerdictHTML(tr = mmTrack()) {
   if (!tr) return '';
-  return tr.t.load ? loadVerdictHTML(tr) : skillVerdictHTML(tr);
+  if (tr.store === 'reps') return loadVerdictHTML(tr);
+  /* A loaded lift counted without a weight: the count is kept, but there
+     is no load for it to judge until one is set. */
+  if (tr.t.load) return (LIFT_NAMES.has(mmEx.n) || tr.t.rng) && tr.t.unit !== '-'
+    ? strip('uncounted', 'No weight set', 'Set one above',
+        'Your sets are logged either way. With a working weight above, the count also says whether that weight is the right one.')
+    : '';
+  return skillVerdictHTML(tr);
 }
 
 const strip = (cls, k, v, tip, act) => {
@@ -471,34 +524,66 @@ const fmtWhen = ds => {
 
 /* Reads every box at once rather than the one that changed, so a set left
    blank clears correctly and the stored array always matches what is on
-   screen. */
-function setMMReps() {
+   screen. A box that was empty and now holds a number is a set just done,
+   and that is what starts the rest timer — correcting a number already
+   there does not. */
+function setMMReps(box) {
   const tr = mmTrack();
   if (!tr) return;
+  const before = todayVals(tr);
   const sets = [...root.querySelectorAll('.mm-set-in')]
     .sort((a, b) => +a.dataset.set - +b.dataset.set)
     .map(el => (el.value === '' ? null : parseInt(el.value, 10)));
-  if (!tr.t.load) {
-    setExSets(mmEx, sets);
-    paintMMStanding(true);
-    renderProg();                    // a passed step marks its rows
-    return;
-  }
-  setExReps(mmEx.n, sets, tr.wv);
-  paintMMStanding(true);
-  renderProg();
-  renderScore();
+  saveSets(tr, sets);
+  const i = box ? +box.dataset.set : -1;
+  if (i >= 0 && !(before[i] > 0) && sets[i] > 0) startRest(sets);
 }
 
-/* A new week on the same lift. Only the boxes empty: nothing is saved
-   until a new set is typed, and then setMMReps writes exactly what the
-   boxes hold — so last week's count is replaced by this week's rather than
-   deleted in between, and the rank never drops to an assumed rep count
-   just because you opened the lab to start logging. */
+/* A tick is a set with no number: tapped, it is done. */
+function tickSet(btn) {
+  const tr = mmTrack();
+  if (!tr) return;
+  const vals = todayVals(tr);
+  const sets = Array.from({ length: tr.n }, (_, i) => (vals[i] > 0 ? 1 : null));
+  const i = +btn.dataset.set, on = !sets[i];
+  sets[i] = on ? 1 : null;
+  saveSets(tr, sets);
+  paintMMStanding();                 // nothing here holds focus, so a rebuild is safe
+  if (on) startRest(sets);
+}
+
+function saveSets(tr, sets) {
+  if (tr.store === 'reps') setExReps(mmEx.n, sets, tr.wv);
+  else setExSets(mmEx, sets);
+  paintMMStanding(true);
+  renderProg();                      // the row's set count, and a passed step
+  if (tr.store === 'reps') renderScore();
+}
+
+function startRest(sets) {
+  const n = setCountOf(mmEx), cur = curSet(sets, n);
+  const band = BANDS[restBand(mmEx)];
+  rest.start({ s: band.s, ex: mmEx.n, why: band.n,
+               next: cur >= n ? 'Next exercise' : `Set ${cur + 1} of ${n}` });
+}
+
+/* A redo of today's sets. Only the boxes empty: nothing is saved until a
+   new set is typed, and then setMMReps writes exactly what the boxes hold —
+   so the last count is replaced rather than deleted in between. Ticks have
+   no typing to wait for, so they clear outright. */
 function clearMMSets() {
   const boxes = [...root.querySelectorAll('.mm-set-in')];
+  if (!boxes.length) {
+    const tr = mmTrack();
+    if (tr) saveSets(tr, []);
+    paintMMStanding();
+    return;
+  }
   boxes.forEach(el => { el.value = ''; });
   q('.mm-sets-clr')?.remove();
+  root.querySelectorAll('.mm-sets .mm-set').forEach((el, i) => el.classList.toggle('cur', i === 0));
+  const pill = q('#mm-set-now');
+  if (pill) { pill.textContent = setNowTxt(0, boxes.length); pill.classList.remove('done'); }
   boxes[0]?.focus();
 }
 
@@ -521,7 +606,7 @@ function paintMMStanding(keepBoxes = false) {
      prescription and the whole block disappears when the weight is
      cleared. Still skipped while a box has focus, for the same reason. */
   const reps = q('#mm-reps'), verdict = q('#mm-verdict');
-  if (verdict && (keepBoxes || reps.contains(document.activeElement))) verdict.innerHTML = mmVerdictHTML();
+  if (verdict && (keepBoxes || reps.contains(document.activeElement))) { verdict.innerHTML = mmVerdictHTML(); paintSetNow(); }
   else reps.innerHTML = mmRepsHTML();
   q('#mm-lvl').innerHTML = mmLvlHTML();
 }
@@ -583,6 +668,8 @@ function openMM(ex) {
   paintMMStanding();
   let info = `<span class="mm-tag">${ex.s}</span>`;
   if (ex.b) info += `<span class="mm-tag">${ex.b}</span>`;
+  const band = BANDS[restBand(ex)];
+  info += `<span class="mm-tag mm-rest-tag" title="${band.n} — the timer that starts when you log a set">Rest ${fmtRest(band.s)}</span>`;
   q('#mm-info').innerHTML = info;
   q('#mm-howto').innerHTML = mmHowtoHTML(ex);
 
@@ -1479,6 +1566,9 @@ function onClick(e) {
     case 'mm-view': mmView(a.view); break;
     case 'mm-rebase': doRebase(); break;
     case 'mm-sets-clear': clearMMSets(); break;
+    case 'mm-tick':   tickSet(el); break;
+    case 'rest-adj':  rest.adjust(+a.d); break;
+    case 'rest-skip': rest.stop(); break;
     case 'mm-bump':   takeBump(a.to); break;
     case 'bw-range':  bwSetRange(a.k); break;
     case 'bw-metric': bwSetMetric(a.k); break;
@@ -1500,7 +1590,7 @@ function onClick(e) {
 }
 function onChange(e) {
   if (e.target.id === 'mm-wt') setMMWeight(e.target);
-  else if (e.target.classList?.contains('mm-set-in')) setMMReps();
+  else if (e.target.classList?.contains('mm-set-in')) setMMReps(e.target);
   /* Height and activity save on change rather than behind a button: they are
      set once and then never touched, and a Save you have to remember is a
      worse trade than a re-render you didn't ask for. */
@@ -1586,6 +1676,7 @@ function template() {
     </div>
 
     <div class="lv-overlay" id="lv-ol"><div id="lv-body"></div></div>
+    <div class="rest-bar" id="rest-bar" role="timer" aria-live="polite" hidden></div>
   </div>`;
 }
 
@@ -1631,7 +1722,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=nordic-sep29',
+  styles: 'apps/workout/workout.css?v=rest-oct5',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
@@ -1646,6 +1737,7 @@ export default {
     root.addEventListener('pointerover', onOver);
     root.addEventListener('pointerout', onOut);
     window.addEventListener('bs:datachange', onExternalChange);
+    rest.mount(q('#rest-bar'));
     renderProg(); renderBW();
     switchTab(activeTab);
   },
@@ -1658,6 +1750,7 @@ export default {
       root.removeEventListener('pointerout', onOut);
     }
     window.removeEventListener('bs:datachange', onExternalChange);
+    rest.unmount();
     root = null;
   },
 };
