@@ -7,10 +7,10 @@
    To add a new app: import it and drop it into the APPS array.
    ═══════════════════════════════════════════════════════════ */
 
-import workout from '../../apps/workout/index.js?v=time-oct5';
-import finance from '../../apps/finance/index.js?v=time-oct5';
-import { toast } from './ui.js?v=time-oct5';
-import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=time-oct5';
+import workout from '../../apps/workout/index.js?v=next-oct5';
+import finance from '../../apps/finance/index.js?v=next-oct5';
+import { toast } from './ui.js?v=next-oct5';
+import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=next-oct5';
 
 // Scripture is parked in archive/ for now — to bring it back, move
 // archive/apps/scripture and archive/assets/data back to their old paths,
@@ -168,6 +168,9 @@ function buildSettings() {
         <div class="sx-eq" id="sx-eq"></div>
         </div>
 
+        <div class="sx-sec-lbl mt">Workout</div>
+        <div class="sx-eq" id="sx-pref"></div>
+
         ${SKILLED.length ? `<div id="sx-lv-sec"><div class="sx-sec-lbl mt">Calisthenics Level</div>
         <div class="sx-lv" id="sx-lv"></div></div>` : ''}
 
@@ -253,13 +256,22 @@ const EQUIP = [
     subOff:'Grip card hidden. Any readings you logged are kept.',
     toastOn:'Grip strength on the Rank tab', toastOff:'Grip card hidden — readings kept' },
 ];
+/* Workout behaviour rather than kit, painted and stored the same way.
+   Device-level like the kit flags (SHARED in apps/workout/store.js), and
+   each default must match where the app reads it. */
+const PREFS = [
+  { id:'autonext', key:'bp_autonext', name:'Auto-Advance', on:'On', off:'Off',
+    subOn:"Logging an exercise's last set opens the next one in the list.",
+    subOff:'You open the next exercise yourself; Go on the rest timer still does it.',
+    toastOn:'Auto-advance on', toastOff:'Auto-advance off' },
+];
 const eqOn = eq => {
   const d = eq.def ?? true;
   try { return JSON.parse(localStorage.getItem(eq.key)) ?? d; } catch { return d; }
 };
 
 function pickEquip(id, v) {
-  const eq = EQUIP.find(e => e.id === id);
+  const eq = [...EQUIP, ...PREFS].find(e => e.id === id);
   if (!eq || v === eqOn(eq)) return;
   localStorage.setItem(eq.key, JSON.stringify(v));
   syncSettings();
@@ -475,7 +487,7 @@ function syncSettings() {
 
   const kit = kitInUse();
   const shown = EQUIP.filter(eq => eq.always || kit);
-  el.querySelector('#sx-eq').innerHTML = shown.map(eq => {
+  const row = eq => {
     const on = eqOn(eq);
     return `
     <div class="sx-row">
@@ -488,7 +500,9 @@ function syncSettings() {
         <button class="sx-seg-btn ${on ? '' : 'sel'}" data-sx="eq" data-id="${eq.id}" data-v="0">${eq.off}</button>
       </div>
     </div>`;
-  }).join('');
+  };
+  el.querySelector('#sx-eq').innerHTML = shown.map(row).join('');
+  el.querySelector('#sx-pref').innerHTML = PREFS.map(row).join('');
   el.querySelector('#sx-eq-sec').hidden = !shown.length;
   paintPeople();
   paintLevels();                     // the bar toggle adds and removes ladders

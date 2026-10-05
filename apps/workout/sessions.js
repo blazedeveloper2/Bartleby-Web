@@ -24,8 +24,8 @@
    average rather than dragging them down.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js?v=time-oct5';
-import { load, save, todayStr, dateStr } from './store.js?v=time-oct5';
+import { PROGRAM } from './data.js?v=next-oct5';
+import { load, save, todayStr, dateStr } from './store.js?v=next-oct5';
 
 const KEY = 'bp_time';
 const GAP_CAP = 45 * 60000;

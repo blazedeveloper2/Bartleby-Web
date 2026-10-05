@@ -6,34 +6,34 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER } from './data.js?v=time-oct5';
-import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=time-oct5';
-import { toast } from '../../assets/js/ui.js?v=time-oct5';
-import { pctColor, ord, LIFTS } from './standards.js?v=time-oct5';
+import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER } from './data.js?v=next-oct5';
+import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=next-oct5';
+import { toast } from '../../assets/js/ui.js?v=next-oct5';
+import { pctColor, ord, LIFTS } from './standards.js?v=next-oct5';
 import {
   setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, icon,
   liftScores, standingOf, resEx, resKit, lvlOf, setLvl, resetTargets, applyReset,
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip,
-} from './rank.js?v=time-oct5';
+} from './rank.js?v=next-oct5';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
-import { MUSCLE_SVG } from './bodymap.js?v=time-oct5';
-import { restBand, BANDS, fmtRest } from './rest.js?v=time-oct5';
-import * as rest from './timer.js?v=time-oct5';
-import * as timing from './sessions.js?v=time-oct5';
-import { HOWTO } from './howto.js?v=time-oct5';
-import { standingsFor } from './anthro.js?v=time-oct5';
-import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=time-oct5';
+import { MUSCLE_SVG } from './bodymap.js?v=next-oct5';
+import { restBand, BANDS, fmtRest } from './rest.js?v=next-oct5';
+import * as rest from './timer.js?v=next-oct5';
+import * as timing from './sessions.js?v=next-oct5';
+import { HOWTO } from './howto.js?v=next-oct5';
+import { standingsFor } from './anthro.js?v=next-oct5';
+import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=next-oct5';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor, whtrBand,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=time-oct5';
+} from './body.js?v=next-oct5';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -595,7 +595,7 @@ function setMMReps(box) {
   const fresh = i >= 0 && !(before[i] > 0) && sets[i] > 0;
   if (fresh && mmSlot) timeMark(mmSlot[0], mmEx.n, 's');
   saveSets(tr, sets);
-  if (fresh) startRest(sets);
+  if (fresh) { startRest(sets); autoNext(sets); }
 }
 
 /* A tick is a set with no number: tapped, it is done. */
@@ -609,7 +609,7 @@ function tickSet(btn) {
   if (on && mmSlot) timeMark(mmSlot[0], mmEx.n, 's');
   saveSets(tr, sets);
   paintMMStanding();                 // nothing here holds focus, so a rebuild is safe
-  if (on) startRest(sets);
+  if (on) { startRest(sets); autoNext(sets); }
 }
 
 function saveSets(tr, sets) {
@@ -637,6 +637,30 @@ function startRest(sets) {
   const ex = resEx(PROGRAM[nx[0]].sections[nx[1]].ex[nx[2]]);
   rest.start({ ...base, ex: `${mmEx.n} done`, go: ex.n, slot: nx,
                next: `Next: ${ex.n} · ${setCountOf(ex)} set${setCountOf(ex) === 1 ? '' : 's'}` });
+}
+
+/* Logging an exercise's last set moves the lab straight on to the next
+   exercise down the list, the same one the rest timer names, so the
+   rest is spent looking at what comes next rather than tapping back to
+   find it. A beat first, so the number you just entered is seen to
+   land; and only if the lab is still on the exercise that finished,
+   in case you closed it or went elsewhere in that moment. Correcting a
+   set already logged never moves you — only a newly filled last set.
+   Settings → Workout → Auto-Advance turns it off (bp_autonext, on by
+   default — the default in shell.js's PREFS must agree). */
+function autoNext(sets) {
+  if (!load('bp_autonext', true)) return;
+  const n = setCountOf(mmEx);
+  if (curSet(sets, n) < n || !mmSlot) return;
+  const from = mmEx.n, nx = nextSlot(mmSlot);
+  if (!nx) { toast(`${from} done · last exercise of the day`); return; }
+  setTimeout(() => {
+    if (!mmEx || mmEx.n !== from || !q('#mm-ol').classList.contains('on')) return;
+    const ex = resEx(PROGRAM[nx[0]].sections[nx[1]].ex[nx[2]]);
+    mmSlot = nx;
+    openMM(ex);
+    toast(`${from} done → ${ex.n}`);
+  }, 500);
 }
 
 /* The exercise after [di, si, ei] in the order the day lists them,
@@ -1837,7 +1861,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=time-oct5',
+  styles: 'apps/workout/workout.css?v=next-oct5',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
