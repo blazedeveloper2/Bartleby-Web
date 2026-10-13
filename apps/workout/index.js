@@ -6,34 +6,34 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER } from './data.js?v=last-oct5';
-import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=last-oct5';
-import { toast } from '../../assets/js/ui.js?v=last-oct5';
-import { pctColor, ord, LIFTS } from './standards.js?v=last-oct5';
+import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER } from './data.js?v=edit-oct12';
+import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=edit-oct12';
+import { toast } from '../../assets/js/ui.js?v=edit-oct12';
+import { pctColor, ord, LIFTS } from './standards.js?v=edit-oct12';
 import {
-  setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, setReps, snapshot,
+  setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, addSession, isManual, toggleHmEdit, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, icon,
   liftScores, standingOf, resEx, resKit, lvlOf, setLvl, resetTargets, applyReset,
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip,
-} from './rank.js?v=last-oct5';
+} from './rank.js?v=edit-oct12';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
-import { MUSCLE_SVG } from './bodymap.js?v=last-oct5';
-import { restBand, BANDS, fmtRest } from './rest.js?v=last-oct5';
-import * as rest from './timer.js?v=last-oct5';
-import * as timing from './sessions.js?v=last-oct5';
-import { HOWTO } from './howto.js?v=last-oct5';
-import { standingsFor } from './anthro.js?v=last-oct5';
-import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=last-oct5';
+import { MUSCLE_SVG } from './bodymap.js?v=edit-oct12';
+import { restBand, BANDS, fmtRest } from './rest.js?v=edit-oct12';
+import * as rest from './timer.js?v=edit-oct12';
+import * as timing from './sessions.js?v=edit-oct12';
+import { HOWTO } from './howto.js?v=edit-oct12';
+import { standingsFor } from './anthro.js?v=edit-oct12';
+import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=edit-oct12';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor, whtrBand,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=last-oct5';
+} from './body.js?v=edit-oct12';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -1645,6 +1645,15 @@ function progDelete(d, di) {
   renderScore(); renderProg();
   toast('Session removed');
 }
+/* The Consistency grid's edit mode: a missed day goes green, and a day it
+   turned green goes back. Nothing else on the grid answers a tap. */
+function hmEditToggle() { toggleHmEdit(); renderStreak(root); }
+function hmDay(d, di) {
+  const undo = isManual(d, di);
+  if (undo) delSession(d, di); else addSession(d, di);
+  renderScore(); renderProg();
+  toast(undo ? 'Marked missed again' : `${PROGRAM[di].label} marked trained`);
+}
 /* The rep assumption feeds the 1RM estimate, so it moves every score —
    and with them the Program tab's colours. */
 function rkSetReps(r) { setReps(r); renderScore(); renderProg(); }
@@ -1740,6 +1749,8 @@ function onClick(e) {
     case 'bd-goal-clear': bdGoalClear(); break;
     case 'lv-close':  closeCelebration(); break;
     case 'pg-del':    progDelete(a.d, a.di); break;
+    case 'hm-edit':   hmEditToggle(); break;
+    case 'hm-day':    hmDay(a.d, +a.di); break;
     case 'rk-reps':   rkSetReps(+a.r); break;
     case 'gr-save':   grSave(); break;
     case 'gr-del':    grDelete(a.d); break;
@@ -1881,7 +1892,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=last-oct5',
+  styles: 'apps/workout/workout.css?v=edit-oct12',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {

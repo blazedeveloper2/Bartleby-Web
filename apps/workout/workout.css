@@ -735,6 +735,11 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 .pg-hm-c.miss{background:var(--red);border-color:var(--red)}
 .pg-hm-c.hit{background:var(--green);border-color:var(--green)}
 .pg-hm-c.today{box-shadow:0 0 0 1.5px var(--blue)}
+/* Edit mode: only the squares a tap can change stay at full strength */
+.pg-hm-head-r{display:flex;align-items:center;gap:8px}
+.pg-hm-hint{font-size:11px;color:var(--text-2);margin:-4px 0 10px}
+.pg-hm-wrap.editing .pg-hm-c{opacity:.35}
+.pg-hm-wrap.editing .pg-hm-c.edit{opacity:1;cursor:pointer}
 .pg-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:10px;color:var(--text-3);font-weight:500}
 .pg-legend span{display:flex;align-items:center;gap:5px}
 .pg-legend i{width:9px;height:9px;aspect-ratio:auto;display:block;flex-shrink:0}

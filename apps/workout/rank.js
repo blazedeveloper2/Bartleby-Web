@@ -36,16 +36,16 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, LADDERS, GYM_STEP } from './data.js?v=last-oct5';
-import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, ord, verseFor, VERSE_NOTICE } from './standards.js?v=last-oct5';
-import { load, save, remove, todayStr, dateStr } from './store.js?v=last-oct5';
+import { PROGRAM, LADDERS, GYM_STEP } from './data.js?v=edit-oct12';
+import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, ord, verseFor, VERSE_NOTICE } from './standards.js?v=edit-oct12';
+import { load, save, remove, todayStr, dateStr } from './store.js?v=edit-oct12';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=last-oct5';
-import { checkup } from './checkup.js?v=last-oct5';
-import { TIME_RESET, timeCount } from './sessions.js?v=last-oct5';
-import { gripOn, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_HOW } from './grip.js?v=last-oct5';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=edit-oct12';
+import { checkup } from './checkup.js?v=edit-oct12';
+import { TIME_RESET, timeCount } from './sessions.js?v=edit-oct12';
+import { gripOn, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_HOW } from './grip.js?v=edit-oct12';
 
 /* ── storage ── */
 /* Sorted on the way in as well as on the way out: everything here reads
@@ -1311,6 +1311,26 @@ export function delSession(d, di) {
   logSv(logAll().filter(e => !(e.d === d && e.di === +di)));
 }
 
+/* A session that happened but never logged, put back by hand from the
+   Consistency card's edit mode. Credited with the day's prescribed sets,
+   since that is what finishing it would have logged, and flagged `m:1` so
+   edit mode can take back only what it added — a session that logged
+   itself comes off through the Session Log instead. Proves nothing:
+   nothing records which weights were lifted that day. */
+export function addSession(d, di) {
+  const l = logAll();
+  if (l.some(e => e.d === d && e.di === di)) return;
+  let ex = 0, sets = 0;
+  PROGRAM[di].sections.forEach(sec => sec.ex.forEach(raw => {
+    sets += setsOf(resEx(raw));
+    if (!sec.opt) ex++;
+  }));
+  l.push({ d, di, ex, sets, m: 1 });
+  logSv(l);
+  latch();
+}
+export const isManual = (d, di) => logAll().some(e => e.d === d && e.di === di && e.m);
+
 /* ═══════════════════ RESET ═══════════════════ */
 
 /* Scoped rather than one button. "I want the streak to start again" and "I
@@ -1687,6 +1707,12 @@ function gripHTML() {
 
 /* ── consistency ── */
 const HM_WEEKS = 16;
+/* Edit mode for the grid. Off, the squares are a picture and a stray tap
+   does nothing; on, a missed day can be marked trained and a day marked
+   that way can be put back. Not stored: a reload always opens it closed. */
+let hmEdit = false;
+export const toggleHmEdit = () => { hmEdit = !hmEdit; };
+
 function heatmapHTML(s) {
   const start = addDays(weekStart(new Date()), -7 * (HM_WEEKS - 1));
   const today = todayStr();
@@ -1722,12 +1748,21 @@ function heatmapHTML(s) {
       else if (s.firstDate && ds >= s.firstDate) cls = 'miss',   tip = `${fmtD(ds)} · missed`;
       else                                       cls = 'pre',    tip = fmtD(ds);
       if (ds === today) cls += ' today';
-      cells += `<div class="pg-hm-c ${cls}" style="grid-row:${r + 1};grid-column:${c + 1};--c:${c}" title="${tip}"></div>`;
+      const di = DI_OF_DOW[d.getDay()];
+      const manual = cls === 'hit' && s.log.some(e => e.d === ds && e.di === di && e.m);
+      if (manual) tip += ' · marked by hand';
+      const act = hmEdit && (cls === 'miss' || manual)
+        ? ` data-act="hm-day" data-d="${ds}" data-di="${di}"` : '';
+      if (act) cls += ' edit';
+      cells += `<div class="pg-hm-c ${cls}" style="grid-row:${r + 1};grid-column:${c + 1};--c:${c}" title="${tip}"${act}></div>`;
     }
   }
   return `<div class="pg-card">
-    <div class="pg-card-head"><div class="pg-card-title">Consistency</div><div class="pg-card-note">Last ${HM_WEEKS} weeks</div></div>
-    <div class="pg-hm-wrap">
+    <div class="pg-card-head"><div class="pg-card-title">Consistency</div>
+      <div class="pg-hm-head-r"><div class="pg-card-note">Last ${HM_WEEKS} weeks</div>
+      <button class="bd-mini${hmEdit ? ' go' : ''}" data-act="hm-edit">${hmEdit ? 'Done' : 'Edit'}</button></div></div>
+    ${hmEdit ? '<div class="pg-hm-hint">Tap a red day to mark it trained. Tap one you marked to undo it.</div>' : ''}
+    <div class="pg-hm-wrap${hmEdit ? ' editing' : ''}">
       <div class="pg-hm-dow"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
       <div class="pg-hm">${cells}</div>
     </div>
