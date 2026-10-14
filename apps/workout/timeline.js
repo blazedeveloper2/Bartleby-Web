@@ -109,6 +109,26 @@ export function timeline(m, normalize = p => p) {
     }
   }
 
+  /* The foot turns at the ankle, so its angle moves relative to the shin:
+     ft is carried as (ft − sh), kept inside what an ankle can do (from
+     toes fully pointed, 0, to pulled up, 130; 90 is a right angle; the
+     top end stands in for the toes bending, which the foot has no joint for), and
+     added back to the shin at each frame. Moving the absolute angle the
+     short way round could swing the toes up over the top of the foot. */
+  const ANKLE_MIN = 0, ANKLE_MAX = 130;
+  const toRange = r => {
+    r = ((r % 360) + 540) % 360 - 180;
+    if (r >= ANKLE_MIN && r <= ANKLE_MAX) return r;
+    const off = b => Math.abs(((r - b) % 360 + 540) % 360 - 180);
+    return off(ANKLE_MIN) <= off(ANKLE_MAX) ? ANKLE_MIN : ANKLE_MAX;
+  };
+  for (const [ft, sh] of [['ft', 'sh'], ['fft', 'fsh']]) {
+    const f = tracks.find(t => t.key === ft && t.c === undefined), b = tracks.find(t => t.key === sh && t.c === undefined);
+    if (!f || !b) continue;
+    f.vals = f.vals.map((x, i) => toRange(x - b.vals[i]));
+    f.relTo = sh;
+  }
+
   /* Per track: the step into each keyframe (shortest way for angles) and
      the speed at each keyframe. Segment i runs from keyframe i−1 to i. */
   for (const tr of tracks) {
@@ -140,9 +160,11 @@ export function timeline(m, normalize = p => p) {
       if (tr.c === undefined) o[tr.key] = v;
       else (o[tr.key] ||= [])[tr.c] = v;
     }
+    for (const tr of tracks) if (tr.relTo) o[tr.key] += o[tr.relTo];
     for (const [key, raw] of Object.entries(fixed)) o[key] = raw[i] ?? raw[prev];
     /* A target that has faded out entirely is no target at all. */
     for (const key of Object.keys(o)) if (TARGET.test(key) && !(o[key + 'W'] > 0.001)) o[key] = null;
+    o.t = ((t % total) + total) % total;   // when in the rep (stage.js fits the body by it)
     return o;
   };
 

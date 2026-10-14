@@ -182,6 +182,7 @@ export function skeleton(p) {
       const sign = g('eb') ?? 1;
       const pl = pole('ep') || (sign > 0 ? cross(dir, L) : cross(L, dir));
       const [e, w] = ik(s.sho, goal, SEG.ua * s.ul, SEG.fa, pl);
+      s.armIn = hw > 0.5 ? mul(perp(pl, dir, [0, 1, 0]), -1) : null;   // the inside of the elbow's bend, even when straight
       s.uaDir = norm(lerp(s.uaDir, norm(sub(e, s.sho)), hw));
       s.elb = mad(s.sho, s.uaDir, SEG.ua * s.ul);
       s.faDir = norm(lerp(s.faDir, norm(sub(w, e)), hw));
@@ -195,6 +196,7 @@ export function skeleton(p) {
       const sign = g('kb') ?? -1;
       const pl = pole('kp') || (sign > 0 ? cross(dir, L) : cross(L, dir));
       const [k, a] = ik(s.hip, goal, SEG.th, SEG.sh, pl);
+      s.legOut = fw > 0.5 ? perp(pl, dir, [0, 1, 0]) : null;   // the way the knee points, even when straight
       s.thDir = norm(lerp(s.thDir, norm(sub(k, s.hip)), fw));
       s.kne = mad(s.hip, s.thDir, SEG.th);
       s.shDir = norm(lerp(s.shDir, norm(sub(a, k)), fw));
@@ -229,9 +231,33 @@ export function skeleton(p) {
       return len(m) > 1e-3 ? norm(m) : bf;
     };
     const sagFront = d => sag(Math.atan2(dot(d, U), dot(d, F)) / D + 90);
-    s.uaFront = bendFront(s.uaDir, s.faDir, sagFront(s.uaDir), 1);
+    /* Keep the ankle inside what an ankle can do, whatever the pose or a
+       planted foot asks: the foot's angle from the shin, toward the shin's
+       front (the side the knee bends away from), between fully pointed
+       (0°) and pulled up (130°; 90° is a right angle). Its toe-out stays. */
+    {
+      const flexK = -dot(s.shDir, perp(sagFront(s.thDir), s.thDir));
+      const kf = Math.min(1, Math.max(0, (flexK - 0.04) / 0.12));
+      const bent = perp(s.thDir, s.shDir, F), straight = perp(sagFront(s.shDir), s.shDir, F);
+      const fr = perp(add(mul(straight, 1 - kf), mul(bent, kf)), s.shDir, bent);
+      const side = cross(s.shDir, fr), out = dot(s.footDir, side);
+      const inPlane = sub(s.footDir, mul(side, out));
+      const a = Math.atan2(dot(inPlane, fr), dot(inPlane, s.shDir)) / D;
+      const c = Math.min(130, Math.max(0, a));
+      const r = len(inPlane);
+      const dirAt = c2 => norm(add(add(mul(s.shDir, r * Math.cos(c2 * D)), mul(fr, r * Math.sin(c2 * D))), mul(side, out)));
+      if (Math.abs(c - a) > 0.01) {
+        s.footDir = dirAt(c);
+        s.toe = mad(s.ank, s.footDir, SEG.toe);
+        s.heel = mad(s.ank, s.footDir, -SEG.heel);
+      }
+    }
+    /* A limb reaching a planted mark falls back to its IK pole rather
+       than the sagittal front as it straightens: a push-up's elbows lock
+       out within a frame, and switching fronts there twisted the arm. */
+    s.uaFront = bendFront(s.uaDir, s.faDir, s.armIn || sagFront(s.uaDir), 1);
     s.faFront = perp(s.uaFront, s.faDir);
-    s.thFront = bendFront(s.thDir, s.shDir, sagFront(s.thDir), -1);
+    s.thFront = bendFront(s.thDir, s.shDir, s.legOut || sagFront(s.thDir), -1);
     s.shFront = perp(s.thFront, s.shDir);
   }
 
@@ -285,7 +311,7 @@ export function holds(J, m) {
   };
   for (const [spec, s] of [[h.n, n], [h.f, f]]) {
     const o = spec && one(spec, s);
-    if (o) out.push(o);
+    if (o) { o.side = s.side > 0 ? 'n' : 'f'; out.push(o); }
   }
   const both = h.n;
   if (both === 'db-axial') {
@@ -306,7 +332,7 @@ export function holds(J, m) {
   if (h.hip === 'db-hip') out.push({ kind: 'db', pos: add(add(S0.p, mul(S0.N, 12.5)), mul(S0.T, 3)), axis: J.L, up: S0.N });
   if (h.pack) {
     const s = J.spine(0.68);
-    out.push({ kind: 'pack', pos: add(s.p, mul(s.N, -13)), axis: s.T, up: mul(s.N, -1) });
+    out.push({ kind: 'pack', pos: add(s.p, mul(s.N, -19)), axis: s.T, up: mul(s.N, -1) });
   }
   return out;
 }

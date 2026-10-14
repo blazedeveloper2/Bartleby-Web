@@ -6,35 +6,35 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER } from './data.js?v=3d-oct14c';
-import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=3d-oct14c';
-import { toast } from '../../assets/js/ui.js?v=3d-oct14c';
-import { pctColor, ord, LIFTS } from './standards.js?v=3d-oct14c';
+import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER } from './data.js?v=3d-oct14d';
+import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=3d-oct14d';
+import { toast } from '../../assets/js/ui.js?v=3d-oct14d';
+import { pctColor, ord, LIFTS } from './standards.js?v=3d-oct14d';
 import {
   setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, addSession, isManual, toggleHmEdit, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, icon,
   liftScores, standingOf, resEx, resKit, lvlOf, setLvl, resetTargets, applyReset,
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip,
-} from './rank.js?v=3d-oct14c';
+} from './rank.js?v=3d-oct14d';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
-import { MUSCLE_SVG } from './bodymap.js?v=3d-oct14c';
-import { restBand, BANDS, fmtRest } from './rest.js?v=3d-oct14c';
-import * as rest from './timer.js?v=3d-oct14c';
-import * as timing from './sessions.js?v=3d-oct14c';
-import { HOWTO } from './howto.js?v=3d-oct14c';
-import { animHTML, playAnim } from './pose.js?v=3d-oct14c';
-import { standingsFor } from './anthro.js?v=3d-oct14c';
-import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=3d-oct14c';
+import { MUSCLE_SVG } from './bodymap.js?v=3d-oct14d';
+import { restBand, BANDS, fmtRest } from './rest.js?v=3d-oct14d';
+import * as rest from './timer.js?v=3d-oct14d';
+import * as timing from './sessions.js?v=3d-oct14d';
+import { HOWTO } from './howto.js?v=3d-oct14d';
+import { animHTML, playAnim } from './pose.js?v=3d-oct14d';
+import { standingsFor } from './anthro.js?v=3d-oct14d';
+import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=3d-oct14d';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor, whtrBand,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=3d-oct14c';
+} from './body.js?v=3d-oct14d';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -862,11 +862,28 @@ function openMM(ex) {
   });
   void map.offsetWidth;                 // commit it before transitions come back
   map.classList.remove('no-tx');
+  show3D(ex);
 
   q('#mm-ol').classList.add('on');
   q('.mm-card').scrollTop = 0;
   q('.mm-close').focus({preventScroll:true});
 }
+/* ── the 3D muscle map ──
+
+   muscleview.js: the athlete with this exercise's muscles lit on his own
+   body, front and back. It takes the 2D map's place once it has loaded
+   (the first card fetches the model, about 8 MB, shared with the rep
+   below); until then, and wherever WebGL or the model is missing, the 2D
+   map stays. Tapping the body names the muscle under the finger. */
+let mv3 = null, mv3Load = null;
+function show3D(ex) {
+  const map = q('.mm-map'), box = q('.mm-3d');
+  (mv3Load ||= import('./muscleview.js?v=3d-oct14d').then(m => (mv3 = m)))
+    .then(mv => mmEx === ex && mv.show(box, ex.m, { onTap: r => mmReadout(r ? r.name : 'No mapped muscle there') }))
+    .then(shown => { if (shown !== false && mmEx === ex) map.classList.add('is-3d'); })
+    .catch(() => map.classList.remove('is-3d'));
+}
+
 /* ── how to ──
 
    The animated rep (pose.js) leads, because it shows the shape and the
@@ -889,6 +906,8 @@ function mmHowtoHTML(ex) {
 
 function closeMM() {
   stopAnim();
+  mv3?.hide();
+  q('.mm-map').classList.remove('is-3d');
   q('#mm-howto').innerHTML = '';
   q('#mm-ol').classList.remove('on'); mmEx = null; mmSlot = null;
   mmReturnFocus?.focus({preventScroll:true});
@@ -901,6 +920,7 @@ function mmView(view) {
   root.querySelectorAll('[data-act="mm-view"]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
   root.querySelectorAll('.mm-muscle-chip').forEach(b => b.setAttribute('aria-pressed','false'));
   focusMuscle(null,false);
+  mv3?.setView(view);
   mmReadout('Tap a muscle to inspect');
 }
 function inspectMuscle(button) {
@@ -908,6 +928,13 @@ function inspectMuscle(button) {
   if(button.getAttribute('aria-pressed') === 'true') { mmView('both'); return; }
   mmView('both');
   focusMuscle(name,true);
+  if (mv3 && q('.mm-map').classList.contains('is-3d')) {
+    mv3.focus(mv3.regionsOfName(name));
+    q('.mm-map').classList.add('is-focused');
+    button.setAttribute('aria-pressed','true');
+    mmReadout(button.querySelector('span').textContent + ' · tap again for full body');
+    return;
+  }
   const regions=[...root.querySelectorAll('.m-region.focus')];
   if (!regions.length) { mmReadout(button.querySelector('span').textContent); return; }
   const front=regions.some(e => e.id.startsWith('f-'));
@@ -1823,7 +1850,7 @@ function template() {
           <button data-act="mm-view" data-view="front" aria-pressed="false">Front</button>
           <button data-act="mm-view" data-view="back" aria-pressed="false">Back</button>
         </div></div>
-        <div class="mm-map" data-view="both">${MUSCLE_SVG}</div>
+        <div class="mm-map" data-view="both">${MUSCLE_SVG}<div class="mm-3d"></div></div>
         <div class="mm-legend"><span><i class="primary"></i>Primary</span><span><i class="secondary"></i>Supporting</span><span><i class="tertiary"></i>Stabilizing</span></div>
         </section>
         <div class="m-readout" id="mm-readout" aria-live="polite"></div>
@@ -1878,7 +1905,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=3d-oct14c',
+  styles: 'apps/workout/workout.css?v=3d-oct14d',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {

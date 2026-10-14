@@ -98,6 +98,14 @@ entry keys at the top of `moves.js`. In short:
   joint with `root`/`at`, so they stay put while the rest moves. The elbow
   or knee is solved to reach; `ep`/`kp` say which way it points when the
   reach leaves the side-view plane.
+- **Name the pad the body rests on** with `rest` (`'back'`, `'seat'`, or
+  `'pad'` for whichever the trunk is over). The 3D body is thicker than
+  the rig's figure, so `stage.js` fits it to the kit before each pose is
+  solved: up off the floor, then the trunk onto the named pad (nearer or
+  farther) and out of any other, with planted hands and feet left on
+  their marks and marks on the body (hands on a dumbbell at the hips)
+  carried along. The fit is worked out across the rep and smoothed, so
+  nothing jumps. Without `rest`, pads only push skin out.
 - **The scene is the program's kit at the program's settings:** the bench
   at the angle `data.js` names (end-on with `yaw: 90` when the body crosses
   it), the wall on the side the cues put it, books rather than dumbbells
@@ -113,6 +121,47 @@ entry keys at the top of `moves.js`. In short:
   the paint glows brightest.
 - **`still`** is the frame reduced-motion users see; **`cam`** the starting
   view (`az` round from the near side toward the front, `el` height).
+
+### Getting the body right
+
+Each of these was a real bug in an animation that looked fine in one
+frame and wrong in motion or from another side.
+
+- **Bend joints the way they bend.** A shin turns toward the back of the
+  thigh, a forearm toward the front of the upper arm. Angles are absolute,
+  so it is easy to write a knee tucked *behind* the body: hanging with the
+  knees to the chest is `th: 30` (forward and up), not `150`. Hips go back
+  about 45° at most and fold about 145° at most (knees to the chest). Run
+  `joints.mjs` (below).
+- **Between keyframes every angle takes the short way round.** If a limb
+  has to come back the way it went (the kicking leg of a kick-up), put
+  the pose it passes through into the tempo on the way back as well.
+- **Aim elbows and knees that leave the side plane** with `ep`/`kp`, a
+  world vector: a handstand push-up's elbows go back and out about 45°
+  (`ep: [0.7, 0, 1]`), not straight back; hands gripping a bench behind
+  the head have the elbows up (`eb: 1`).
+- **Planted or carried.** A `hand`/`foot` mark within 18 of the floor or 4
+  of any kit part is planted and stays put when the body is fitted to the
+  kit; any other mark (both hands on a dumbbell across the hips, cupping a
+  goblet dumbbell at the chest) moves with the body. Keep a planted mark
+  well inside that, not on the edge, or it flickers between the two.
+- **Declare the pad the trunk rests on (`rest`)** and do not hand-tune for
+  the body's thickness: the 3D body's back is about 12 behind its hip
+  joint, and the fit puts it on the pad. But give the fit a pose that can
+  touch: a body leaning on the back pad with its hips inside the seat
+  cannot rest on both, so move the pose (the chest-supported row's hips
+  sit 10 up the incline).
+- **Kit sizes are what the poses were drawn against:** a bench pad is 14.7
+  deep, so a seat at `y: 161` has its top 40.3 above the floor (screen y
+  153.7); a mat is 1.2 thick; a wedge is high under the heels.
+- **Feet:** a foot mark is the ankle. Flat on the floor it is `ANK`; up on
+  the balls of the feet about 12 above the floor (screen ~182). Do not
+  point a foot into the floor: the body's foot is longer than the rig's
+  and its toes are turned clear of the floor, which reads as a twitch if
+  the foot has to turn far.
+- **Check the form against the cues and their sources** (rule 6 above),
+  from the side and from the front: a lateral raise looks right from the
+  side long after it has drifted 30° forward.
 
 ## Checking the animations
 
@@ -130,10 +179,27 @@ off):
 /tools/howto/anim?play              the live loops, as the lab shows them
 ```
 
+Add `&model=athlete` to see the muscular body the anatomy bench uses,
+which is thicker than the trainer and shows contact problems first.
+
 Look for: a limb through a bench, a wall or the body; an elbow or knee
 bending the wrong way (flip `eb`/`kb`, or give `ep`/`kp`); kit in the wrong
-hand or at the wrong angle; a view that hides the movement. Then open the
-exercise in the app on a phone-width screen and watch one loop.
+hand or at the wrong angle; a body hovering over the pad it should lie on;
+a view that hides the movement. Then open the exercise in the app on a
+phone-width screen and watch one loop.
+
+Three checks catch what a still frame hides:
+
+```bash
+node tools/howto/joints.mjs "Exercise Name"   # joints past their range, in the rig
+```
+
+and, in the anatomy bench's console (`/tools/anatomy/`, see its README),
+`S.scan(name)` for the body going into the kit and `S.snaps(name)` for
+anything that jumps or flips between frames (under about 4 is motion; 10
+or more needs a look). `joints.mjs` flags a few on purpose: the frog
+stands fold the hips that far, and a handstand push-up's elbows read
+backward for a moment as they flare.
 
 ## The trainer
 
@@ -161,14 +227,56 @@ and shorts and writes web-sized textures. The rig's segment lengths
 (`SEG`, `BODY` in rig.js) are the model's own; if you change the model,
 measure its bones and update them, then run `check.mjs --anim`.
 
+### The athlete
+
+`assets/models/athlete/` is an anatomical sculpt (CC-BY, credited in its
+LICENSE.md) with the trainer's head and hands grafted on. It is what the
+app draws: the how-to rep (`stage.ready()` loads it, falling back to the
+trainer if it cannot) and the 3D muscle map in each exercise card
+([`muscleview.js`](../../apps/workout/muscleview.js)), both lit from the
+same muscle regions ([`muscles3d.js`](../../apps/workout/muscles3d.js)) the
+anatomy bench (`tools/anatomy/`) shows. `?model=trainer` in the gallery
+shows the old figure. To rebuild it:
+
+```bash
+# 1. reduce the sculpt (Sketchfab "Male body", glTF download) to ~300k triangles,
+#    keeping the sculpt's own smooth normals (needs: npm install meshoptimizer@0.22.0)
+node tools/howto/trainer/reduce.mjs <scene.gltf> body.json 300000
+# 2. dump the body and bones, let Blender work out the skin weights
+DUMP_FOR_BLENDER=for_blender.json node tools/howto/trainer/build_athlete.mjs body.json assets/models/trainer x
+blender --background --factory-startup --python tools/howto/trainer/blender_weights.py -- for_blender.json heat_weights.json
+# 3. build
+HEAT_WEIGHTS=heat_weights.json node tools/howto/trainer/build_athlete.mjs body.json assets/models/trainer assets/models/athlete
+```
+
+The body is about 300,000 triangles (the sculpt's 1.37 million, reduced),
+and it keeps the sculpt's own normals: normals worked out again from the
+reduced triangles shade blotchy. At the neck the body is drawn onto the
+head's surface over its last 6 cm and runs on under the head's skin, so
+the join has no seam or gap. `blender_bake.py` can bake the full sculpt
+into a normal map for a much lighter body; at 300k there is too little
+left to bake to be worth it.
+
+Blender's heat-diffusion weights are what keep the shoulders and armpits
+whole with the arms overhead; each shoulder also has a helper joint that
+swings half as far as the arm (half its swing, not half its whole turn,
+which flips sides with the arm overhead). The hand-edited shorts are re-applied from
+`shorts_shape.json` on every build (the build reports how many points it
+applied); their texture is `assets/models/athlete/shorts.jpg`.
+
 ## Adding or changing an exercise
 
 1. Change `data.js` as usual.
 2. Run `node tools/howto/check.mjs`. It names every exercise now missing a
    how-to or an animation, and every entry whose exercise is gone.
 3. **Renamed exercise:** move both entries to the new key if the movement is
-   the same. **New exercise:** write the cues (above), then its animation.
-4. Check it in the gallery and in the app.
+   the same. **New exercise:** write the cues (above), then its animation,
+   following [Getting the body right](#getting-the-body-right); the nearest
+   existing entry on the same kit is the best starting point.
+4. Run `check.mjs --anim` and `joints.mjs` on it; in the anatomy bench run
+   `S.scan` and `S.snaps` on it.
+5. Look at it in the gallery with `&model=athlete`, from the side and the
+   front, and in the app.
 
 ## How the current content was made
 
@@ -185,3 +293,11 @@ measure its bones and update them, then run `check.mjs --anim`.
   the plates). Each pass also described the key positions and tempo of
   every rep, and the animations were built from those and checked frame by
   frame in the gallery.
+- **Mid-October 2026,** with the muscular body: the body is fitted to the
+  kit before each pose is solved (the `rest` key), and a review of
+  thirteen flagged exercises against their cues fixed, among others, the
+  overhead extension (upper arms straight up), the preacher curl (upper
+  arm flat on the pad), the lateral raise (out to the sides, not forward),
+  the heel-elevated squats (the wedge was high under the toes) and the
+  front lever (the hang tucked the knees behind the body). `joints.mjs`
+  and the bench's `snaps` scan came out of that pass.

@@ -18,12 +18,16 @@
    ═══════════════════════════════════════════════════════════ */
 
 import * as THREE from '../../assets/vendor/three/three.module.min.js';
-import { MOTION } from './moves.js?v=3d-oct14c';
-import { timeline } from './timeline.js?v=3d-oct14c';
-import { skeleton, holds, points, normalize, SEG, BODY, v3 } from './rig.js?v=3d-oct14c';
-import { loadTrainer, Trainer } from './avatar.js?v=3d-oct14c';
+import { MOTION } from './moves.js?v=3d-oct14d';
+import { timeline } from './timeline.js?v=3d-oct14d';
+import { skeleton, holds, points, normalize, SEG, BODY, v3, W } from './rig.js?v=3d-oct14d';
+import { loadTrainer, Trainer } from './avatar.js?v=3d-oct14d';
+import { regionPaint } from './muscles3d.js?v=3d-oct14d';
+import { MMAP } from './data.js?v=3d-oct14d';
 
 const D = Math.PI / 180;
+/* A pose's planted marks: hands and feet (timeline.js's targets). */
+const MARK = /^(f|a|b)?(hand|foot)$/;
 const V = (a) => new THREE.Vector3(a[0], a[1], a[2]);
 
 /* ── theme ── */
@@ -88,15 +92,21 @@ function limbGeo(len, prof, seg = 20) {
 }
 
 /* A box with rounded edges (pads, plates, blocks), centred on the origin. */
-function roundBox(w, h, d, r, seg = 3) {
+function roundBox(w, h, d, r, seg = 3, exact = true) {
   r = Math.min(r, w / 2 - 0.01, h / 2 - 0.01, d / 2 - 0.01);
+  /* The bevel grows the outline by r all round, so for a box of exactly
+     w × h × d (a pad or mat the body rests on) the outline is drawn r in
+     from each side. Without `exact` the outline is the full size and the
+     box comes out 2r bigger, as the held kit's shapes were drawn. */
+  const b = exact ? r * 0.98 : 0;
+  const ow = w - 2 * b, oh = h - 2 * b, c = exact ? Math.max(0.001, Math.min(r * 0.6, ow / 2 - 0.001, oh / 2 - 0.001)) : r;
   const s = new THREE.Shape();
-  const x = -w / 2 + r, y = -h / 2 + r, ww = w - 2 * r, hh = h - 2 * r;
-  s.moveTo(x, y - r);
-  s.lineTo(x + ww, y - r); s.quadraticCurveTo(x + ww + r, y - r, x + ww + r, y);
-  s.lineTo(x + ww + r, y + hh); s.quadraticCurveTo(x + ww + r, y + hh + r, x + ww, y + hh + r);
-  s.lineTo(x, y + hh + r); s.quadraticCurveTo(x - r, y + hh + r, x - r, y + hh);
-  s.lineTo(x - r, y); s.quadraticCurveTo(x - r, y - r, x, y - r);
+  const x = -ow / 2 + c, y = -oh / 2 + c, ww = ow - 2 * c, hh = oh - 2 * c;
+  s.moveTo(x, y - c);
+  s.lineTo(x + ww, y - c); s.quadraticCurveTo(x + ww + c, y - c, x + ww + c, y);
+  s.lineTo(x + ww + c, y + hh); s.quadraticCurveTo(x + ww + c, y + hh + c, x + ww, y + hh + c);
+  s.lineTo(x, y + hh + c); s.quadraticCurveTo(x - c, y + hh + c, x - c, y + hh);
+  s.lineTo(x - c, y); s.quadraticCurveTo(x - c, y - c, x, y - c);
   const g = new THREE.ExtrudeGeometry(s, { depth: d - 2 * r, bevelEnabled: true, bevelThickness: r, bevelSize: r * 0.98, bevelSegments: seg, curveSegments: 4 });
   g.translate(0, 0, -(d - 2 * r) / 2);
   g.computeVertexNormals();
@@ -386,7 +396,7 @@ class Mannequin {
         elbow: add(new THREE.SphereGeometry(4.2, 18, 12), this.mat.skin),
         knee: add(new THREE.SphereGeometry(5.2, 18, 12), this.mat.skin),
         wrist: add(new THREE.SphereGeometry(2.9, 14, 10), this.mat.skin),
-        hand: add(roundBox(3.4, SEG.hand, 6.8, 1.5), this.mat.skin),
+        hand: add(roundBox(3.4, SEG.hand, 6.8, 1.5, 3, false), this.mat.skin),
         thumb: add(limbGeo(3.4, [[0, 1.35], [1, 1.1]], 10), this.mat.skin),
         shoe: add(limbGeo(SEG.toe + SEG.heel + 4.2, [[0, 3.0], [0.3, 3.3], [0.75, 3.4], [1, 2.9]], 18), this.mat.shoe),
         sole: add(limbGeo(SEG.toe + SEG.heel + 4.8, [[0, 3.1], [0.5, 3.5], [1, 3.1]], 18), this.mat.sole),
@@ -412,7 +422,7 @@ class Mannequin {
     this.ears = [0, 1].map(() => { const e = add(new THREE.SphereGeometry(1.7, 12, 8), this.mat.skin); e.scale.set(0.5, 1.2, 0.85); return e; });
     const dark = new THREE.MeshStandardMaterial({ color: new THREE.Color('#241a14'), roughness: 0.5 });
     this.eyes = [0, 1].map(() => { const e = add(new THREE.SphereGeometry(0.6, 10, 8), dark); e.castShadow = false; return e; });
-    this.brows = [0, 1].map(() => { const b = add(roundBox(2.8, 0.5, 0.55, 0.2, 1), this.mat.hair); b.castShadow = false; return b; });
+    this.brows = [0, 1].map(() => { const b = add(roundBox(2.8, 0.5, 0.55, 0.2, 1, false), this.mat.hair); b.castShadow = false; return b; });
   }
 
   update(J, effort) {
@@ -473,12 +483,100 @@ class Mannequin {
 
 /* ══ KIT ══ */
 
+/* ── surfaces for the kit, drawn once in code ──
+   Small tiling height fields turned into normal maps: pebbled leather for
+   the pads, orange-peel powder coat for the frame, diamond knurling for the
+   handles, a fine rubber grain for the plates. Nothing to download. */
+const TEX = {};
+function noiseField(n, cells, seed) {
+  let x = seed * 9301 + 49297;
+  const rnd = () => ((x = (x * 9301 + 49297) % 233280) / 233280);
+  const g = Array.from({ length: cells * cells }, rnd);
+  const at = (i, j) => g[((j + cells) % cells) * cells + ((i + cells) % cells)];
+  const f = new Float32Array(n * n);
+  for (let y = 0; y < n; y++) for (let xx = 0; xx < n; xx++) {
+    const u = (xx / n) * cells, v = (y / n) * cells, i = Math.floor(u), j = Math.floor(v), fu = u - i, fv = v - j;
+    const su = fu * fu * (3 - 2 * fu), sv = fv * fv * (3 - 2 * fv);
+    f[y * n + xx] = (at(i, j) * (1 - su) + at(i + 1, j) * su) * (1 - sv) + (at(i, j + 1) * (1 - su) + at(i + 1, j + 1) * su) * sv;
+  }
+  return f;
+}
+function normalTexture(name, n, height, strength, repeat) {
+  if (TEX[name]) return TEX[name];
+  const c = document.createElement('canvas'); c.width = c.height = n;
+  const ctx = c.getContext('2d'), img = ctx.createImageData(n, n);
+  const h = (x, y) => height[((y + n) % n) * n + ((x + n) % n)];
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const dx = (h(x + 1, y) - h(x - 1, y)) * strength, dy = (h(x, y + 1) - h(x, y - 1)) * strength;
+    const l = Math.hypot(dx, dy, 1), k = (y * n + x) * 4;
+    img.data[k] = (-dx / l * 0.5 + 0.5) * 255; img.data[k + 1] = (dy / l * 0.5 + 0.5) * 255; img.data[k + 2] = (1 / l * 0.5 + 0.5) * 255; img.data[k + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat[0], repeat[1]);
+  t.userData.shared = true;
+  return (TEX[name] = t);
+}
+const leather = () => {
+  const n = 256, a = noiseField(n, 32, 3), b = noiseField(n, 64, 7), h = new Float32Array(n * n);
+  /* pebbles: the fine noise, pinched into rounded cells by the coarse */
+  for (let i = 0; i < h.length; i++) h[i] = Math.pow(Math.abs(Math.sin(a[i] * 9.0)), 0.6) * 0.7 + b[i] * 0.3;
+  return normalTexture('leather', n, h, 3.2, [0.16, 0.16]);
+};
+const powder = () => { const n = 128, a = noiseField(n, 24, 11); return normalTexture('powder', n, a, 1.2, [0.35, 0.35]); };
+const rubber = () => { const n = 128, a = noiseField(n, 48, 5), b = noiseField(n, 12, 2); const h = a.map((v, i) => v * 0.7 + b[i] * 0.3); return normalTexture('rubber', n, h, 1.6, [0.3, 0.3]); };
+const plaster = () => { const n = 128, a = noiseField(n, 10, 17), b = noiseField(n, 40, 19); return normalTexture('plaster', n, a.map((v, i) => v * 0.6 + b[i] * 0.4), 0.9, [14, 20]); };
+/* a foam mat: fine pebbles with shallow grooves across it every few cm */
+const matGrain = () => { const n = 128, a = noiseField(n, 40, 23); const h = a.map((v, i) => v * 0.6 + 0.4 * Math.pow(Math.abs(Math.sin(((i % n) / n) * Math.PI * 4)), 6)); return normalTexture('matGrain', n, h, 1.4, [0.12, 0.12]); };
+/* book cloth: a fine woven cross-grain */
+const cloth = () => { const n = 64, h = new Float32Array(n * n); for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) h[y * n + x] = 0.5 + 0.25 * Math.sin(x / n * Math.PI * 32) + 0.25 * Math.sin(y / n * Math.PI * 32); return normalTexture('cloth', n, h, 1.2, [0.5, 0.5]); };
+const knurl = () => {
+  const n = 128, h = new Float32Array(n * n);
+  /* two sets of grooves crossing at 60 degrees leave a field of diamonds */
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const a = Math.abs(Math.sin(((x + y) / n) * Math.PI * 8)), b = Math.abs(Math.sin(((x - y) / n) * Math.PI * 8));
+    h[y * n + x] = Math.min(a, b);
+  }
+  return normalTexture('knurl', n, h, 4.0, [3, 4]);
+};
+
+/* A soft studio around the kit for metal to reflect: a dim room with two
+   broad lights, made once per renderer. */
+const ENV = new WeakMap();
+function studioEnv(r) {
+  if (ENV.has(r)) return ENV.get(r);
+  const sc = new THREE.Scene();
+  const room = new THREE.Mesh(new THREE.BoxGeometry(10, 6, 10), new THREE.MeshBasicMaterial({ color: '#2a2c30', side: THREE.BackSide }));
+  sc.add(room);
+  const panel = (w, h, pos, rot, k) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(k, k, k) })); m.position.set(...pos); m.rotation.set(...rot); sc.add(m); };
+  panel(5, 2, [0, 2.9, 0], [Math.PI / 2, 0, 0], 4.0);
+  panel(3, 3, [-4.9, 1, 1], [0, Math.PI / 2, 0], 1.6);
+  panel(2, 4, [3, 0.5, -4.9], [0, 0, 0], 1.0);
+  const pm = new THREE.PMREMGenerator(r);
+  const env = pm.fromScene(sc, 0.04).texture;
+  pm.dispose();
+  ENV.set(r, env);
+  return env;
+}
+
 function kitMaterials(pal) {
   const std = (color, rough, metal = 0) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal });
+  /* bench pads: black vinyl over a pebbled leather grain, a little satin */
+  const pad = new THREE.MeshPhysicalMaterial({ color: pal.pad, roughness: 0.62, metalness: 0, normalMap: leather(), normalScale: new THREE.Vector2(0.55, 0.55), clearcoat: 0.35, clearcoatRoughness: 0.45, sheen: 0.25, sheenRoughness: 0.6, sheenColor: new THREE.Color('#5a5d66') });
+  /* the frame: dark powder-coated steel */
+  const frame = new THREE.MeshStandardMaterial({ color: new THREE.Color('#2e3035'), roughness: 0.48, metalness: 0.55, normalMap: powder(), normalScale: new THREE.Vector2(0.35, 0.35) });
+  /* handles and bars: knurled bright steel */
+  const steel = new THREE.MeshStandardMaterial({ color: pal.steel, roughness: 0.32, metalness: 0.9, normalMap: knurl(), normalScale: new THREE.Vector2(0.9, 0.9) });
+  /* plates: matte rubber with a fine grain */
+  const rub = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.78, metalness: 0, normalMap: rubber(), normalScale: new THREE.Vector2(0.5, 0.5) });
   return {
-    steel: std(pal.steel, 0.28, 0.75), pad: std(pal.pad, 0.48), plate: std(pal.plate, 0.45, 0.15),
-    plateDark: std(pal.plateDark, 0.45, 0.1), wall: std(pal.wall, 0.95), mat: std(pal.mat, 0.92),
-    book: std(pal.book, 0.8), book2: std(pal.book2, 0.8), rubber: std(new THREE.Color('#1c1d20'), 0.85),
+    steel, frame, pad, plate: rub(pal.plate), stitch: std(new THREE.Color('#4a4c52'), 0.7),
+    plateDark: rub(pal.plateDark),
+    wall: new THREE.MeshStandardMaterial({ color: pal.wall, roughness: 0.95, normalMap: plaster(), normalScale: new THREE.Vector2(0.5, 0.5) }),
+    mat: new THREE.MeshStandardMaterial({ color: pal.mat, roughness: 0.88, normalMap: matGrain(), normalScale: new THREE.Vector2(0.7, 0.7) }),
+    book: new THREE.MeshStandardMaterial({ color: pal.book, roughness: 0.82, normalMap: cloth(), normalScale: new THREE.Vector2(0.4, 0.4) }),
+    book2: new THREE.MeshStandardMaterial({ color: pal.book2, roughness: 0.82, normalMap: cloth(), normalScale: new THREE.Vector2(0.4, 0.4) }),
+    rubber: new THREE.MeshStandardMaterial({ color: new THREE.Color('#1c1d20'), roughness: 0.8, normalMap: rubber(), normalScale: new THREE.Vector2(0.6, 0.6) }),
     pack: std(new THREE.Color('#3b4a3a'), 0.85),
   };
 }
@@ -491,38 +589,52 @@ function bench(b, K) {
   const g = new THREE.Group();
   const y = 194 - (b.y ?? 161), back = b.back ?? 0, len = b.len ?? 72;
   const Wd = 24;
-  const pad = (cx, cy, angle, l) => {
-    const m = new THREE.Mesh(roundBox(l, 8.4, Wd, 3.2), K.pad);
+  const pad = (cx, cy, angle, l, name) => {
+    /* 14.7 deep and 6.3 longer than the side views' outline, as the
+       poses were drawn against */
+    const L = l + 6.3, T = 14.7;
+    const m = new THREE.Mesh(roundBox(L, T, Wd, 3.2), K.pad);
     m.position.set(cx, cy, 0);
     m.rotation.z = angle * D;
+    m.userData.support = name;   // the body rests on it (Stage.fit): 'seat' or 'back'
+    /* stitching: a row of short stitches round the top, inside the edge */
+    const inset = 5.2, w = L / 2 - inset, d = Wd / 2 - inset, step = 0.9;   // on the flat of the top, inside its rounded edge
+    const pts = [];
+    for (let x = -w; x < w; x += step) pts.push([x, d, 0], [x, -d, 0]);
+    for (let z = -d; z < d; z += step) pts.push([w, z, Math.PI / 2], [-w, z, Math.PI / 2]);
+    const st = new THREE.InstancedMesh(new THREE.BoxGeometry(0.55, 0.12, 0.14), K.stitch, pts.length);
+    const q = new THREE.Object3D();
+    pts.forEach(([x, z, r], i) => { q.position.set(x, T / 2 + 0.01, z); q.rotation.set(0, r, 0); q.updateMatrix(); st.setMatrixAt(i, q.matrix); });
+    st.castShadow = false;
+    m.add(st);
     return m;
   };
   const dir = 180 - back;
   const o = [-23, y];
   const c = [o[0] + Math.cos(dir * D) * len / 2, o[1] + Math.sin(dir * D) * len / 2];
-  g.add(pad(0, y, 0, 46), pad(c[0], c[1], dir - 180, len));
+  g.add(pad(0, y, 0, 46, 'seat'), pad(c[0], c[1], dir - 180, len, 'back'));
   const top = [o[0] + Math.cos(dir * D) * len, o[1] + Math.sin(dir * D) * len];
   const rearX = Math.min(-31, top[0] + 8);
   const r = 1.7, rail = 7;
-  g.add(rod([rearX - 2, rail, 0], [31, rail, 0], r * 1.15, K.steel));
+  g.add(rod([rearX - 2, rail, 0], [31, rail, 0], r * 1.15, K.frame));
   for (const fx of [29, rearX]) {
-    g.add(rod([fx, rail, 0], [fx, 2.2, 0], r, K.steel));
-    g.add(rod([fx, 1.6, -15], [fx, 1.6, 15], 1.6, K.steel));
+    g.add(rod([fx, rail, 0], [fx, 2.2, 0], r, K.frame));
+    g.add(rod([fx, 1.6, -15], [fx, 1.6, 15], 1.6, K.frame));
     for (const z of [-15, 15]) { const cap = new THREE.Mesh(new THREE.SphereGeometry(1.9, 10, 8), K.rubber); cap.position.set(fx, 1.6, z); g.add(cap); }
   }
-  g.add(rod([3, y - 4.2, 0], [3, rail, 0], r * 1.15, K.steel));
-  g.add(rod([-19, y - 5, 0], [19, y - 5, 0], 1.3, K.steel));
+  g.add(rod([3, y - 4.2, 0], [3, rail, 0], r * 1.15, K.frame));
+  g.add(rod([-19, y - 5, 0], [19, y - 5, 0], 1.3, K.frame));
   if (back > 8) {
     const n = [Math.cos((dir + 90) * D), Math.sin((dir + 90) * D)];
     const brace = [o[0] + Math.cos(dir * D) * len * 0.42 + n[0] * 5.4, o[1] + Math.sin(dir * D) * len * 0.42 + n[1] * 5.4];
-    g.add(rod([-25, rail, 0], [brace[0], brace[1], 0], r, K.steel));
-    for (let i = 0; i < 5; i++) g.add(rod([-24 + i * 3.6, rail + 1.2, -2.4], [-24 + i * 3.6, rail + 1.2, 2.4], 0.6, K.steel, 6));
+    g.add(rod([-25, rail, 0], [brace[0], brace[1], 0], r, K.frame));
+    for (let i = 0; i < 5; i++) g.add(rod([-24 + i * 3.6, rail + 1.2, -2.4], [-24 + i * 3.6, rail + 1.2, 2.4], 0.6, K.frame, 6));
     const pin = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 4, 12), K.rubber);
     pin.position.set((-25 + brace[0]) / 2, (rail + brace[1]) / 2, 3);
     pin.rotation.x = Math.PI / 2;
     g.add(pin);
   } else {
-    g.add(rod([top[0] + 6, top[1] - 3, 0], [top[0] + 6, rail, 0], r, K.steel));
+    g.add(rod([top[0] + 6, top[1] - 3, 0], [top[0] + 6, rail, 0], r, K.frame));
   }
   if (b.flip) g.scale.x = -1;
   g.rotation.y = (b.yaw || 0) * D;
@@ -546,7 +658,7 @@ function scene(s, K) {
       return shadow(g);
     }
     case 'bar': case 'hbar': {
-      const x = s.x ?? 100, y = 194 - s.y, wx = x - 34;
+      const x = s.x ?? 100, y = 194 - s.y, wx = x - (s.off ?? 52);   // a wall-mounted bar stands about 57 cm off the wall
       g.add(rod([x, y, -48], [x, y, 48], 2.3, K.steel, 20));
       for (const z of [-44, 44]) {
         g.add(rod([wx, y + 8, z], [x, y, z], 1.5, K.steel));
@@ -566,7 +678,8 @@ function scene(s, K) {
     }
     case 'wedge': {
       const sh = new THREE.Shape();
-      sh.moveTo(-s.w / 2, 0); sh.lineTo(s.w / 2, 0); sh.lineTo(s.w / 2, s.h); sh.lineTo(-s.w / 2, s.h * 0.3); sh.closePath();
+      /* high under the heels (the figure faces +x), low under the toes */
+      sh.moveTo(-s.w / 2, 0); sh.lineTo(s.w / 2, 0); sh.lineTo(s.w / 2, s.h * 0.3); sh.lineTo(-s.w / 2, s.h); sh.closePath();
       const geo = new THREE.ExtrudeGeometry(sh, { depth: 44, bevelEnabled: false });
       geo.translate(0, 0, -22);
       const m = new THREE.Mesh(geo, K.pad);
@@ -603,7 +716,7 @@ function heldMesh(kind, K) {
     g.add(new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.7, 13.5, 14), K.steel));
     for (const sgn of [1, -1]) for (let i = 0; i < 3; i++) {
       const s = 1 - i * 0.07;
-      const p = new THREE.Mesh(roundBox(15 * s, 2.4, 15 * s, 3.2 * s), i === 1 ? K.plateDark : K.plate);
+      const p = new THREE.Mesh(roundBox(15 * s, 2.4, 15 * s, 3.2 * s, 3, false), i === 1 ? K.plateDark : K.plate);
       p.position.y = sgn * (7.6 + i * 2.6);
       g.add(p);
     }
@@ -636,7 +749,7 @@ function heldMesh(kind, K) {
       g.add(grip);
     }
   } else if (kind === 'pack') {
-    const b = new THREE.Mesh(roundBox(22, 26, 10, 4), K.pack);
+    const b = new THREE.Mesh(roundBox(22, 26, 10, 4, 3, false), K.pack);
     g.add(b);
   }
   return shadow(g);
@@ -652,7 +765,7 @@ let RENDERER = null, BUSY = false;
 /* The trainer (avatar.js) loads once; until it has, or if it cannot, the
    drawn mannequin stands in. Await ready() before the first Stage. */
 let TRAINER = null;
-export const ready = () => loadTrainer().then(t => (TRAINER = t)).catch(() => null);
+export const ready = (model = 'athlete') => loadTrainer(model).catch(() => loadTrainer('trainer')).then(t => (TRAINER = t)).catch(() => null);
 function renderer(own = false) {
   if (RENDERER && !own) return RENDERER;
   const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power', preserveDrawingBuffer: false });
@@ -692,8 +805,10 @@ export class Stage {
     const pal = palette(el);
     this.pal = pal;
     const S = this.scene = new THREE.Scene();
-    const K = kitMaterials(pal);
-    this.body = TRAINER ? new Trainer(TRAINER, pal, m, { limb: limbWeight, trunk: trunkWeight }) : new Mannequin(pal, m);
+    const K = this.K = kitMaterials(pal);
+    /* the working muscles painted from the same regions as the card's
+       muscle map (muscles3d.js), so both light the same places */
+    this.body = TRAINER ? new Trainer(TRAINER, pal, m, { limb: limbWeight, trunk: trunkWeight, weights: (T, mm) => regionPaint(T, mm.hi, mm.hi2, MMAP) }) : new Mannequin(pal, m);
     S.add(this.body.group);
     this.kit = (m.scene || []).map(s => { const o = scene(s, K); if (['wall', 'mat'].includes(s.k)) o.userData.noFit = true; S.add(o); return o; });
 
@@ -756,6 +871,175 @@ export class Stage {
     this.aim();
   }
 
+  /* The bench pads the body can rest on, with their frames. */
+  supportPads() {
+    if (this._pads) return this._pads;
+    this.scene.updateMatrixWorld(true);
+    const pads = [];
+    for (const o of this.kit) o.traverse(c => {
+      if (!c.isMesh || !c.userData.support) return;
+      c.geometry.computeBoundingBox();
+      const inv = c.matrixWorld.clone().invert(), nrm = new THREE.Vector3(0, 1, 0).transformDirection(c.matrixWorld);
+      pads.push({ m: c, bb: c.geometry.boundingBox, inv, nrm });
+    });
+    return (this._pads = pads);
+  }
+  /* The top of whatever a foot stands over: a level pad under it, or the floor. */
+  surfaceAt(q) {
+    let top = this.floorTop ?? 0;
+    const v = new THREE.Vector3();
+    for (const P of this.supportPads()) {
+      if (P.nrm.y < 0.9) continue;
+      v.set(q[0], q[1], q[2]).applyMatrix4(P.inv);
+      if (v.x < P.bb.min.x - 0.5 || v.x > P.bb.max.x + 0.5 || v.z < P.bb.min.z - 0.5 || v.z > P.bb.max.z + 0.5) continue;
+      v.y = P.bb.max.y; v.applyMatrix4(P.m.matrixWorld);
+      if (v.y < q[1] + 3) top = Math.max(top, v.y);
+    }
+    return top;
+  }
+  /* ── Fitting the body to the kit ──
+     The poses in moves.js were drawn for the rig's thin figure; this body
+     is thicker, so as drawn it can sink into the floor or a pad, or hover
+     over the pad it should lie on. For each moment of the rep the body is
+     moved to fit before the pose is solved: the whole of it up off the
+     floor (its planted marks too), then the trunk alone onto or out of a
+     pad, the hands and feet staying on their marks while the elbows and
+     knees bend to reach them. The fit is worked out at a few dozen
+     moments across the rep and smoothed, so the body never jumps from
+     one frame to the next. */
+
+  /* Whether the hand or foot mark `key` (hand, fhand, foot, ffoot) at t is
+     planted on something — the floor, a pad, the bar, a wall — rather
+     than a place on the body (a dumbbell on the hips, hands at the
+     chest), which moves when the body does. Each part of the kit is
+     tested on its own, at the mark's own sideways place. */
+  planted(t, key = 'hand') {
+    const far = key[0] === 'f', foot = key.endsWith('foot');
+    const q = W(t, (far ? -1 : 1) * (foot ? BODY.hipW : BODY.shoW)), v = new THREE.Vector3(...q);
+    if (q[1] < (this.floorTop ?? 0) + 18) return true;   // an ankle up on its toes, a wrist on the floor
+    if (!this._kitBoxes) {
+      this.scene.updateMatrixWorld(true);
+      this._kitBoxes = [];
+      for (const o of this.kit) o.traverse(c => { if (c.isMesh && !c.isInstancedMesh) this._kitBoxes.push(new THREE.Box3().setFromObject(c)); });
+    }
+    return this._kitBoxes.some(b => b.distanceToPoint(v) < 4);
+  }
+
+  /* The pose p, moved: up by `lift` with its marks, then the trunk by d,
+     taking the marks that are not planted with it. */
+  shifted(p, lift, d) {
+    if (!lift && !d) return p;
+    const q = { ...p };
+    const mv = (t, dx, dy, dz) => { const o = t.slice(); o[0] += dx; o[1] -= dy; if (dz) o[2] = (o[2] ?? 0) + dz; return o; };
+    for (const k of Object.keys(q)) {
+      if (!MARK.test(k) || !Array.isArray(q[k])) continue;
+      const free = d && !this.planted(q[k], k.replace(/^[ab]/, ''));
+      q[k] = mv(q[k], free ? d[0] : 0, lift + (free ? d[1] : 0), free && q[k].length > 2 ? d[2] : 0);
+    }
+    /* the body hangs from its hip, or from the joint a pose roots it at */
+    const [dx, dy, dz] = d || [0, 0, 0];
+    if (q.root) q.at = mv(q.at, dx, lift + dy, q.at.length > 2 ? dz : 0);
+    else q.hip = mv(q.hip || [100, 150], dx, lift + dy, dz);
+    return q;
+  }
+
+  /* One step toward the body resting on the kit, from its skin points
+     `pts` (x, y, z runs): a world move, or null when it already fits.
+     Where m.rest names a pad ('back', 'seat', or 'pad' for whichever the
+     trunk is over), the trunk (`pts`) is brought to touch that pad, nearer
+     or farther; every other pad only pushes skin (`all`: the trunk, upper
+     arms and thighs) out through its top. */
+  contact(pts, all = pts) {
+    const pads = this.supportPads(), want = this.m.rest, v = new THREE.Vector3();
+    let push = null, hold = null;
+    /* over the pad's face: how far the lowest point is above its top (gap),
+       how deep the deepest is below it (pen), how many are near it (n);
+       skin under the pad's top half is passing its end or underside, not
+       resting on it */
+    const measure = (P, set) => {
+      const bb = P.bb, half = (bb.max.y - bb.min.y) / 2;
+      let pen = 0, gap = Infinity, n = 0;
+      for (let k = 0; k < set.length; k += 3) {
+        v.set(set[k], set[k + 1], set[k + 2]).applyMatrix4(P.inv);
+        if (v.x <= bb.min.x || v.x >= bb.max.x || v.z <= bb.min.z || v.z >= bb.max.z) continue;
+        const h = v.y - bb.max.y;
+        if (h < -half) continue;
+        if (h < 10) n++;
+        if (h < gap) gap = h;
+        if (-h > pen) pen = -h;
+      }
+      return { pen, gap, n };
+    };
+    for (const P of pads) {
+      const named = want && (want === 'pad' || want === P.m.userData.support);
+      const m = named ? measure(P, pts) : null;
+      if (named && m.n > 12 && (!hold || m.n > hold.n)) { hold = { ...m, P }; continue; }
+      const { pen } = measure(P, all);
+      if (pen > 0.3 && (!push || pen > push.pen)) push = { pen, P };
+    }
+    const d = new THREE.Vector3();
+    /* resting on a pad sinks it a little */
+    if (hold && Math.abs(hold.gap + 0.4) > 0.15) d.addScaledVector(hold.P.nrm, Math.max(-6, -0.4 - hold.gap));
+    if (push && push.P !== hold?.P) d.addScaledVector(push.P.nrm, push.pen + 0.15);
+    return d.lengthSq() > 0.01 ? d : null;
+  }
+
+  /* How far to move the body for pose p: { lift, d }. Leaves the body in
+     that pose. */
+  solveFit(p) {
+    const B = this.body, top = this.floorTop;
+    const place = (lift, d) => { const q = this.shifted(p, lift, d); B.update(skeleton(q), p.effort ?? 0.45, q); };
+    place(0, null);
+    const lift = Math.max(0, top + 0.2 - B.lowest());
+    let d = null;
+    if (this.supportPads().length) {
+      const set = this.m.rest ? (this.m.rest === 'seat' ? 'seat' : 'trunk') : 'all';
+      for (let it = 0; it < 6; it++) {
+        if (it || lift) place(lift, d);
+        const pts = B.restPoints(set), step = this.contact(pts, set === 'all' ? pts : B.restPoints('all'));
+        if (!step) break;
+        d = d ? [d[0] + step.x, d[1] + step.y, d[2] + step.z] : [step.x, step.y, step.z];
+        if (step.length() < 0.2) break;
+      }
+    }
+    return { lift, d };
+  }
+
+  /* The fit at time t of the rep, from samples across it: the lift kept
+     at or above what each sample needs, both smoothed round the loop. */
+  fitAt(t) {
+    const total = this.tl.total;
+    if (!this._fit) {
+      const K = Math.max(12, Math.min(32, Math.round(total * 4)));
+      const raw = [];
+      for (let k = 0; k < K; k++) { const f = this.solveFit(this.tl.at((k / K) * total)); raw.push([f.lift, ...(f.d || [0, 0, 0])]); }
+      const at = k => raw[((k % K) + K) % K];
+      const lift = raw.map((_, k) => Math.max(at(k - 1)[0], at(k)[0], at(k + 1)[0]));
+      let sm = raw.map((r, k) => [lift[k], r[1], r[2], r[3]]);
+      for (let pass = 0; pass < 2; pass++) {
+        const s0 = sm;
+        sm = s0.map((_, k) => s0[k].map((x, c) => (s0[(k - 1 + K) % K][c] + 2 * x + s0[(k + 1) % K][c]) / 4));
+      }
+      this._fit = { K, s: sm };
+    }
+    const { K, s } = this._fit;
+    const u = (((t / total) % 1 + 1) % 1) * K, k = Math.floor(u), f = u - k;
+    const g = j => s[((j % K) + K) % K];
+    /* Catmull-Rom through the samples */
+    const out = [0, 0, 0, 0].map((_, c) => {
+      const p0 = g(k - 1)[c], p1 = g(k)[c], p2 = g(k + 1)[c], p3 = g(k + 2)[c];
+      return 0.5 * (2 * p1 + (-p0 + p2) * f + (2 * p0 - 5 * p1 + 4 * p2 - p3) * f * f + (-p0 + 3 * p1 - 3 * p2 + p3) * f * f * f);
+    });
+    return { lift: Math.max(0, out[0]), d: [out[1], out[2], out[3]] };
+  }
+
+  /* The studio for the kit's metal and vinyl to reflect, once the renderer
+     is known. */
+  useEnv(r) {
+    const e = studioEnv(r);
+    for (const [m, k] of [[this.K.steel, 1], [this.K.frame, 0.8], [this.K.pad, 0.6], [this.K.plate, 0.5], [this.K.plateDark, 0.5]]) { m.envMap = e; m.envMapIntensity = k; m.needsUpdate = true; }
+  }
+
   /* Camera and lights from the current orbit angles. */
   aim(aspect = this.aspect || 2) {
     this.aspect = aspect;
@@ -815,12 +1099,24 @@ export class Stage {
 
   /* Pose the scene at time t (seconds into the rep). */
   pose(p) {
+    this.body.floorTop = this.floorTop ??= Math.max(0, ...(this.m.scene || []).filter(s => s.k === 'mat').map(() => 1.2));
+    this.body.surfaceAt = q => this.surfaceAt(q);
+    this.body.isPlanted = (t, key) => this.planted(t, key);
+    /* A body thicker than the rig's (the athlete) is fitted to the floor
+       and the kit (see fitAt); the rig's own figure is drawn as posed. */
+    if (this.body.lowest) {
+      const f = p.t != null ? this.fitAt(p.t) : this.solveFit(p);
+      p = this.shifted(p, f.lift, f.d);
+    }
     const J = skeleton(p);
     this.body.update(J, p.effort ?? 0.45, p);
     holds(J, this.m).forEach((it, i) => {
       const o = this.held[i];
       if (!o) return;
-      o.position.copy(V(it.pos));
+      /* a one-hand dumbbell sits where that hand's fingers close, when the
+         body can say (the trainer's palm); otherwise at the rig's grip */
+      const palm = it.side && this.body.palmAt?.(it.side);
+      o.position.copy(V(palm || it.pos));
       orient(o, it.axis, it.up || [0, 1, 0]);
     });
     return J;
@@ -844,6 +1140,7 @@ export function mount(box, name, { onStep, still = false } = {}) {
   const r = renderer(own);
   if (!own) BUSY = true;
   const stage = new Stage(name, box);
+  stage.useEnv(r);
   box.appendChild(r.domElement);
   let raf = 0, clock = 0, last = 0, paused = still, dirty = true, visible = true;
 
@@ -948,6 +1245,7 @@ export function mount(box, name, { onStep, still = false } = {}) {
 export function stillImage(name, poseName, w = 360, h = 240, opts = {}) {
   const r = renderer();
   const stage = new Stage(name, document.documentElement);
+  stage.useEnv(r);
   if (opts.az != null) stage.az = opts.az;
   if (opts.el != null) stage.el = opts.el;
   if (opts.zoom != null) stage.zoom = opts.zoom;

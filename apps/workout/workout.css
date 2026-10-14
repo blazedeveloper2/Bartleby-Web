@@ -981,6 +981,19 @@ html[data-theme] .wk .mm-card .mm-muscles{overflow:visible}
 .wk .m-readout:not(.on){display:none}
 @media(max-width:650px){.wk .m-fig{height:clamp(160px,23dvh,210px)}.wk .mm-map{min-height:0}}
 
+/* The 3D muscle map (muscleview.js) over the 2D one, once it has loaded:
+   the figures step aside and the canvas fills the map. */
+.mm-3d{display:none}
+.wk .mm-map.is-3d{height:320px}
+.wk .mm-map.is-3d .m-side{display:none}
+.wk .mm-map.is-3d .mm-3d{display:block;position:absolute;inset:0}
+.mv-canvas{display:block;width:100%;height:100%;cursor:grab;touch-action:pan-y}
+.mv-canvas:active{cursor:grabbing}
+.wk .mm-map.is-3d[data-view="both"]:not(.is-focused) .mm-3d::before,.wk .mm-map.is-3d[data-view="both"]:not(.is-focused) .mm-3d::after{position:absolute;top:10px;width:50%;text-align:center;font-size:11px;color:var(--text-3);pointer-events:none}
+.wk .mm-map.is-3d[data-view="both"]:not(.is-focused) .mm-3d::before{content:'Front';left:0}
+.wk .mm-map.is-3d[data-view="both"]:not(.is-focused) .mm-3d::after{content:'Back';right:0}
+@media(max-width:650px){.wk .mm-map.is-3d{height:clamp(250px,36dvh,320px)}}
+
 /* ── Exercise lab on a phone ──────────────────────────────────────────
    It was a centred card: overlay position:fixed inset:0 with
    align-items:center and overflow:hidden, card capped at 100dvh - 32px.

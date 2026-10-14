@@ -1,0 +1,243 @@
+<!doctype html>
+<!-- The anatomy viewer: a test bench for the Workout app's 3D body, not
+     part of the app. Every muscle region the app can light, on the real
+     model, posed at rest or anywhere in any exercise's rep, with the
+     exercise's highlights from both sources (the 3D animation's hi/hi2 in
+     moves.js and the body map's muscles in data.js) side by side, a brush
+     to correct where a muscle is, and rig views for checking the skinning.
+     Serve the repo root and open /tools/anatomy/ . -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anatomy Bench</title>
+<link rel="stylesheet" href="../../assets/css/tokens.css">
+<link rel="stylesheet" href="../../assets/css/themes.css">
+<style>
+  /* Layout: a narrow instrument panel on the left, the body filling the rest. */
+  :root {
+    --ink: #0d0f12; --panel: #14171c; --panel-2: #1b1f26; --line: #272c35;
+    --txt: #e8e6e1; --txt-2: #9aa1ab; --txt-3: #646b76;
+    --hot: #ff7a18; --warm: #9c4d11; --cool: #4cc3ff; --ok: #4ade80; --bad: #f87171;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace; --sans: 'DM Sans', system-ui, sans-serif;
+  }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--ink); color: var(--txt); font: 13px/1.45 var(--sans); overflow: hidden; }
+  .app { display: grid; grid-template-columns: 340px 1fr; height: 100%; }
+  aside { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+  header { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
+  header h1 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: .2px; }
+  header p { margin: 2px 0 0; color: var(--txt-3); font-size: 11.5px; }
+  .tabs { display: flex; gap: 2px; padding: 8px 10px 0; border-bottom: 1px solid var(--line); }
+  .tabs button { flex: 1; background: none; border: 0; color: var(--txt-2); padding: 8px 4px 9px; font: 600 12px var(--sans); cursor: pointer; border-bottom: 2px solid transparent; }
+  .tabs button[aria-selected="true"] { color: var(--txt); border-bottom-color: var(--hot); }
+  .pane { padding: 12px 14px 18px; overflow: auto; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+  .pane[hidden] { display: none; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  label.k, .k { color: var(--txt-3); font: 600 10.5px var(--mono); text-transform: uppercase; letter-spacing: .6px; }
+  select, input[type=search], input[type=number] { background: var(--panel-2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: 12.5px var(--sans); min-width: 0; }
+  select { flex: 1; }
+  input[type=range] { flex: 1; accent-color: var(--hot); min-width: 0; }
+  button.b { background: var(--panel-2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: 600 12px var(--sans); cursor: pointer; }
+  button.b:hover { border-color: #3a414d; }
+  button.b[aria-pressed="true"] { background: #2a1a0c; border-color: var(--hot); color: #ffd0a8; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--cool); outline-offset: 1px; }
+  .group h3 { margin: 6px 0 4px; font: 700 10.5px var(--mono); color: var(--txt-3); text-transform: uppercase; letter-spacing: .7px; }
+  .reg { display: grid; grid-template-columns: 14px 1fr auto; gap: 8px; align-items: center; padding: 3px 6px; border-radius: 5px; cursor: pointer; }
+  .reg:hover { background: var(--panel-2); }
+  .reg.on { background: #2a1a0c; }
+  .sw { width: 12px; height: 12px; border-radius: 3px; }
+  .reg small { color: var(--txt-3); font: 10.5px var(--mono); }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip { font: 11.5px var(--sans); padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--txt-2); }
+  .chip.p { border-color: var(--hot); color: #ffc79c; }
+  .chip.s { border-color: var(--warm); color: #e0a77c; }
+  .chip.miss { border-style: dashed; border-color: var(--bad); color: #fca5a5; }
+  .note { color: var(--txt-3); font-size: 11.5px; }
+  .card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+  main { position: relative; min-width: 0; }
+  canvas#gl { display: block; width: 100%; height: 100%; touch-action: none; }
+  .hud { position: absolute; left: 14px; top: 12px; font: 11px var(--mono); color: var(--txt-3); pointer-events: none; }
+  .tip { position: absolute; pointer-events: none; background: rgba(13,15,18,.92); border: 1px solid var(--line); padding: 4px 8px; border-radius: 6px; font: 12px var(--sans); color: var(--txt); transform: translate(12px, 12px); white-space: nowrap; }
+  .tip b { color: #ffc79c; font-weight: 600; }
+  .dbg { position: absolute; right: 12px; top: 34px; max-width: 46%; max-height: 60%; overflow: auto; margin: 0; padding: 8px 10px; background: rgba(13,15,18,.92); border: 1px solid var(--line); border-radius: 8px; font: 10.5px/1.35 var(--mono); color: var(--txt-2); white-space: pre-wrap; pointer-events: auto; }
+  .dbg[hidden] { display: none; }
+  .bar { position: absolute; left: 14px; right: 14px; bottom: 12px; display: flex; gap: 8px; align-items: center; background: rgba(20,23,28,.9); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+  .bar[hidden] { display: none; }
+  .phases { display: flex; gap: 2px; flex: 1; min-width: 0; }
+  .phases span { flex: 1; font: 10.5px var(--mono); color: var(--txt-3); border-top: 2px solid var(--line); padding-top: 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .phases span.on { color: #ffd0a8; border-top-color: var(--hot); }
+  .loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--txt-3); font: 12px var(--mono); }
+  .loading[hidden], .tip[hidden] { display: none; }
+  /* segmented controls */
+  .seg { display: inline-flex; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 2px; gap: 2px; }
+  .seg button { background: none; border: 0; color: var(--txt-2); font: 600 12px var(--sans); padding: 5px 10px; border-radius: 6px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: #2a1a0c; color: #ffd0a8; box-shadow: inset 0 0 0 1px var(--hot); }
+  .seg button:hover:not([aria-pressed="true"]) { color: var(--txt); }
+  .seg button:disabled { opacity: .4; cursor: default; }
+  /* the model row */
+  .modelrow { padding: 10px 14px; display: flex; gap: 8px; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+  /* exercise list, grouped by training day */
+  .exlist { display: flex; flex-direction: column; gap: 1px; overflow: auto; max-height: 38vh; margin: 0 -6px; padding: 0 6px; }
+  .exlist h3 { position: sticky; top: 0; background: var(--panel); margin: 8px 0 2px; padding: 2px 0; font: 700 10.5px var(--mono); color: var(--txt-3); text-transform: uppercase; letter-spacing: .7px; }
+  .exlist button { text-align: left; background: none; border: 0; color: var(--txt-2); font: 13px var(--sans); padding: 5px 8px; border-radius: 6px; cursor: pointer; }
+  .exlist button:hover { background: var(--panel-2); color: var(--txt); }
+  .exlist button[aria-current="true"] { background: #2a1a0c; color: #ffd0a8; }
+  .exlist .empty { color: var(--txt-3); font-size: 12px; padding: 6px 8px; }
+  input[type=search] { width: 100%; box-sizing: border-box; }
+  /* view presets, top right of the stage */
+  .views { position: absolute; right: 12px; top: 10px; display: flex; gap: 6px; align-items: center; }
+  .iconbtn { width: 30px; height: 30px; display: inline-grid; place-items: center; background: rgba(20,23,28,.9); border: 1px solid var(--line); border-radius: 8px; color: var(--txt-2); cursor: pointer; font: 600 13px var(--sans); }
+  .iconbtn:hover { color: var(--txt); border-color: #3a414d; }
+  /* the player */
+  .bar { flex-wrap: wrap; row-gap: 6px; }
+  .play { width: 34px; height: 34px; flex: 0 0 auto; border-radius: 50%; border: 0; background: var(--hot); color: #1a0d03; cursor: pointer; display: grid; place-items: center; }
+  .play svg { width: 14px; height: 14px; }
+  .track { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 3px; }
+  .track input[type=range] { width: 100%; margin: 0; }
+  .meta { display: flex; gap: 10px; align-items: center; font: 11px var(--mono); color: var(--txt-3); flex: 0 0 auto; }
+  .meter { width: 54px; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--warm), var(--hot)); }
+  /* keyboard help */
+  .help { position: absolute; right: 12px; top: 48px; width: 250px; background: rgba(13,15,18,.96); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 12px; color: var(--txt-2); }
+  .help[hidden] { display: none; }
+  .help h4 { margin: 0 0 6px; font: 700 10.5px var(--mono); color: var(--txt-3); text-transform: uppercase; letter-spacing: .7px; }
+  .help dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; }
+  .help dt { font: 11px var(--mono); color: var(--txt); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; justify-self: start; }
+  .help dd { margin: 0; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media (max-width: 760px) {
+    body { overflow: auto; }
+    .app { grid-template-columns: 1fr; grid-template-rows: 62vh auto; height: auto; }
+    main { order: -1; height: 62vh; }
+    aside { border-right: 0; border-top: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <header>
+      <h1>Anatomy Bench</h1>
+      <p>Test bench for the Workout app's 3D body. Not part of the app.</p>
+    </header>
+    <div class="modelrow">
+      <div class="seg" id="model" role="group" aria-label="Model">
+        <button data-model="athlete" aria-pressed="true" title="The sculpted anatomical body">Athlete</button>
+        <button data-model="trainer" aria-pressed="false" title="The scanned trainer in a tee and shorts">Trainer</button>
+      </div>
+      <div class="seg"><button id="shorts" aria-pressed="true" title="Show or hide the athlete's shorts">Shorts</button></div>
+    </div>
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="atlas" aria-selected="true">Atlas</button>
+      <button role="tab" data-tab="exercise" aria-selected="false">Exercise</button>
+      <button role="tab" data-tab="paint" aria-selected="false">Paint</button>
+      <button role="tab" data-tab="rig" aria-selected="false">Rig</button>
+    </div>
+
+    <section class="pane" data-pane="atlas">
+      <div class="row">
+        <button class="b" id="allOn">Show all</button>
+        <button class="b" id="soloOff">Clear</button>
+        <button class="b" id="deep" aria-pressed="false">Deep muscles</button>
+      </div>
+      <input type="search" id="regQ" placeholder="Find a muscle">
+      <p class="note">Hover to name a muscle. Click one, here or on the body, to show only it; Shift-click to add more. These are the regions the app's 2D body map lights.</p>
+      <div id="regList"></div>
+    </section>
+
+    <section class="pane" data-pane="exercise" hidden>
+      <input type="search" id="exQ" placeholder="Find an exercise">
+      <div class="exlist" id="exList" role="listbox" aria-label="Exercises"></div>
+      <div class="card">
+        <span class="k">Highlight</span>
+        <div class="seg" role="group" aria-label="Highlight">
+          <button class="src" data-src="anim" aria-pressed="true" title="The muscles the 3D animation lights (moves.js)">Animation</button>
+          <button class="src" data-src="map" aria-pressed="false" title="The muscles the 2D body map lights (data.js)">Body map</button>
+          <button class="src" data-src="diff" aria-pressed="false" title="Green: both; blue: only the animation; red: only the body map">Compare</button>
+          <button class="src" data-src="none" aria-pressed="false" title="The bare body">Off</button>
+        </div>
+        <span class="k">3D animation (moves.js)</span>
+        <div class="chips" id="chipsAnim"></div>
+        <span class="k">Body map (data.js)</span>
+        <div class="chips" id="chipsMap"></div>
+        <p class="note" id="diffNote"></p>
+      </div>
+      <p class="note">Working muscles glow brighter as the rep reaches its hardest point, as in the app.</p>
+    </section>
+
+    <section class="pane" data-pane="paint" hidden>
+      <p class="note">Correct where a muscle is: choose it, then drag over the body. Hold Shift (or switch to Erase) to take a muscle off. Edits save in this browser; export them to use in the app.</p>
+      <div class="row"><span class="k">Muscle</span><select id="pReg"></select></div>
+      <div class="row">
+        <button class="b" id="pAdd" aria-pressed="true">Paint</button>
+        <button class="b" id="pErase" aria-pressed="false">Erase</button>
+        <button class="b" id="pOrbit" aria-pressed="false">Orbit only</button>
+      </div>
+      <div class="row"><span class="k">Size</span><input type="range" id="pSize" min="1" max="10" step="0.5" value="3.5"><span id="pSizeV" class="k">3.5</span></div>
+      <div class="card">
+        <span class="k" id="pCount">No edits</span>
+        <div class="row">
+          <button class="b" id="pExport">Export JSON</button>
+          <label class="b" style="cursor:pointer">Import<input type="file" id="pImport" accept="application/json" hidden></label>
+          <button class="b" id="pClearReg">Clear this muscle's edits</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="pane" data-pane="rig" hidden>
+      <div class="row">
+        <button class="b" id="rWeights" aria-pressed="false">Bone weights</button>
+        <button class="b" id="rWire" aria-pressed="false">Wireframe</button>
+        <button class="b" id="rJoints" aria-pressed="false">Joints</button>
+      </div>
+      <p class="note">Bone weights colours each part of the skin by the bone that moves it most; blends between colours are where the skin bends. Check shoulders and hips in the hardest poses (pull-ups, handstands, presses).</p>
+      <div class="card"><span class="k">Hovered point</span><span id="rInfo" class="note">Hover the body.</span></div>
+    </section>
+  </aside>
+
+  <main>
+    <canvas id="gl"></canvas>
+    <div class="hud" id="hud">Drag to turn · scroll to zoom · right-drag to move</div>
+    <div class="views" role="group" aria-label="Camera">
+      <div class="seg">
+        <button data-view="front" title="Front (1)">Front</button>
+        <button data-view="side" title="Side (2)">Side</button>
+        <button data-view="back" title="Back (3)">Back</button>
+        <button data-view="top" title="Top (4)">Top</button>
+      </div>
+      <button class="iconbtn" id="resetView" title="Reset the view (R)" aria-label="Reset the view">⟲</button>
+      <button class="iconbtn" id="helpBtn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" aria-expanded="false">?</button>
+    </div>
+    <div class="help" id="help" hidden>
+      <h4>Keyboard</h4>
+      <dl>
+        <dt>Space</dt><dd>Play or pause the rep</dd>
+        <dt>← →</dt><dd>Step through the rep</dd>
+        <dt>1 2 3 4</dt><dd>Front, side, back, top</dd>
+        <dt>R</dt><dd>Reset the view</dd>
+        <dt>S</dt><dd>Shorts on or off</dd>
+        <dt>D</dt><dd>Pick debug readout</dd>
+        <dt>?</dt><dd>This list</dd>
+      </dl>
+    </div>
+    <div class="tip" id="tip" hidden></div>
+    <pre class="dbg" id="dbg" hidden></pre>
+    <div class="bar" id="bar">
+      <button class="play" id="play" aria-pressed="false" aria-label="Play" title="Play or pause (Space)"><svg viewBox="0 0 16 16" aria-hidden="true"><path id="playIcon" d="M4 2.5v11l9-5.5z" fill="currentColor"/></svg></button>
+      <div class="seg" id="poseSel" role="group" aria-label="Pose">
+        <button data-pose="rest" aria-pressed="true" title="The body in its rest pose">Rest</button>
+        <button data-pose="rep" aria-pressed="false" title="The body in the chosen exercise">In the rep</button>
+      </div>
+      <div class="track">
+        <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Position in the rep">
+        <div class="phases" id="phases"></div>
+      </div>
+      <div class="meta"><span id="timeV">0.0 s</span><span title="Effort: how hard the muscles work at this moment">effort</span><div class="meter"><i id="effortBar"></i></div></div>
+    </div>
+    <div class="loading" id="loading">Loading the body…</div>
+  </main>
+</div>
+<script type="module">import("./anatomy.js?v=" + Date.now());</script>
+</body>
+</html>

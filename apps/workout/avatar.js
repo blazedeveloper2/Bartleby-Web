@@ -23,20 +23,23 @@
    ═══════════════════════════════════════════════════════════ */
 
 import * as THREE from '../../assets/vendor/three/three.module.min.js';
-import { SEG, v3 } from './rig.js?v=3d-oct14c';
+import { SEG, v3 } from './rig.js?v=3d-oct14d';
 
-const DIR = new URL('../../assets/models/trainer/', import.meta.url);
-const CM = 1 / 1.1;              // rig units per centimetre
-const ANKLE_UP = 10.2 * CM - 3.7; // the model's ankle sits higher above its sole than the rig's
+/* Each model lives in assets/models/<name>/ as <name>.json + <name>.bin:
+   'trainer' (the Rocketbox scan in a tee and shorts) and 'athlete' (a
+   sculpted anatomical body in shorts with the scan's head and hands, built
+   by tools/howto/trainer/). A model's json may list its own materials. */
+const MODELS = new URL('../../assets/models/', import.meta.url);
 
-let LOADING = null;
-/* Loads the mesh and textures once; resolves to the shared data. */
-export function loadTrainer() {
-  if (LOADING) return LOADING;
-  LOADING = (async () => {
+const LOADING = new Map();
+/* Loads a model's mesh and textures once; resolves to the shared data. */
+export function loadTrainer(name = 'trainer') {
+  if (LOADING.has(name)) return LOADING.get(name);
+  const DIR = new URL(`${name}/`, MODELS);
+  const job = (async () => {
     const [meta, bin] = await Promise.all([
-      fetch(new URL('trainer.json', DIR)).then(r => { if (!r.ok) throw new Error('trainer.json'); return r.json(); }),
-      fetch(new URL('trainer.bin', DIR)).then(r => { if (!r.ok) throw new Error('trainer.bin'); return r.arrayBuffer(); }),
+      fetch(new URL(`${name}.json`, DIR)).then(r => { if (!r.ok) throw new Error(`${name}.json`); return r.json(); }),
+      fetch(new URL(`${name}.bin`, DIR)).then(r => { if (!r.ok) throw new Error(`${name}.bin`); return r.arrayBuffer(); }),
     ]);
     const tl = new THREE.TextureLoader();
     const tex = async (f, srgb = true) => {
@@ -46,9 +49,18 @@ export function loadTrainer() {
       t.userData.shared = true;
       return t;
     };
-    const [body, bodyN, head, headN, hair] = await Promise.all([
-      tex('body.jpg'), tex('body_n.jpg', false), tex('head.jpg'), tex('head_n.jpg', false), tex('hair.png'),
-    ]);
+    /* Materials: the model's own list, or the scan's three. */
+    const MATS = meta.materials || {
+      body: { map: 'body.jpg', normalMap: 'body_n.jpg', normalScale: 0.8, roughness: 0.78, paint: true },
+      head: { map: 'head.jpg', normalMap: 'head_n.jpg', normalScale: 0.7, roughness: 0.6, paint: true },
+      hair: { map: 'hair.png', alphaTest: 0.38, roughness: 0.85 },
+    };
+    const matNames = Object.keys(MATS);
+    const mats = {};
+    await Promise.all(matNames.map(async n => {
+      const m = MATS[n];
+      mats[n] = { ...m, map: m.map && await tex(m.map), normalMap: m.normalMap && await tex(m.normalMap, false) };
+    }));
     const arr = (name, T) => new T(bin, meta.layout[name].offset, meta.layout[name].length);
     const pos16 = arr('position', Int16Array);
     const pos = new Float32Array(pos16.length);
@@ -59,16 +71,22 @@ export function loadTrainer() {
     geo.setAttribute('uv', new THREE.BufferAttribute(arr('uv', Uint16Array), 2, true));
     geo.setAttribute('skinIndex', new THREE.BufferAttribute(arr('skinIndex', Uint8Array), 4));
     geo.setAttribute('skinWeight', new THREE.BufferAttribute(arr('skinWeight', Uint8Array), 4, true));
-    geo.setIndex(new THREE.BufferAttribute(arr('index', Uint16Array), 1));
-    const matOf = { m002_body: 0, m002_head: 1, m002_opacity: 2 };
-    for (const r of meta.ranges) geo.addGroup(r.start, r.count, matOf[r.mat] ?? 0);
+    geo.setIndex(new THREE.BufferAttribute(arr('index', meta.layout.index.type === 'Uint32Array' ? Uint32Array : Uint16Array), 1));
+    if (meta.layout.skinBlend) geo.setAttribute('aBlend', new THREE.BufferAttribute(arr('skinBlend', Uint8Array), 1, true));
+    const legacy = { m002_body: 'body', m002_head: 'head', m002_opacity: 'hair' };
+    for (const r of meta.ranges) geo.addGroup(r.start, r.count, Math.max(0, matNames.indexOf(legacy[r.mat] || r.mat)));
     const bones = meta.bones.map(b => ({ ...b, P: new THREE.Vector3(...b.p) }));
     const byName = Object.fromEntries(bones.map((b, i) => [b.name, i]));
-    athletic(geo, bones, BUILD);
-    return { geo, bones, byName, tex: { body, bodyN, head, headN, hair } };
+    if (!meta.materials) athletic(geo, bones, BUILD);
+    /* Scale: rig units per model unit, and how much higher the model's
+       ankle sits above its sole than the rig's (3.7) does. */
+    const cm = meta.rigPerUnit ?? 1 / 1.1;
+    const ankleUp = bones[byName.R_Foot].P.y * cm - 3.7;
+    return { name, meta, geo, bones, byName, matNames, mats, cm, ankleUp };
   })();
-  LOADING.catch(() => { LOADING = null; });
-  return LOADING;
+  job.catch(() => LOADING.delete(name));
+  LOADING.set(name, job);
+  return job;
 }
 
 /* ── an athletic build ──
@@ -215,7 +233,7 @@ function paintWeights(T, hi, hi2, paint) {
   for (const [side, sgn] of [['R', -1], ['L', 1]]) {
     const out = [sgn, 0, 0];
     const seg = (a, c, key) => ({ a: A(b(a)), d: norm(sub(A(b(c)), A(b(a)))), len: v3.len(sub(A(b(c)), A(b(a)))), key, out });
-    segs[`${side}_UpperArm`] = segs[`${side}_Clavicle`] = seg(`${side}_UpperArm`, `${side}_Forearm`, 'ua');
+    segs[`${side}_UpperArm`] = segs[`${side}_Clavicle`] = segs[`${side}_ShoulderHelper`] = seg(`${side}_UpperArm`, `${side}_Forearm`, 'ua');
     segs[`${side}_Forearm`] = seg(`${side}_Forearm`, `${side}_Hand`, 'fa');
     segs[`${side}_Thigh`] = seg(`${side}_Thigh`, `${side}_Calf`, 'th');
     segs[`${side}_Calf`] = seg(`${side}_Calf`, `${side}_Foot`, 'sh');
@@ -250,18 +268,20 @@ function paintWeights(T, hi, hi2, paint) {
 }
 
 /* The texture materials with the muscle paint mixed in, glowing with
-   the rep's effort, exactly as stage.js's own body materials do. */
-function paintedMaterial(opts, U) {
-  const m = new THREE.MeshStandardMaterial(opts);
+   the rep's effort, exactly as stage.js's own body materials do. aBlend
+   fades a grafted part's edge into uNeck, the colour where it joins. */
+export function paintedMaterial(opts, U) {
+  const m = opts.sheen ? new THREE.MeshPhysicalMaterial(opts) : new THREE.MeshStandardMaterial(opts);
   m.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float aMus;\nattribute float aMus2;\nvarying float vMus;\nvarying float vMus2;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvMus = aMus;\nvMus2 = aMus2;');
+      .replace('#include <common>', '#include <common>\nattribute float aMus;\nattribute float aMus2;\nattribute float aBlend;\nvarying float vMus;\nvarying float vMus2;\nvarying float vBlend;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvMus = aMus;\nvMus2 = aMus2;\nvBlend = aBlend;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uMusCol;\nuniform vec3 uMusCol2;\nuniform float uEffort;\nvarying float vMus;\nvarying float vMus2;')
+      .replace('#include <common>', '#include <common>\nuniform vec3 uMusCol;\nuniform vec3 uMusCol2;\nuniform vec3 uNeck;\nuniform float uEffort;\nvarying float vMus;\nvarying float vMus2;\nvarying float vBlend;')
       .replace('#include <color_fragment>', [
         '#include <color_fragment>',
+        'diffuseColor.rgb = mix(diffuseColor.rgb, uNeck, vBlend);',
         'float mE = clamp((uEffort - 0.45) / 0.55, 0.0, 1.0);',
         'diffuseColor.rgb = mix(diffuseColor.rgb, uMusCol2, vMus2 * 0.7);',
         'diffuseColor.rgb = mix(diffuseColor.rgb, uMusCol, min(1.0, vMus * (0.82 + 0.18 * mE)));',
@@ -298,14 +318,18 @@ function palmVec(kw, J, s) {
     default: return Array.isArray(kw) ? kw : J.F;
   }
 }
-const HOLD_PALM = { db: 'fwd', 'db-side': 'in', 'db-fwd': 'in', 'db-axial': 'in', 'db-both': 'in', 'db-goblet': 'in', bb: 'back', 'bb-rack': 'up', wheel: 'floor', 'db-feet': 'in' };
-function handState(J, m, p, s) {
+const HOLD_PALM = { db: 'fwd', 'db-side': 'in', 'db-fwd': 'in', 'db-axial': 'in', 'db-both': 'in', 'db-goblet': 'in', bb: 'back', 'bb-rack': 'up', wheel: 'floor', 'db-feet': 'in', hip: 'down' };
+/* `isPlanted`, when the stage can say, tells a hand set on the kit or the
+   floor from one placed on the body (both hands on the dumbbell across
+   the hips), which holds what is there rather than bracing on it. */
+function handState(J, m, p, s, isPlanted) {
   const far = s.side < 0, h = m.hold || {};
   const own = far ? h.f : h.n;
   const both = ['db-axial', 'db-both', 'db-goblet', 'bb', 'bb-rack', 'wheel'].includes(h.n) ? h.n : null;
-  const held = own || both;
   const target = p[far ? 'fhand' : 'hand'], tw = p[far ? 'fhandW' : 'handW'] ?? 1;
-  const planted = Array.isArray(target) && tw > 0.5;
+  const onKit = Array.isArray(target) && (!isPlanted || isPlanted(target, far ? 'fhand' : 'hand'));
+  const held = own || both || (h.hip && Array.isArray(target) && !onKit ? 'hip' : null);
+  const planted = onKit && tw > 0.5;
   /* A hand that carries the body high up is on the bar; low down, on the
      floor (a handstand, a planche). */
   const high = s.wri[1] > 60;
@@ -323,17 +347,29 @@ export class Trainer {
   constructor(T, pal, m, paint) {
     this.T = T;
     this.m = m;
-    const U = this.uniforms = { uMusCol: { value: pal.muscle.clone() }, uMusCol2: { value: pal.muscle2.clone() }, uEffort: { value: 0.45 } };
+    this.CM = T.cm;
+    this.ankleUp = T.ankleUp;
+    const skinCol = T.mats.skin?.neck || T.mats.skin?.color || '#c39071';
+    const U = this.uniforms = { uMusCol: { value: pal.muscle.clone() }, uMusCol2: { value: pal.muscle2.clone() }, uEffort: { value: 0.45 }, uNeck: { value: new THREE.Color(skinCol) } };
     const geo = T.geo.clone();
-    const [w1, w2] = paintWeights(T, m.hi || [], m.hi2 || [], paint);
+    const [w1, w2] = paint.weights ? paint.weights(T, m) : paintWeights(T, m.hi || [], m.hi2 || [], paint);
     geo.setAttribute('aMus', new THREE.BufferAttribute(w1, 1));
     geo.setAttribute('aMus2', new THREE.BufferAttribute(w2, 1));
-    const mats = [
-      paintedMaterial({ map: T.tex.body, normalMap: T.tex.bodyN, normalScale: new THREE.Vector2(0.8, 0.8), roughness: 0.78, metalness: 0 }, U),
-      paintedMaterial({ map: T.tex.head, normalMap: T.tex.headN, normalScale: new THREE.Vector2(0.7, 0.7), roughness: 0.6, metalness: 0 }, U),
-      new THREE.MeshStandardMaterial({ map: T.tex.hair, alphaTest: 0.38, side: THREE.DoubleSide, roughness: 0.85, metalness: 0 }),
-    ];
-    mats[2].aMusDummy = true;
+    const mats = T.matNames.map(n => {
+      const d = T.mats[n];
+      const o = { roughness: d.roughness ?? 0.6, metalness: 0 };
+      if (d.color) o.color = new THREE.Color(d.color);
+      if (d.map) o.map = d.map;
+      if (d.normalMap) { o.normalMap = d.normalMap; o.normalScale = new THREE.Vector2(d.normalScale ?? 0.8, d.normalScale ?? 0.8); }
+      if (d.alphaTest) { o.alphaTest = d.alphaTest; o.side = THREE.DoubleSide; }
+      if (d.doubleSide) o.side = THREE.DoubleSide;
+      /* cloth: a soft sheen at grazing angles, the way knit fabric catches light */
+      if (d.sheen) Object.assign(o, { sheen: d.sheen, sheenRoughness: 0.55, sheenColor: new THREE.Color('#9aa0a8') });
+      const mat = d.paint ? paintedMaterial(o, U) : (o.sheen ? new THREE.MeshPhysicalMaterial(o) : new THREE.MeshStandardMaterial(o));
+      mat.visible = !d.hidden;   // a part kept only for tools (the skin under the shorts)
+      mat.name = n;
+      return mat;
+    });
     this.group = new THREE.Group();
     this.bones = T.bones.map(() => { const b = new THREE.Bone(); b.matrixAutoUpdate = false; this.group.add(b); return b; });
     const mesh = this.mesh = new THREE.SkinnedMesh(geo, mats);
@@ -368,6 +404,19 @@ export class Trainer {
       B[`${S}_Calf`] = frame(sub(P(`${S}_Foot`), P(`${S}_Calf`)), Z);
       const fwd = sub(P(`${S}_Toe0`), P(`${S}_Foot`)); fwd[1] = 0;
       B[`${S}_Foot`] = frame(fwd, Y);
+      /* the tip of this foot: its skin point farthest along the foot */
+      {
+        const g = this.T.geo, Pp = g.attributes.position, SI = g.attributes.skinIndex, SW = g.attributes.skinWeight;
+        const fi = byName[`${S}_Foot`], ti = byName[`${S}_Toe0`], f0 = P(`${S}_Foot`), d = norm(fwd);
+        let best = f0, bd = -1e9;
+        for (let i = 0; i < Pp.count; i++) {
+          let b = 0, bw = -1; for (let j = 0; j < 4; j++) { const w = SW.getComponent(i, j); if (w > bw) { bw = w; b = SI.getComponent(i, j); } }
+          if (b !== fi && b !== ti) continue;
+          const q = [Pp.getX(i), Pp.getY(i), Pp.getZ(i)], t = dot(sub(q, f0), d) - 0.15 * Math.abs(q[1]);
+          if (t > bd) { bd = t; best = q; }
+        }
+        (this.toeTip ||= {})[S] = best;
+      }
       /* Fingers: each chain's bones in order, and the axis it curls about
          (square to the finger and the palm, so it closes into the palm). */
       this[`fingers${S}`] = [0, 1, 2, 3, 4].map(k => {
@@ -380,23 +429,109 @@ export class Trainer {
     }
   }
 
+  palmAt(side) { return this.palms?.[side] || null; }
+
+  /* Where the vertices `ids` are in the pose just set, as x, y, z runs in
+     `out`: the skinning sum worked out here directly, many times faster
+     than one getVertexPosition call per vertex (the bind and inverse
+     matrices are identity, so a bone's world matrix is its skinning). */
+  skinAt(ids, out = new Float32Array(ids.length * 3)) {
+    const g = this.mesh.geometry, P = g.attributes.position.array, SI = g.attributes.skinIndex.array, SW = g.attributes.skinWeight.array;
+    const E = this.bones.map(b => b.matrixWorld.elements);
+    for (let k = 0; k < ids.length; k++) {
+      const i = ids[k], x = P[3 * i], y = P[3 * i + 1], z = P[3 * i + 2];
+      let ox = 0, oy = 0, oz = 0;
+      for (let j = 0; j < 4; j++) {
+        const w = SW[4 * i + j];
+        if (!w) continue;
+        const e = E[SI[4 * i + j]], s = w / 255;
+        ox += s * (e[0] * x + e[4] * y + e[8] * z + e[12]);
+        oy += s * (e[1] * x + e[5] * y + e[9] * z + e[13]);
+        oz += s * (e[2] * x + e[6] * y + e[10] * z + e[14]);
+      }
+      out[3 * k] = ox; out[3 * k + 1] = oy; out[3 * k + 2] = oz;
+    }
+    return out;
+  }
+  /* A fixed sample of the vertices led by bones whose names match `re`. */
+  sampleOf(re, every) {
+    const g = this.mesh.geometry, SI = g.attributes.skinIndex.array, SW = g.attributes.skinWeight.array, n = g.attributes.position.count, ids = [];
+    for (let i = 0; i < n; i += every) {
+      let b = 0, bw = -1;
+      for (let j = 0; j < 4; j++) if (SW[4 * i + j] > bw) { bw = SW[4 * i + j]; b = SI[4 * i + j]; }
+      if (re.test(this.T.bones[b].name)) ids.push(i);
+    }
+    return ids;
+  }
+  /* Skin points for resting the body on a bench, in the pose just set, as
+     x, y, z runs: 'trunk' (pelvis to head, the shoulders' tops), 'seat'
+     (pelvis and thighs: what sits), or 'all' (those, the upper arms and
+     thighs; shins hang off a bench's end and hands and feet are the
+     rig's to plant). */
+  restPoints(set = 'all') {
+    const R = (this.restSets ||= {});
+    if (!R[set]) {
+      const re = { trunk: /^(Pelvis|Spine\d?|Neck|Head|[LR]_(Clavicle|ShoulderHelper))$/, seat: /^(Pelvis|[LR]_Thigh)$/,
+        all: /^(Pelvis|Spine\d?|Neck|Head|[LR]_(Thigh|Clavicle|ShoulderHelper|UpperArm))$/ }[set];
+      const ids = this.sampleOf(re, 25);   // about one point a unit over the back
+      R[set] = { ids, out: new Float32Array(ids.length * 3) };
+    }
+    return this.skinAt(R[set].ids, R[set].out);
+  }
+
+  /* The lowest point of the body, from a fixed sample of skin points, in
+     the pose just set. Every part can rest on the floor; the small ones
+     (hands, feet, head) are sampled densely so a fingertip or toe is not
+     missed. */
+  lowest() {
+    if (!this.lowIdx) {
+      const body = this.sampleOf(/^(?!.*(Hand|Finger|Foot|Toe|Head))/, 1), fine = this.sampleOf(/Hand|Finger|Foot|Toe|Head/, 1);
+      const step = Math.max(1, Math.floor(body.length / 3000)), fstep = Math.max(1, Math.floor(fine.length / 3000));
+      this.lowIdx = [...body.filter((_, k) => k % step === 0), ...fine.filter((_, k) => k % fstep === 0)];
+      this.lowOut = new Float32Array(this.lowIdx.length * 3);
+    }
+    const o = this.skinAt(this.lowIdx, this.lowOut);
+    let y = Infinity;
+    for (let k = 1; k < o.length; k += 3) if (o[k] < y) y = o[k];
+    return y;
+  }
+
   /* Place every bone for the rig's skeleton J. */
   update(J, effort, p) {
     this.uniforms.uEffort.value = effort;
     const { bones, byName } = this.T;
     const P = n => A(bones[byName[n]].P);
+    const CM = this.CM;
     const W = {};          // bone name → { R (Matrix4 rotation), p (rig units) }
-    const set = (name, R, at) => {
+    /* A bone's skinning matrix: its bind point lands on `at`, its bind frame
+       turns by R, and (stretch k) it lengthens or shortens along its own
+       axis so a model with other proportions still meets every rig joint. */
+    const set = (name, R, at, k = 1) => {
       W[name] = { R, p: at };
-      const e = new THREE.Matrix4().copy(R).multiplyScalar(1);
+      let M = R;
+      if (Math.abs(k - 1) > 1e-3) {
+        const d = this.bind[name][0], e3 = new THREE.Matrix4();
+        e3.set(1 + (k - 1) * d[0] * d[0], (k - 1) * d[0] * d[1], (k - 1) * d[0] * d[2], 0,
+          (k - 1) * d[1] * d[0], 1 + (k - 1) * d[1] * d[1], (k - 1) * d[1] * d[2], 0,
+          (k - 1) * d[2] * d[0], (k - 1) * d[2] * d[1], 1 + (k - 1) * d[2] * d[2], 0, 0, 0, 0, 1);
+        M = new THREE.Matrix4().multiplyMatrices(R, e3);
+      }
+      const e = new THREE.Matrix4().copy(M);
       const sR = e.elements;
-      for (const k of [0, 1, 2, 4, 5, 6, 8, 9, 10]) sR[k] *= CM;
+      for (const i of [0, 1, 2, 4, 5, 6, 8, 9, 10]) sR[i] *= CM;
       const b0 = P(name);
-      const t = sub(at, apply3(R, mul(b0, CM)));
+      const t = sub(at, apply3(M, mul(b0, CM)));
       sR[12] = t[0]; sR[13] = t[1]; sR[14] = t[2]; sR[3] = sR[7] = sR[11] = 0; sR[15] = 1;
       const bone = this.bones[byName[name]];
       bone.matrix.copy(e);
       bone.matrixWorld.copy(e);
+    };
+    const CHILD = { UpperArm: 'Forearm', Forearm: 'Hand', Thigh: 'Calf', Calf: 'Foot', Clavicle: 'UpperArm' };
+    const stretch = (name, len) => {
+      const c = CHILD[name.slice(2)];
+      if (!c || len == null) return 1;
+      const bl = v3.len(sub(P(`${name[0]}_${c}`), P(name))) * CM;
+      return Math.max(0.6, Math.min(1.6, len / (bl || 1)));
     };
     /* A child placed rigidly from its parent's transform, as in the bind pose. */
     const follow = (name, parent, extraR) => {
@@ -405,7 +540,7 @@ export class Trainer {
       const R = extraR ? new THREE.Matrix4().multiplyMatrices(q.R, extraR) : q.R;
       set(name, R, add(q.p, apply3(q.R, off)));
     };
-    const drive = (name, at, d, f) => set(name, rotBetween(this.bind[name], frame(d, f)), at);
+    const drive = (name, at, d, f, len) => set(name, rotBetween(this.bind[name], frame(d, f)), at, stretch(name, len));
 
     /* The spine, along the rig's own arc. */
     const hipY = P('Pelvis')[1];
@@ -423,22 +558,49 @@ export class Trainer {
     drive('Head', add(neckAt, apply3(rotBetween(this.bind.Head, frame(H.dir, H.face)), mul(sub(P('Head'), P('Neck')), CM))), H.dir, H.face);
 
     for (const [S, s] of [['R', J.n], ['L', J.f]]) {
-      const st = handState(J, this.m, p, s);
+      const st = handState(J, this.m, p, s, this.isPlanted);
       /* Clavicle from the upper spine to the rig's shoulder. */
       const S2 = W.Spine2;
       const clavAt = add(S2.p, apply3(S2.R, mul(sub(P(`${S}_Clavicle`), P('Spine2')), CM)));
-      drive(`${S}_Clavicle`, clavAt, sub(s.sho, clavAt), J.spine(0.9).N);
-      drive(`${S}_UpperArm`, s.sho, s.uaDir, s.uaFront);
+      drive(`${S}_Clavicle`, clavAt, sub(s.sho, clavAt), J.spine(0.9).N, v3.len(sub(s.sho, clavAt)));
+      drive(`${S}_UpperArm`, s.sho, s.uaDir, s.uaFront, v3.len(sub(s.elb, s.sho)));
+      /* The shoulder's helper joint swings half as far as the arm, from the
+         chest's frame, so skin across the joint keeps its volume. Half of
+         the arm's swing away from where it hangs in the bind pose, not half
+         of its whole turn: the halfway turn takes the short way round, and
+         with the arm overhead the short way flips sides from one frame to
+         the next. The swing never nears 180°, so it never flips. */
+      if (byName[`${S}_ShoulderHelper`] !== undefined) {
+        const q0 = new THREE.Quaternion().setFromRotationMatrix(W.Spine2.R);
+        const rest = new THREE.Vector3(...this.bind[`${S}_UpperArm`][0]).applyQuaternion(q0);
+        const swing = new THREE.Quaternion().setFromUnitVectors(rest, new THREE.Vector3(...s.uaDir));
+        const half = new THREE.Quaternion().slerpQuaternions(new THREE.Quaternion(), swing, 0.5).multiply(q0);
+        set(`${S}_ShoulderHelper`, new THREE.Matrix4().makeRotationFromQuaternion(half), s.sho);
+      }
       const palm = perp(st.palm, s.handDir, s.faFront);
-      drive(`${S}_Forearm`, s.elb, s.faDir, perp(palm, s.faDir, s.faFront));
+      /* The forearm turns with the hand: the palm carried back through the
+         wrist's bend by the smallest turn. Projecting the palm onto the
+         forearm instead fails where the palm faces along it (a hand flat
+         on the floor under a straight arm): what is left is tiny, points
+         anywhere, and the forearm spun from one frame to the next. */
+      const wristTurn = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(...s.handDir), new THREE.Vector3(...s.faDir));
+      const faPalm = new THREE.Vector3(...palm).applyQuaternion(wristTurn);
+      drive(`${S}_Forearm`, s.elb, s.faDir, perp([faPalm.x, faPalm.y, faPalm.z], s.faDir, s.faFront), v3.len(sub(s.wri, s.elb)));
       drive(`${S}_Hand`, s.wri, s.handDir, palm);
+      /* Where a handle sits in this hand: across the palm, a little under
+         halfway from the wrist to the fingertips and just off the skin, so
+         the curled fingers close round it. */
+      (this.palms ||= {})[s.side > 0 ? 'n' : 'f'] = mad(mad(s.wri, s.handDir, SEG.hand * 0.46), palm, 2.3);
       /* Fingers close round a handle, lie flat, or hang loose. */
       const curl = st.grip;
       for (const [k, f] of this[`fingers${S}`].entries()) {
         let parent = `${S}_Hand`;
         const per = k === 0 ? [0.25, 0.35, 0.3][0] * curl : curl;
         f.names.forEach((n, j) => {
-          const ang = (k === 0 ? [30, 25, 20][j] : [62, 85, 55][j]) * per + (k === 0 ? 0 : 6);
+          /* a flat hand lies flat: no resting curl, the thumb laid out
+             along the floor rather than at its relaxed downward angle */
+          const flatHand = curl < 0.05;
+          const ang = (k === 0 ? [30, 25, 20][j] : [62, 85, 55][j]) * per + (flatHand ? (k === 0 ? -14 : -2) : (k === 0 ? 0 : 6));
           const R = new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(...f.axis), ang * Math.PI / 180);
           /* Curl is a turn about the joint, in the bind pose's frame: the
              parent's rotation, then this joint's own bend. */
@@ -456,11 +618,49 @@ export class Trainer {
       }
       /* Legs: the foot bone sits above the rig's ankle by the difference in
          ankle height, so the sole meets the floor where the rig's does. */
-      drive(`${S}_Thigh`, s.hip, s.thDir, s.thFront);
-      const up = perp(mul(s.shDir, -1), s.footDir, [0, 1, 0]);
-      const footAt = mad(s.ank, up, ANKLE_UP);
-      drive(`${S}_Calf`, s.kne, sub(footAt, s.kne), s.shFront);
-      drive(`${S}_Foot`, footAt, s.footDir, up);
+      drive(`${S}_Thigh`, s.hip, s.thDir, s.thFront, v3.len(sub(s.kne, s.hip)));
+      /* The shin's front: with the knee bent it faces the way the thigh
+         points (the rig's own shin front is undefined at a right angle);
+         straight, the thigh adds nothing and the rig's front stands. */
+      const front = sh => {
+        const flex = -dot(sh, s.thFront);              // > 0: the shin swings toward the back of the thigh
+        const kf = Math.max(0, Math.min(1, (flex - 0.04) / 0.12));
+        const bentFront = perp(s.thDir, sh, s.shFront), straightFront = perp(s.shFront, sh, s.thFront);
+        return perp(add(mul(straightFront, 1 - kf), mul(bentFront, kf)), sh, bentFront);
+      };
+      /* The top of the foot, from the ankle's hinge (the knee's own side to
+         side axis) rather than from the shin: with the toes pointed the
+         foot runs nearly in line with the shin and the shin alone cannot
+         say which way the foot faces. Flexed, the top of the foot faces up;
+         pointed, it faces the way the shin's front does. */
+      const hinge = norm(cross(s.shDir, front(s.shDir)));
+      let fd = s.footDir, up = norm(cross(hinge, fd));
+      /* This foot is longer than the rig's: where its toes would go through
+         the floor (a pointed foot hanging low, the toes of a push-up), the
+         ankle turns just enough to keep the tips on top. */
+      const floor = this.surfaceAt ? Math.max(this.surfaceAt(s.ank), this.surfaceAt(s.toe)) : (this.floorTop ?? 0), tipB = this.toeTip[S], fb = P(`${S}_Foot`);
+      const tipY = (f2, u2) => {
+        const R = rotBetween(this.bind[`${S}_Foot`], frame(f2, u2));
+        return mad(s.ank, u2, this.ankleUp)[1] + apply3(R, mul(sub(tipB, fb), CM))[1];
+      };
+      if (tipY(fd, up) < floor - 0.3) {
+        const turn = a => { const r = new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(...hinge), a * Math.PI / 180); return [norm(apply3(r, fd)), norm(apply3(r, up))]; };
+        /* the way that lifts the toes faster; but a foot already being
+           turned keeps its way while that still works, or one passing
+           straight down would flip from one way to the other mid-rep */
+        const last = (this.toeTurn ||= {})[S];
+        const sgn = last && tipY(...turn(last * 80)) >= floor + 0.1 ? last : tipY(...turn(5)) > tipY(...turn(-5)) ? 1 : -1;
+        let lo = 0, hi = 80;
+        if (tipY(...turn(sgn * hi)) >= floor + 0.1) {
+          for (let it = 0; it < 12; it++) { const m = (lo + hi) / 2; if (tipY(...turn(sgn * m)) >= floor + 0.1) hi = m; else lo = m; }
+          [fd, up] = turn(sgn * hi);
+          this.toeTurn[S] = sgn;
+        } else this.toeTurn[S] = 0;
+      } else if (this.toeTurn) this.toeTurn[S] = 0;
+      const footAt = mad(s.ank, up, this.ankleUp);
+      const shinDir = norm(sub(footAt, s.kne));
+      drive(`${S}_Calf`, s.kne, shinDir, front(shinDir), v3.len(sub(footAt, s.kne)));
+      drive(`${S}_Foot`, footAt, fd, up);
       follow(`${S}_Toe0`, `${S}_Foot`);
     }
   }

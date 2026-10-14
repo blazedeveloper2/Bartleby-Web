@@ -16,7 +16,7 @@
    backups, resets and whose-program switches leave it alone.
    ═══════════════════════════════════════════════════════════ */
 
-import { load, save, remove } from './store.js?v=3d-oct14c';
+import { load, save, remove } from './store.js?v=3d-oct14d';
 
 const KEY = 'wk_rest';
 const DONE_FOR = 12000;          // how long "rest over" stays up before it tidies itself away
