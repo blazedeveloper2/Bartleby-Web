@@ -16,7 +16,7 @@
    ═══════════════════════════════════════════════════════════ */
 
 import * as THREE from '../../assets/vendor/three/three.module.min.js';
-import { loadTrainer, Trainer, skinLook, isSkin, studioEnv } from './avatar.js?v=3d-oct14d';
+import { loadTrainer, Trainer } from './avatar.js?v=3d-oct14d';
 import { REGIONS, regionsOf, regionsOfMuscle } from './muscles3d.js?v=3d-oct14d';
 import { MMAP } from './data.js?v=3d-oct14d';
 import { axisLock } from './drag.js?v=3d-oct14d';
@@ -33,9 +33,7 @@ function tintMaterial(src, uNeck) {
   const m = new THREE.MeshStandardMaterial({ map: src.map || null, normalMap: src.normalMap || null, color: src.color.clone(), roughness: src.roughness, metalness: 0, alphaTest: src.alphaTest, side: src.side });
   if (src.normalScale) m.normalScale = src.normalScale.clone();
   m.name = src.name; m.visible = src.visible;
-  const skin = isSkin(src.name);
   m.onBeforeCompile = sh => {
-    skinLook(sh, skin);
     sh.uniforms.uNeck = uNeck;
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute vec4 aTint;\nattribute float aBlend;\nvarying vec4 vTint;\nvarying float vBlend;')
@@ -45,7 +43,7 @@ function tintMaterial(src, uNeck) {
       .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, uNeck, vBlend);\ndiffuseColor.rgb = mix(diffuseColor.rgb, vTint.rgb, vTint.a);')
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vTint.rgb * vTint.a * 0.22;');
   };
-  m.customProgramCacheKey = () => (skin ? 'mm-tint-skin' : 'mm-tint');
+  m.customProgramCacheKey = () => 'mm-tint';
   return m;
 }
 
