@@ -16,9 +16,10 @@
    ═══════════════════════════════════════════════════════════ */
 
 import * as THREE from '../../assets/vendor/three/three.module.min.js';
-import { loadTrainer, Trainer } from './avatar.js?v=3d-oct14d';
+import { loadTrainer, Trainer, skinLook, isSkin, studioEnv } from './avatar.js?v=3d-oct14d';
 import { REGIONS, regionsOf, regionsOfMuscle } from './muscles3d.js?v=3d-oct14d';
 import { MMAP } from './data.js?v=3d-oct14d';
+import { axisLock } from './drag.js?v=3d-oct14d';
 
 const MODEL = 'athlete';
 const TIER_ALPHA = [0, 0.9, 0.8, 0.55];   // by tier: primary, supporting, stabilizing
@@ -32,7 +33,9 @@ function tintMaterial(src, uNeck) {
   const m = new THREE.MeshStandardMaterial({ map: src.map || null, normalMap: src.normalMap || null, color: src.color.clone(), roughness: src.roughness, metalness: 0, alphaTest: src.alphaTest, side: src.side });
   if (src.normalScale) m.normalScale = src.normalScale.clone();
   m.name = src.name; m.visible = src.visible;
+  const skin = isSkin(src.name);
   m.onBeforeCompile = sh => {
+    skinLook(sh, skin);
     sh.uniforms.uNeck = uNeck;
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute vec4 aTint;\nattribute float aBlend;\nvarying vec4 vTint;\nvarying float vBlend;')
@@ -42,7 +45,7 @@ function tintMaterial(src, uNeck) {
       .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, uNeck, vBlend);\ndiffuseColor.rgb = mix(diffuseColor.rgb, vTint.rgb, vTint.a);')
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vTint.rgb * vTint.a * 0.22;');
   };
-  m.customProgramCacheKey = () => 'mm-tint';
+  m.customProgramCacheKey = () => (skin ? 'mm-tint-skin' : 'mm-tint');
   return m;
 }
 
@@ -189,23 +192,18 @@ function draw() {
   });
 }
 
-/* Drag turns him; a tap (no drag) names the muscle under it. */
+/* A sideways drag turns him, an up-and-down one scrolls the card
+   (drag.js); a tap names the muscle under it. */
 function wire() {
-  const el = V.renderer.domElement;
+  const el = V.renderer.domElement, lock = axisLock();
   let drag = null;
-  el.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, yaw: V.yaw, moved: false }; el.setPointerCapture(e.pointerId); });
+  el.addEventListener('pointerdown', e => { drag = { x: e.clientX, yaw: V.yaw }; lock.down(e); el.setPointerCapture(e.pointerId); });
   el.addEventListener('pointermove', e => {
-    if (!drag) return;
-    const dx = e.clientX - drag.x;
-    if (Math.abs(dx) > 4) drag.moved = true;
-    if (drag.moved) { V.yaw = drag.yaw + dx * 0.6; el.classList.add('turned'); draw(); }
+    if (!drag || lock.move(e) !== 'turn' || (e.pointerType === 'mouse' && !e.buttons)) return;
+    V.yaw = drag.yaw + (e.clientX - drag.x) * 0.6; el.classList.add('turned'); draw();
   });
-  const end = e => {
-    if (drag && !drag.moved) tap(e);
-    drag = null;
-  };
-  el.addEventListener('pointerup', end);
-  el.addEventListener('pointercancel', () => { drag = null; });
+  el.addEventListener('pointerup', e => { if (drag && lock.up() && Math.abs(e.clientX - drag.x) < 6) tap(e); drag = null; });
+  el.addEventListener('pointercancel', () => { lock.up(); drag = null; });
 }
 
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();

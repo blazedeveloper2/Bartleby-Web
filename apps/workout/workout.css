@@ -187,6 +187,7 @@
 .mm-anim{position:relative;margin:0 0 14px;padding:0 0 8px;border:1px solid var(--border);border-radius:12px;overflow:hidden;
   background:radial-gradient(ellipse 80% 70% at 50% 38%,var(--bg-alt),var(--bg) 78%)}
 .rp-stage{position:relative;height:280px;cursor:grab;touch-action:pan-y}
+.rp-stage .rp-canvas{touch-action:none}   /* drag.js decides turn or scroll */
 .rp-stage:active{cursor:grabbing}
 .rp-canvas{display:block;width:100%;height:100%}
 .rp-hint{position:absolute;left:12px;top:10px;font-size:10px;font-weight:600;letter-spacing:.4px;color:var(--text-3);
@@ -987,7 +988,7 @@ html[data-theme] .wk .mm-card .mm-muscles{overflow:visible}
 .wk .mm-map.is-3d{height:320px}
 .wk .mm-map.is-3d .m-side{display:none}
 .wk .mm-map.is-3d .mm-3d{display:block;position:absolute;inset:0}
-.mv-canvas{display:block;width:100%;height:100%;cursor:grab;touch-action:pan-y}
+.mv-canvas{display:block;width:100%;height:100%;cursor:grab;touch-action:none}   /* drag.js decides turn or scroll */
 .mv-canvas:active{cursor:grabbing}
 .wk .mm-map.is-3d[data-view="both"]:not(.is-focused) .mm-3d::before,.wk .mm-map.is-3d[data-view="both"]:not(.is-focused) .mm-3d::after{position:absolute;top:10px;width:50%;text-align:center;font-size:11px;color:var(--text-3);pointer-events:none}
 .wk .mm-map.is-3d[data-view="both"]:not(.is-focused) .mm-3d::before{content:'Front';left:0}

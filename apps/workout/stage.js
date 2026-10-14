@@ -22,6 +22,7 @@ import { MOTION } from './moves.js?v=3d-oct14d';
 import { timeline } from './timeline.js?v=3d-oct14d';
 import { skeleton, holds, points, normalize, SEG, BODY, v3, W } from './rig.js?v=3d-oct14d';
 import { loadTrainer, Trainer } from './avatar.js?v=3d-oct14d';
+import { axisLock } from './drag.js?v=3d-oct14d';
 import { regionPaint } from './muscles3d.js?v=3d-oct14d';
 import { MMAP } from './data.js?v=3d-oct14d';
 
@@ -1183,17 +1184,19 @@ export function mount(box, name, { onStep, still = false } = {}) {
   const ZMIN = 0.42, ZMAX = 1.8;
   const zoomTo = z => { stage.zoom = Math.max(ZMIN, Math.min(ZMAX, z)); stage.aim(); dirty = true; box.classList.add('turned'); };
   const spread = () => { const [a, b] = [...ptrs.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
+  /* one finger: sideways turns, up and down scrolls the page (drag.js) */
+  const lock = axisLock();
   const down = e => {
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
     cv.setPointerCapture(e.pointerId);
     if (ptrs.size === 2) { drag = null; pinch = { d: spread(), z: stage.zoom || 1 }; }
-    else if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY, az: stage.az, el: stage.el };
+    else if (ptrs.size === 1) { drag = { x: e.clientX, y: e.clientY, az: stage.az, el: stage.el }; lock.down(e); }
   };
   const move = e => {
     if (!ptrs.has(e.pointerId)) return;
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pinch && ptrs.size === 2) { zoomTo(pinch.z * (pinch.d / spread())); return; }
-    if (!drag) return;
+    if (!drag || lock.move(e) !== 'turn') return;
     stage.az = drag.az - (e.clientX - drag.x) * 0.45;
     stage.el = Math.max(-4, Math.min(70, drag.el + (e.clientY - drag.y) * 0.3));
     box.classList.add('turned');
@@ -1203,7 +1206,7 @@ export function mount(box, name, { onStep, still = false } = {}) {
     ptrs.delete(e.pointerId);
     if (ptrs.size < 2) pinch = null;
     if (ptrs.size === 1) { const [p] = [...ptrs.values()]; drag = { x: p.x, y: p.y, az: stage.az, el: stage.el }; }
-    if (!ptrs.size) drag = null;
+    if (!ptrs.size) { drag = null; lock.up(); }
   };
   const wheel = e => {
     if (!e.ctrlKey) return;
