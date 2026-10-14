@@ -2,7 +2,7 @@
    WORKOUT — program definition + muscle-map lookup table.
    ═══════════════════════════════════════════════════════════ */
 
-import { USER } from './store.js?v=edit-oct12';
+import { USER } from './store.js?v=drop-skill-oct14';
 
 /* An exercise with an `alt` names the kit it needs in `req` ('bar', 'wheel',
    'barbell'). Turn that piece of equipment off in Settings and the whole app
@@ -304,33 +304,11 @@ const EDRIN = [
       {line:'arch'},
     ]},
   ]},
-  /* The two practice days, appended rather than slotted in — see WEEK_ORDER.
-     Same ladders as Saturday at a lighter dose: Saturday is where a step is
-     tested, these are where it is practised. Skill work is mostly the
-     nervous system learning a position, so it takes frequency well as long
-     as no set gets near failure — every hold ends with a few seconds still
-     in it. Wednesday sits between the lower day and the pull day and gets
-     in the way of neither. Sunday is the smaller of the two on purpose: it
-     falls between Saturday's pressing and Monday's, so it is the first
-     thing to drop if Monday's presses slip or the wrists ache the morning
-     after. */
-  {day:'wed',since:'2026-09-23',label:'Skill Practice',sections:[
-    {tag:'Skill',ex:[
-      {n:'Wrist Prep Rocks',m:'Forearms',s:'2× easy'},
-      {line:'handstand',dose:'p'},
-      {line:'planche',dose:'p'},
-    ]},
-    {tag:'Body Line',ex:[
-      {line:'hollow',dose:'p'},
-    ]},
-  ]},
-  {day:'sun',since:'2026-09-23',label:'Skill Practice',sections:[
-    {tag:'Skill',ex:[
-      {n:'Wrist Prep Rocks',m:'Forearms',s:'2× easy'},
-      {line:'planche',dose:'l'},
-      {line:'handstand',dose:'l'},
-    ]},
-  ]},
+  /* The Wednesday and Sunday skill-practice days were here from 2026-09-23
+     to 2026-10-14. They were the last two entries, so dropping them moved
+     no other day's index. Sessions logged on them stay in bp_log under
+     di 5 and 6; nothing counts them toward a week any more, and the
+     session list shows them as plain sessions. */
 ];
 
 /* Andrew's program: a full gym, seven days — heavy upper and lower, then
@@ -468,8 +446,9 @@ export const GYM_STEP = USER === 'andrew' ? 5 : null;
      n, m    name and muscles, as any exercise
      tier    Beginner → Novice → Intermediate → Advanced → Elite
      s       Saturday's prescription, where the step is tested
-     p, l    the practice and lighter doses (Wed, Sun); each falls back to
-             the heavier one when a step does not name its own
+     p, l    the practice and lighter doses, for a day that names one in
+             `dose`; each falls back to the heavier one when a step does
+             not name its own. No day in the program does at the moment.
      up      what you should be able to do before moving on — the top step
              has none
 

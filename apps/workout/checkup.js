@@ -34,8 +34,8 @@
    Nothing here writes. It reads state and returns findings.
    ═══════════════════════════════════════════════════════════ */
 
-import { load, todayStr } from './store.js?v=edit-oct12';
-import { weighed, taped, navyBF, prof } from './body.js?v=edit-oct12';
+import { load, todayStr } from './store.js?v=drop-skill-oct14';
+import { weighed, taped, navyBF, prof } from './body.js?v=drop-skill-oct14';
 
 const dOf = ds => new Date(ds + 'T00:00:00');
 const between = (a, b) => Math.round((dOf(b) - dOf(a)) / 86400000);
