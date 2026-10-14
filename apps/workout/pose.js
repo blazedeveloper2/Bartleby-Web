@@ -59,7 +59,8 @@
    frame named in `still`, the position the cues care most about.
    ═══════════════════════════════════════════════════════════ */
 
-import { MOTION } from './moves.js?v=reps-oct14';
+import { MOTION } from './moves.js?v=smooth-oct14';
+import { timeline } from './timeline.js?v=smooth-oct14';
 export { MOTION };
 
 export const FLOOR = 194;
@@ -74,7 +75,7 @@ const add = (p, q) => [p[0] + q[0], p[1] + q[1]];
 const sub = (p, q) => [p[0] - q[0], p[1] - q[1]];
 const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
 const angOf = (a, b) => Math.atan2(-(b[1] - a[1]), b[0] - a[0]) / D;
-const ease = k => (1 - Math.cos(Math.PI * k)) / 2;
+const lerpAng = (a, b, k) => a + ((((b - a) % 360) + 540) % 360 - 180) * k;
 
 /* ── shapes ── */
 
@@ -176,13 +177,19 @@ function sideJoints(p) {
   const solve = (j, far) => {
     const tgt = (key, own) => (!far ? p[key] : p[own] !== undefined ? p[own] : p[key] && add(p[key], FAR));
     const hand = tgt('hand', 'fhand'), foot = tgt('foot', 'ffoot');
-    if (hand) {
-      [j.elb, j.wri] = ik(j.sho, hand, SEG.ua * j.ul, SEG.fa, g('eb', far) ?? 1);
-      j.ua = angOf(j.sho, j.elb); j.fa = angOf(j.elb, j.wri);
+    /* A target fading in or out (timeline.js) blends the solved angles
+       with the pose's own, so the limb drifts rather than jumps. */
+    const hw = p[(far ? 'fhand' : 'hand') + 'W'] ?? 1, fw = p[(far ? 'ffoot' : 'foot') + 'W'] ?? 1;
+    const toward = (from, to, w) => [from[0] + (to[0] - from[0]) * w, from[1] + (to[1] - from[1]) * w];
+    if (hand && hw > 0) {
+      const [e, w] = ik(j.sho, toward(j.wri, hand, hw), SEG.ua * j.ul, SEG.fa, g('eb', far) ?? 1);
+      j.ua = lerpAng(j.ua, angOf(j.sho, e), hw); j.fa = lerpAng(j.fa, angOf(e, w), hw);
+      j.elb = go(j.sho, j.ua, SEG.ua * j.ul); j.wri = go(j.elb, j.fa, SEG.fa);
     }
-    if (foot) {
-      [j.kne, j.ank] = ik(j.hip, foot, SEG.th * j.ll, SEG.sh * j.ll, g('kb', far) ?? -1);
-      j.th = angOf(j.hip, j.kne); j.sh = angOf(j.kne, j.ank);
+    if (foot && fw > 0) {
+      const [k, a] = ik(j.hip, toward(j.ank, foot, fw), SEG.th * j.ll, SEG.sh * j.ll, g('kb', far) ?? -1);
+      j.th = lerpAng(j.th, angOf(j.hip, k), fw); j.sh = lerpAng(j.sh, angOf(k, a), fw);
+      j.kne = go(j.hip, j.th, SEG.th * j.ll); j.ank = go(j.kne, j.sh, SEG.sh * j.ll);
       j.toe = go(j.ank, j.ft, 10.5); j.heel = go(j.ank, j.ft + 180, 2.6);
     }
     j.hd = g('hd', far) ?? j.fa;
@@ -519,32 +526,22 @@ function renderFront(p, m) {
   return { back: '', front, pts, j: F.b };
 }
 
-function lerp(a, b, k) {
-  const o = {};
-  for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
-    /* null switches something off (a planted foot leaving the floor): it
-       cannot blend, so it changes over halfway through the move. */
-    if (a[key] === null || b[key] === null) { o[key] = k < 0.5 ? a[key] : b[key]; continue; }
-    const x = a[key] ?? b[key], y = b[key] ?? a[key];
-    if (Array.isArray(x) && Array.isArray(y)) o[key] = x.map((v, i) => v + (y[i] - v) * k);
-    else if (typeof x === 'number' && typeof y === 'number') o[key] = x + (y - x) * k;
-    else o[key] = k < 0.5 ? a[key] : b[key];
-  }
-  return o;
-}
-
 const poseOf = (m, name) => ({ ...m.base, ...m.poses[name] });
 
-/* Every frame the loop can draw, coarsely: the tempo's poses and the
-   points between them. */
+/* The far hand and foot follow the near ones unless a pose says otherwise;
+   said out loud here so timeline.js can line the keys up. */
+const normalize = p => {
+  if (p.fhand === undefined && Array.isArray(p.hand)) p.fhand = add(p.hand, FAR);
+  if (p.ffoot === undefined && Array.isArray(p.foot)) p.ffoot = add(p.foot, FAR);
+  return p;
+};
+const TL = new Map();
+const tlOf = m => (TL.has(m) ? TL.get(m) : TL.set(m, timeline(m, normalize)).get(m));
+
+/* Every frame the loop can draw, sampled finely enough for bounds. */
 function frames(m) {
-  const steps = m.tempo.map(([n]) => poseOf(m, n));
-  const out = [];
-  steps.forEach((s, i) => {
-    const prev = steps[(i + steps.length - 1) % steps.length];
-    for (const k of [0.25, 0.5, 0.75]) out.push(lerp(prev, s, k));
-    out.push(s);
-  });
+  const tl = tlOf(m), out = [];
+  for (let k = 0; k < 64; k++) out.push(tl.at((k / 64) * tl.total));
   return out;
 }
 
@@ -568,16 +565,11 @@ function viewBox(m) {
 
 function trace(m) {
   if (!m.trace) return '';
-  const steps = m.tempo.map(([n]) => poseOf(m, n));
-  const pts = [];
-  steps.forEach((s, i) => {
-    const prev = steps[(i + steps.length - 1) % steps.length];
-    for (let k = 0; k <= 12; k++) {
-      const r = render(lerp(prev, s, k / 12), m);
-      const j = r.j;
-      pts.push(P(m.trace === 'toe' ? j.toe : m.trace === 'hip' ? j.hip : go(j.wri, j.hd, 3.4)));
-    }
-  });
+  const tl = tlOf(m), pts = [];
+  for (let k = 0; k <= 96; k++) {
+    const j = render(tl.at((k / 96) * tl.total), m).j;
+    pts.push(P(m.trace === 'toe' ? j.toe : m.trace === 'hip' ? j.hip : go(j.wri, j.hd, 3.4)));
+  }
   return `<polyline class="rp-trace" points="${pts.join(' ')}"/>`;
 }
 
@@ -627,7 +619,7 @@ export function checkMotion(m) {
 /* One frame on its own, for the gallery in tools/howto/anim.html. */
 export function stillSVG(name, pose) {
   const m = MOTION[name];
-  const r = render(poseOf(m, pose), m);
+  const r = render(tlOf(m).pose(pose) || poseOf(m, pose), m);
   return animHTML(name).replace('<g class="rp-back"></g>', `<g class="rp-back">${r.back}</g>`)
     .replace('<g class="rp-front"></g>', `<g class="rp-front">${r.front}</g>`);
 }
@@ -639,8 +631,7 @@ export function playAnim(fig, name) {
   const back = fig.querySelector('.rp-back'), front = fig.querySelector('.rp-front');
   const segs = [...fig.querySelectorAll('.rp-seg')];
   const pp = fig.querySelector('.rp-pp');
-  const steps = m.tempo.map(([pose, s]) => ({ pose: poseOf(m, pose), s }));
-  const total = steps.reduce((a, x) => a + x.s, 0);
+  const tl = tlOf(m);
 
   /* A held position is not frozen: `sway` adds a slow wobble to the keys
      it names, the way a handstand balances. */
@@ -655,8 +646,7 @@ export function playAnim(fig, name) {
   });
 
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    const i = Math.max(0, m.tempo.findIndex(([pose]) => pose === m.still));
-    paint({ ...steps[i].pose }, 0);
+    paint(tl.pose(m.still) || tl.at(0), 0);
     fig.classList.add('still');
     pp.hidden = true;
     return () => {};
@@ -666,11 +656,9 @@ export function playAnim(fig, name) {
   const tick = now => {
     clock += last ? Math.min(0.1, (now - last) / 1000) : 0;
     last = now;
-    let t = clock % total, i = 0;
-    while (i < steps.length - 1 && t > steps[i].s) { t -= steps[i].s; i++; }
-    const k = Math.min(1, t / steps[i].s);
-    paint(lerp(steps[(i + steps.length - 1) % steps.length].pose, steps[i].pose, ease(k)), clock);
-    bar(i, k);
+    const { i, u } = tl.step(clock);
+    paint(tl.at(clock), clock);
+    bar(i, u);
     raf = requestAnimationFrame(tick);
   };
   const toggle = () => {
@@ -684,7 +672,7 @@ export function playAnim(fig, name) {
   pp.addEventListener('click', toggle);
   /* Draw the opening frame now: a backgrounded tab does not run animation
      frames, and the figure should never open empty. */
-  paint({ ...steps[steps.length - 1].pose }, 0);
+  paint(tl.at(0), 0);
   bar(0, 0);
   raf = requestAnimationFrame(tick);
   return () => cancelAnimationFrame(raf);

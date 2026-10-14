@@ -489,7 +489,7 @@ export const MOTION = {
   'Freestanding Kick-Ups': {
     base: { root: 'wri', at: [110, PALM], hd: 0 },
     poses: {
-      set: { ua: 292, fa: 292, torso: 322, th: 132, sh: 132, ft: 132, ffoot: [64, ANK], fth: 250, fsh: 270, fft: 0 },
+      set: { ua: 292, fa: 292, torso: 322, th: 132, sh: 132, ft: 132, ffoot: [64, ANK], fth: 287, fsh: 270, fft: 0 },
       kick: { ua: 280, fa: 280, torso: 290, th: 100, sh: 100, ft: 100, ffoot: null, fth: 196, fsh: 196, fft: 196 },
       top: { ua: 270, fa: 270, torso: 270, th: 90, sh: 90, ft: 90, ffoot: null, fth: 90, fsh: 90, fft: 90 },
     },
@@ -502,12 +502,13 @@ export const MOTION = {
   'Freestanding Handstand': {
     base: { root: 'wri', at: [110, PALM], hd: 0 },
     poses: {
-      set: { ua: 292, fa: 292, torso: 322, th: 132, sh: 132, ft: 132, ffoot: [64, ANK], fth: 250, fsh: 270, fft: 0 },
+      set: { ua: 292, fa: 292, torso: 322, th: 132, sh: 132, ft: 132, ffoot: [64, ANK], fth: 287, fsh: 270, fft: 0 },
+      kick: { ua: 280, fa: 280, torso: 290, th: 100, sh: 100, ft: 100, ffoot: null, fth: 196, fsh: 196, fft: 196 },
       top: { ua: 270, fa: 270, torso: 270, th: 90, sh: 90, ft: 90, ffoot: null, fth: 90, fsh: 90, fft: 90 },
     },
     hi: ['front delts'], hi2: ['traps', 'forearms'],
     sway: [['torso', 1.4, 0.3], ['th', 1.4, 0.3], ['sh', 1.4, 0.3], ['fth', 1.4, 0.3], ['fsh', 1.4, 0.3], ['ua', 1.4, 0.3], ['fa', 1.4, 0.3]],
-    tempo: [['top', 1.5, 'Kick'], ['top', 4.5, 'Hold'], ['set', 1.5, 'Down']],
+    tempo: [['kick', 0.8, 'Kick'], ['top', 0.7, 'Arrive'], ['top', 4.5, 'Hold'], ['set', 1.5, 'Down']],
     still: 'top',
   },
 
@@ -516,7 +517,7 @@ export const MOTION = {
   'Straddle Press to Handstand': {
     base: { root: 'wri', at: [110, PALM], hd: 0 },
     poses: {
-      fold: { ua: 290, fa: 290, torso: 331, flex: 20, foot: [62, ANK], ft: 0, ll: 0.9, th: 250, sh: 270 },
+      fold: { ua: 290, fa: 290, torso: 331, flex: 20, foot: [62, ANK], ft: 0, ll: 0.9, th: 274, sh: 273 },
       lean: { ua: 256, fa: 256, torso: 318, flex: 26, foot: null, th: 232, sh: 236, ft: 250, ll: 0.8 },
       stack: { ua: 270, fa: 270, torso: 272, flex: 10, foot: null, th: 172, sh: 172, ft: 172, ll: 0.55 },
       hs: { ua: 270, fa: 270, torso: 270, flex: 0, foot: null, th: 90, sh: 90, ft: 90, ll: 1 },
