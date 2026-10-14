@@ -35,11 +35,12 @@
                 side views did
    ═══════════════════════════════════════════════════════════ */
 
-/* Segment lengths follow standard adult proportions (Drillis & Contini):
-   the upper arm about a fifth longer than the forearm, shoulders a bit
-   under a quarter of the height across, the head about an eighth of it. */
-export const SEG = { torso: 50, ua: 29, fa: 23.5, hand: 8.8, th: 38, sh: 41, toe: 10.5, heel: 2.6 };
-export const BODY = { shoW: 16.5, hipW: 8.5, headR: 9.2 };
+/* Segment lengths are the trainer's own (avatar.js; a 1.8 m adult, so in
+   line with standard proportions): hip joint to shoulder joint 47 units,
+   upper arm 26.5, forearm 24.5, shoulder joints 37 apart, the head's
+   centre about 71 above the hip joint. */
+export const SEG = { torso: 54, ua: 26.5, fa: 24.5, hand: 8.8, th: 38, sh: 41, toe: 10.5, heel: 2.6 };
+export const BODY = { shoW: 18.5, hipW: 8.5, headR: 9.2, neck: 19.5 };
 const SCREEN_FLOOR = 194;
 const D = Math.PI / 180;
 
@@ -251,7 +252,7 @@ function headOf(J, p) {
   const tilt = p.tilt || 0;
   const dir = norm(add(mul(top.T, Math.cos(tilt * D)), mul(top.N, -Math.sin(tilt * D))));
   const face = perp(top.N, dir);
-  const centre = add(mad(nb, dir, 12.5), mul(face, 1.2));
+  const centre = add(mad(nb, dir, BODY.neck), mul(face, 1.2));
   return { nb, dir, face, centre, side: cross(dir, face) };
 }
 

@@ -6,35 +6,35 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER } from './data.js?v=3d-oct14b';
-import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=3d-oct14b';
-import { toast } from '../../assets/js/ui.js?v=3d-oct14b';
-import { pctColor, ord, LIFTS } from './standards.js?v=3d-oct14b';
+import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER } from './data.js?v=3d-oct14c';
+import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=3d-oct14c';
+import { toast } from '../../assets/js/ui.js?v=3d-oct14c';
+import { pctColor, ord, LIFTS } from './standards.js?v=3d-oct14c';
 import {
   setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, addSession, isManual, toggleHmEdit, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, icon,
   liftScores, standingOf, resEx, resKit, lvlOf, setLvl, resetTargets, applyReset,
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip,
-} from './rank.js?v=3d-oct14b';
+} from './rank.js?v=3d-oct14c';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
-import { MUSCLE_SVG } from './bodymap.js?v=3d-oct14b';
-import { restBand, BANDS, fmtRest } from './rest.js?v=3d-oct14b';
-import * as rest from './timer.js?v=3d-oct14b';
-import * as timing from './sessions.js?v=3d-oct14b';
-import { HOWTO } from './howto.js?v=3d-oct14b';
-import { animHTML, playAnim } from './pose.js?v=3d-oct14b';
-import { standingsFor } from './anthro.js?v=3d-oct14b';
-import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=3d-oct14b';
+import { MUSCLE_SVG } from './bodymap.js?v=3d-oct14c';
+import { restBand, BANDS, fmtRest } from './rest.js?v=3d-oct14c';
+import * as rest from './timer.js?v=3d-oct14c';
+import * as timing from './sessions.js?v=3d-oct14c';
+import { HOWTO } from './howto.js?v=3d-oct14c';
+import { animHTML, playAnim } from './pose.js?v=3d-oct14c';
+import { standingsFor } from './anthro.js?v=3d-oct14c';
+import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=3d-oct14c';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor, whtrBand,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=3d-oct14b';
+} from './body.js?v=3d-oct14c';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -1878,7 +1878,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=3d-oct14b',
+  styles: 'apps/workout/workout.css?v=3d-oct14c',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {

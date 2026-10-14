@@ -2,7 +2,7 @@
    WORKOUT — program definition + muscle-map lookup table.
    ═══════════════════════════════════════════════════════════ */
 
-import { USER } from './store.js?v=3d-oct14b';
+import { USER } from './store.js?v=3d-oct14c';
 
 /* An exercise with an `alt` names the kit it needs in `req` ('bar', 'wheel',
    'barbell'). Turn that piece of equipment off in Settings and the whole app

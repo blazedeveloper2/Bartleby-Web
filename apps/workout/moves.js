@@ -24,6 +24,10 @@
      cam      { az, el }: the starting view. az is degrees round from the
               figure's near side (0) toward its front (90); el is height
      sway     [key, amplitude, Hz] wobbles for balance holds
+     palm     which way the palms face, when what is held does not say it
+              (avatar.js): fwd, back, up, down, in, out, floor, sup (a
+              curl), or two joined by + to turn between them; { n, f }
+              for each hand
 
    Positions were first written as side views and checked against each
    exercise's how-to and its sources in Oct 2026, then given their third
@@ -121,7 +125,7 @@ export const MOTION = {
       top: { ua: 90, uab: -5, fa: 90, fab: -8 },
       bottom: { ua: 90, uab: 84, fa: 90, fab: 64 },
     },
-    hold: DBF2, hi: ['chest'], hi2: ['front delts'],
+    hold: DBF2, palm: 'in+up', hi: ['chest'], hi2: ['front delts'],
     tempo: [['bottom', 2.5, 'Lower'], ['bottom', 1, 'Stretch'], ['top', 1.5, 'Squeeze'], ['top', 0.5, 'Top']],
     still: 'bottom', peak: 'top', cam: { az: 58, el: 30 },
   },
@@ -142,7 +146,7 @@ export const MOTION = {
     scene: [{ k: 'bench', x: 100, back: 45, len: 64 }],
     base: { hip: [23.4, 149.3, -11], torso: 73, th: 268, sh: 180, ft: 195, ua: 315, fhand: [52, 127, -9], fep: [-0.3, -0.4, -1] },
     poses: { top: { fa: 436 }, bottom: { fa: 329 } },
-    hold: { n: 'db' }, hi: ['biceps'], hi2: ['brachialis'],
+    hold: { n: 'db' }, palm: { n: 'sup', f: 'floor' }, hi: ['biceps'], hi2: ['brachialis'],
     tempo: [['top', 1, 'Curl'], ['top', 0.5, 'Top'], ['bottom', 2.5, 'Lower'], ['bottom', 0.5, 'Bottom']],
     still: 'bottom', peak: 'top', cam: { az: -28, el: 20 },
   },
@@ -150,7 +154,7 @@ export const MOTION = {
   'Lateral Raises': {
     base: { hip: [100, 111.5], torso: 86, th: 270, sh: 270 },
     poses: { bottom: { ua: 276, uab: 8, fa: 282, fab: 10 }, top: { ua: 341, uab: 58, fa: 330, fab: 51 } },
-    hold: DBF2, hi: ['side delts'], hi2: ['traps'],
+    hold: DBF2, palm: 'in+down', hi: ['side delts'], hi2: ['traps'],
     tempo: [['top', 1, 'Raise'], ['top', 0.5, 'Top'], ['bottom', 2, 'Lower']],
     still: 'top', cam: { az: 64, el: 6 },
   },
@@ -210,7 +214,7 @@ export const MOTION = {
   'Romanian Deadlifts': {
     base: { foot: [102, ANK], ua: 270, fa: 270, uab: 1 },
     poses: { top: { hip: [100, 111.5], torso: 90 }, bottom: { hip: [72, 118], torso: 30 } },
-    hold: DB2, hi: ['hamstrings', 'glutes'], hi2: ['erectors'],
+    hold: DB2, palm: 'back', hi: ['hamstrings', 'glutes'], hi2: ['erectors'],
     tempo: [['bottom', 2.5, 'Hinge'], ['bottom', 0.5, 'Stretch'], ['top', 1, 'Drive'], ['top', 0.5, 'Lockout']],
     still: 'bottom', peak: 'top', cam: CAM.stand,
   },
@@ -345,7 +349,7 @@ export const MOTION = {
       sweep: { twist: -30, fhand: [118, 154, 36], fep: [0.3, 0.6, 0.7] },
       thread: { twist: -62, fhand: [124, 180, 6], fep: [0.2, -0.3, 1] },
     },
-    hold: { f: 'db-fwd' }, hi: ['obliques'], hi2: ['abs'],
+    hold: { f: 'db-fwd' }, palm: { n: 'floor' }, hi: ['obliques'], hi2: ['abs'],
     tempo: [['sweep', 0.9, 'Turn'], ['thread', 1.1, 'Thread'], ['thread', 0.5, 'Hold'], ['sweep', 0.8, 'Unwind'], ['top', 0.7, 'Lift'], ['top', 0.5, 'Top']],
     still: 'top', peak: 'thread', cam: { az: 8, el: 20 },
   },
@@ -357,7 +361,7 @@ export const MOTION = {
   'Pull-Ups': {
     scene: [BAR],
     base: { hand: [100, 8.5, 26], hd: 90, th: 272, sh: 262, ft: 300, lab: -2, ep: [0, -1, 1.1] },
-    poses: { hang: { hip: [100, 103], torso: 90 }, set: { hip: [100, 100.5], torso: 90 }, top: { hip: [98, 60], torso: 96 } },
+    poses: { hang: { hip: [100, 103], torso: 90 }, set: { hip: [100, 100.5], torso: 90 }, top: { hip: [98, 56], torso: 96 } },
     hi: ['lats'], hi2: ['biceps'],
     tempo: [['set', 0.5, 'Set'], ['top', 1, 'Pull'], ['top', 0.5, 'Top'], ['hang', 2, 'Lower']],
     still: 'top', cam: { az: 52, el: 4 },
@@ -398,7 +402,7 @@ export const MOTION = {
     scene: [{ k: 'bench', x: 60, back: 30, flip: true }],
     base: { hip: [83.1, 145.2], torso: 30, foot: [28, ANK - 3], ft: -55, ua: 270, fa: 270 },
     poses: { bottom: { uab: 4, fab: 8 }, top: { uab: 84, fab: 74 } },
-    hold: DBF2, hi: ['rear delts'], hi2: ['traps'],
+    hold: DBF2, palm: 'in+down', hi: ['rear delts'], hi2: ['traps'],
     tempo: [['top', 1.5, 'Raise'], ['top', 0.5, 'Hold'], ['bottom', 2, 'Lower']],
     still: 'top', cam: { az: 72, el: 20 },
   },
@@ -415,7 +419,7 @@ export const MOTION = {
     scene: [{ k: 'bench', x: 100, back: 55 }],
     base: { ...RECLINED },
     poses: { bottom: { ua: 270, fa: 270, uab: 12 }, top: { ua: 268, fa: 400, uab: 10, fab: 4 } },
-    hold: DB2, hi: ['biceps'], hi2: ['brachialis'],
+    hold: DB2, palm: 'sup', hi: ['biceps'], hi2: ['brachialis'],
     tempo: [['top', 1, 'Curl'], ['bottom', 3, 'Lower'], ['bottom', 1, 'Stretch']],
     still: 'bottom', peak: 'top', cam: CAM.seat,
   },
@@ -449,6 +453,7 @@ export const MOTION = {
       catch: { th: 200, torso: 20, hand: [184, PALM], hd: 0 },
       push: { th: 215, torso: 35, hand: [172, 158] },
     },
+    palm: 'floor+fwd',
     hi: ['hamstrings'], hi2: ['calves'],
     tempo: [['catch', 4, 'Lower'], ['catch', 0.5, 'Catch'], ['push', 1.5, 'Push'], ['start', 1, 'Reset']],
     still: 'catch', cam: CAM.floor,
@@ -460,7 +465,7 @@ export const MOTION = {
     scene: [{ k: 'benchEnd', x: 122, y: 161 }],
     base: { root: 'kne', at: [82, KNEE], th: 268, sh: 180, ft: 190, torso: 35, ua: 252, fa: 0 },
     poses: { low: { hd: -65 }, top: { hd: 55 } },
-    hold: DB2, hi: ['forearms'],
+    hold: DB2, palm: 'up', hi: ['forearms'],
     tempo: [['top', 1, 'Curl'], ['low', 2, 'Lower'], ['low', 0.5, 'Grip']],
     still: 'low', peak: 'top', cam: { az: 30, el: 18 },
   },
@@ -469,7 +474,7 @@ export const MOTION = {
     scene: [{ k: 'benchEnd', x: 122, y: 161 }],
     base: { root: 'kne', at: [82, KNEE], th: 268, sh: 180, ft: 190, torso: 35, ua: 252, fa: 0 },
     poses: { low: { hd: -55 }, top: { hd: 45 } },
-    hold: DB2, hi: ['forearms'],
+    hold: DB2, palm: 'down', hi: ['forearms'],
     tempo: [['top', 1, 'Lift'], ['top', 1, 'Pause'], ['low', 2, 'Lower']],
     still: 'top', cam: { az: 30, el: 18 },
   },
@@ -478,11 +483,11 @@ export const MOTION = {
 
   'Wrist Prep Rocks': {
     scene: [MAT(40, 170)],
-    base: { root: 'kne', at: [90, KNEE], sh: 180, ft: 185, hand: [128, PALM], hd: 0 },
+    base: { root: 'kne', at: [90, KNEE], sh: 180, ft: 185, hand: [131, PALM], hd: 0 },
     poses: {
-      mid: { th: 270, torso: 17 },
-      fwd: { th: 252, torso: 16 },
-      back: { th: 300, torso: 22 },
+      mid: { th: 270, torso: 14 },
+      fwd: { th: 252, torso: 13 },
+      back: { th: 300, torso: 18 },
     },
     hi: ['forearms'],
     tempo: [['fwd', 1.5, 'Forward'], ['fwd', 1, 'Hold'], ['back', 1.5, 'Back'], ['back', 1, 'Hold']],
@@ -663,7 +668,7 @@ export const MOTION = {
      a few units with straight arms. */
   'Scapular Pulls': {
     scene: [BAR],
-    base: { ...HANG, sh: 252, ft: 285 },
+    base: { ...HANG, th: 262, sh: 232, ft: 262 },
     poses: { passive: { shrug: 4.5 }, active: { shrug: -1.5 } },
     hi: ['lats'], hi2: ['traps'],
     tempo: [['passive', 1, 'Hang'], ['active', 1, 'Pull'], ['active', 1, 'Pause'], ['passive', 2, 'Lower']],
@@ -741,7 +746,7 @@ export const MOTION = {
 
   'Scapular Push-Ups': {
     scene: [MAT(30, 180)],
-    base: { ...plank(20), hand: [159, PALM], hd: 0 },
+    base: { ...plank(17.5), hand: [160, PALM], hd: 0 },
     poses: { sink: { flex: -10 }, push: { flex: 12 } },
     hi: ['serratus'], hi2: ['traps'],
     tempo: [['sink', 1.5, 'Sink'], ['push', 1.5, 'Push'], ['push', 1, 'Hold']],
@@ -751,7 +756,8 @@ export const MOTION = {
   'Chin-Ups': {
     scene: [BAR],
     base: { hand: [100, 8.5], hd: 90, th: 278, sh: 212, ft: 240, lab: -3 },
-    poses: { hang: { hip: [100, 106], torso: 90 }, top: { hip: [96, 58], torso: 100 } },
+    poses: { hang: { hip: [100, 106], torso: 90 }, top: { hip: [96, 55], torso: 100 } },
+    palm: 'back',
     hi: ['lats', 'biceps'],
     tempo: [['top', 1, 'Pull'], ['top', 0.5, 'Top'], ['hang', 2, 'Lower'], ['hang', 0.5, 'Hang']],
     still: 'top', cam: CAM.hang,
@@ -804,9 +810,9 @@ export const MOTION = {
      hand behind the back. */
   'Incline One-Arm Push-Ups': {
     scene: [{ k: 'benchEnd', x: 170, y: 161 }],
-    base: { root: 'toe', at: [40, TOE], ft: 262, hand: [165, 153.3, 5], hd: 0, fhand: null, lab: 12, ep: [-1, 0.2, 0.3] },
+    base: { root: 'toe', at: [40, TOE], ft: 262, hand: [163, 153.3, 5], hd: 0, fhand: null, lab: 12, ep: [-1, 0.2, 0.3] },
     poses: {
-      top: { torso: 37, th: 217, sh: 217, fua: 250, ffa: 40, fuab: 14 },
+      top: { torso: 33, th: 213, sh: 213, fua: 250, ffa: 40, fuab: 14 },
       bottom: { torso: 20, th: 200, sh: 200, fua: 232, ffa: 22, fuab: 14 },
     },
     hi: ['chest'], hi2: ['triceps', 'obliques'],
@@ -826,7 +832,7 @@ export const MOTION = {
   'One-Arm Push-Ups, Feet Together': {
     scene: [MAT(30, 180)],
     base: { hand: [156, PALM, 5], hd: 0, fhand: null, ep: [-1, 0.2, 0.3] },
-    poses: { top: plank(20, { fua: 232, ffa: 30, fuab: 14, lab: -3 }), bottom: plank(8, { fua: 220, ffa: 18, fuab: 14, lab: -3 }) },
+    poses: { top: plank(18.5, { fua: 232, ffa: 30, fuab: 14, lab: -3 }), bottom: plank(8, { fua: 220, ffa: 18, fuab: 14, lab: -3 }) },
     hi: ['chest'], hi2: ['triceps', 'obliques'],
     tempo: [['bottom', 2, 'Lower'], ['top', 1.5, 'Press'], ['top', 0.5, 'Reset']],
     still: 'bottom', peak: 'top', cam: CAM.floor,
@@ -855,7 +861,7 @@ export const MOTION = {
     base: { hand: [77, PALM], hd: 180, ft: 95, eb: -1, lab: -3 },
     poses: {
       top: { hip: [75.4, 93.8], torso: 272, foot: [56, 18] },
-      bottom: { hip: [76.3, 127.4], torso: 262, foot: [56, 52] },
+      bottom: { hip: [76.3, 115], torso: 262, foot: [56, 39.6] },
     },
     hi: ['front delts'], hi2: ['triceps', 'traps'],
     tempo: [['bottom', 4, 'Lower'], ['bottom', 0.5, 'Touch'], ['top', 1.5, 'Reset']],
@@ -867,7 +873,7 @@ export const MOTION = {
     base: { hand: [77, PALM], hd: 180, ft: 95, eb: -1, lab: -3 },
     poses: {
       top: { hip: [75.4, 93.8], torso: 272, foot: [56, 18] },
-      bottom: { hip: [76.3, 127.4], torso: 262, foot: [56, 52] },
+      bottom: { hip: [76.3, 115], torso: 262, foot: [56, 39.6] },
     },
     hi: ['front delts'], hi2: ['triceps', 'traps'],
     tempo: [['bottom', 2, 'Lower'], ['bottom', 0.5, 'Touch'], ['top', 1.5, 'Press'], ['top', 0.5, 'Lockout']],
@@ -879,7 +885,7 @@ export const MOTION = {
     base: { hand: [79, 180.6], hd: 180, ft: 95, eb: -1, lab: -3 },
     poses: {
       top: { hip: [77.4, 83.6], torso: 272, foot: [56, 8] },
-      bottom: { hip: [77, 128], torso: 262, foot: [56, 52] },
+      bottom: { hip: [77, 115.5], torso: 262, foot: [56, 39.5] },
     },
     hi: ['front delts'], hi2: ['triceps', 'traps'],
     tempo: [['bottom', 2.5, 'Lower'], ['bottom', 0.5, 'Bottom'], ['top', 1.5, 'Press'], ['top', 0.5, 'Lockout']],
@@ -891,7 +897,7 @@ export const MOTION = {
     base: { hand: [100, PALM], hd: 180, eb: -1, lab: -3 },
     poses: {
       top: { hip: [98.4, 93.8], torso: 272, th: 90, sh: 90, ft: 90 },
-      bottom: { hip: [104.6, 128.5], torso: 255, th: 78, sh: 78, ft: 78 },
+      bottom: { hip: [104.6, 117.5], torso: 255, th: 78, sh: 78, ft: 78 },
     },
     hi: ['front delts'], hi2: ['triceps', 'traps'],
     sway: [['torso', 0.5, 0.4]],

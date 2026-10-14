@@ -18,9 +18,10 @@
    ═══════════════════════════════════════════════════════════ */
 
 import * as THREE from '../../assets/vendor/three/three.module.min.js';
-import { MOTION } from './moves.js?v=3d-oct14b';
-import { timeline } from './timeline.js?v=3d-oct14b';
-import { skeleton, holds, points, normalize, SEG, BODY, v3 } from './rig.js?v=3d-oct14b';
+import { MOTION } from './moves.js?v=3d-oct14c';
+import { timeline } from './timeline.js?v=3d-oct14c';
+import { skeleton, holds, points, normalize, SEG, BODY, v3 } from './rig.js?v=3d-oct14c';
+import { loadTrainer, Trainer } from './avatar.js?v=3d-oct14c';
 
 const D = Math.PI / 180;
 const V = (a) => new THREE.Vector3(a[0], a[1], a[2]);
@@ -647,6 +648,11 @@ function heldMesh(kind, K) {
    A second view open at the same time (the gallery's live mode) gets its
    own, released when it stops. */
 let RENDERER = null, BUSY = false;
+
+/* The trainer (avatar.js) loads once; until it has, or if it cannot, the
+   drawn mannequin stands in. Await ready() before the first Stage. */
+let TRAINER = null;
+export const ready = () => loadTrainer().then(t => (TRAINER = t)).catch(() => null);
 function renderer(own = false) {
   if (RENDERER && !own) return RENDERER;
   const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power', preserveDrawingBuffer: false });
@@ -687,7 +693,7 @@ export class Stage {
     this.pal = pal;
     const S = this.scene = new THREE.Scene();
     const K = kitMaterials(pal);
-    this.body = new Mannequin(pal, m);
+    this.body = TRAINER ? new Trainer(TRAINER, pal, m, { limb: limbWeight, trunk: trunkWeight }) : new Mannequin(pal, m);
     S.add(this.body.group);
     this.kit = (m.scene || []).map(s => { const o = scene(s, K); if (['wall', 'mat'].includes(s.k)) o.userData.noFit = true; S.add(o); return o; });
 
@@ -810,7 +816,7 @@ export class Stage {
   /* Pose the scene at time t (seconds into the rep). */
   pose(p) {
     const J = skeleton(p);
-    this.body.update(J, p.effort ?? 0.45);
+    this.body.update(J, p.effort ?? 0.45, p);
     holds(J, this.m).forEach((it, i) => {
       const o = this.held[i];
       if (!o) return;
@@ -825,7 +831,7 @@ export class Stage {
   dispose() {
     this.scene.traverse(o => {
       if (o.geometry) o.geometry.dispose();
-      if (o.material) [].concat(o.material).forEach(mm => { mm.map?.dispose(); mm.dispose(); });
+      if (o.material) [].concat(o.material).forEach(mm => { if (!mm.map?.userData.shared) mm.map?.dispose(); mm.dispose(); });
     });
   }
 }

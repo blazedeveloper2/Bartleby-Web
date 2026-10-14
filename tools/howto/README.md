@@ -135,6 +135,32 @@ bending the wrong way (flip `eb`/`kb`, or give `ep`/`kp`); kit in the wrong
 hand or at the wrong angle; a view that hides the movement. Then open the
 exercise in the app on a phone-width screen and watch one loop.
 
+## The trainer
+
+The figure is a real human model, Male_Adult_01 from Microsoft's
+[Rocketbox](https://github.com/microsoft/Microsoft-Rocketbox) library (MIT;
+the license is in `assets/models/trainer/`).
+[`avatar.js`](../../apps/workout/avatar.js) loads it once and dresses the
+rig with it: every bone sits on the rig's joint, so nothing about a pose
+changes, and the checks above hold for the trainer as they do for the rig.
+What the rig cannot say, avatar.js decides: which way the palms face (from
+what the hand holds, or the entry's `palm`) and whether the fingers wrap a
+handle, lie flat or hang loose. If the model fails to load, the drawn
+mannequin in stage.js stands in.
+
+To rebuild it (another Rocketbox avatar, other kit colours):
+
+```bash
+node tools/howto/trainer/convert.mjs Male_Adult_01.fbx assets/models/trainer <three r160 examples/jsm>
+python tools/howto/trainer/textures.py <the avatar's Textures folder> assets/models/trainer
+```
+
+`convert.mjs` bakes the mesh into its A-pose, folds the face bones into
+the head and packs it into `trainer.bin`; `textures.py` recolours the shirt
+and shorts and writes web-sized textures. The rig's segment lengths
+(`SEG`, `BODY` in rig.js) are the model's own; if you change the model,
+measure its bones and update them, then run `check.mjs --anim`.
+
 ## Adding or changing an exercise
 
 1. Change `data.js` as usual.

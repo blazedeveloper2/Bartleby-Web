@@ -39,6 +39,7 @@
   const { MOTION } = await import('../../apps/workout/moves.js?v=' + v);
   const pose = await import('../../apps/workout/pose.js?v=' + v);
   const stage = await import('../../apps/workout/stage.js?v=' + v);
+  await stage.ready();
   let names = Object.keys(MOTION);
   if (qs.get('q')) { const qq = qs.get('q').toLowerCase().split(','); names = names.filter(n => qq.some(q => n.toLowerCase().includes(q))); }
   const i = +(qs.get('i') || 0), n = +(qs.get('n') || names.length);

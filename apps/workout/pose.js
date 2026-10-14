@@ -16,9 +16,9 @@
    build every frame of a rep without drawing anything.
    ═══════════════════════════════════════════════════════════ */
 
-import { MOTION } from './moves.js?v=3d-oct14b';
-import { timeline } from './timeline.js?v=3d-oct14b';
-import { skeleton, holds, points, normalize, W, v3 } from './rig.js?v=3d-oct14b';
+import { MOTION } from './moves.js?v=3d-oct14c';
+import { timeline } from './timeline.js?v=3d-oct14c';
+import { skeleton, holds, points, normalize, W, v3 } from './rig.js?v=3d-oct14c';
 export { MOTION };
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -57,7 +57,8 @@ export function playAnim(fig, name) {
     handle?.pause(paused);
   });
   bar(0, 0);
-  import('./stage.js?v=3d-oct14b')
+  import('./stage.js?v=3d-oct14c')
+    .then(S => S.ready().then(() => S))
     .then(S => { if (!stopped) handle = S.mount(fig.querySelector('.rp-stage'), name, { still, onStep: bar }); })
     .catch(() => { fig.classList.add('no3d'); });
   return () => { stopped = true; handle?.stop(); };
