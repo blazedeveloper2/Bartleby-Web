@@ -2,7 +2,7 @@
    WORKOUT — program definition + muscle-map lookup table.
    ═══════════════════════════════════════════════════════════ */
 
-import { USER } from './store.js?v=drop-skill-oct14';
+import { USER } from './store.js?v=volume-oct14';
 
 /* An exercise with an `alt` names the kit it needs in `req` ('bar', 'wheel',
    'barbell'). Turn that piece of equipment off in Settings and the whole app
@@ -42,8 +42,13 @@ const EDRIN = [
        the volume research points to, and the lead compound is where a
        third set is cheapest to add. It returns less than the second did,
        so isolation stays at two, and so do the lifts on the day that is
-       not their focus — Tuesday's RDL, the shoulder press, the split
-       squats, already counted twice for the two legs. */
+       not their focus — Tuesday's RDL, the shoulder press, Friday's split
+       squats.
+       Tuesday's split squats are at three, the quad day's lead lift. They
+       sat at two on the idea that '/leg' counts them twice. It doesn't:
+       each leg does two sets, so each quad got two, and the week came to
+       seven per leg. The goblet squat can't make up the rest, because it
+       is capped by one dumbbell at the chest. */
     {tag:null,ex:[
       {n:'Incline Dumbbell Press',m:'Upper Chest, Front Delts, Triceps',s:'3×F',b:'30°',bc:'bench-30'},
       {n:'Dumbbell Bench Press',m:'Chest, Triceps, Front Delts',s:'3×F',b:'Flat 0°',bc:'bench-flat'},
@@ -69,7 +74,7 @@ const EDRIN = [
       {n:'Dead Bugs',m:'Rectus Abdominis, TVA',s:'1× easy /side'},
     ]},
     {tag:null,ex:[
-      {n:'Bulgarian Split Squats',m:'Quads, Glutes, Adductors',s:'2×F /leg',b:'Flat 0°',bc:'bench-flat'},
+      {n:'Bulgarian Split Squats',m:'Quads, Glutes, Adductors',s:'3×F /leg',b:'Flat 0°',bc:'bench-flat'},
       /* A goblet squat is capped by what one dumbbell lets you hold at the
          chest; a bar in the front rack isn't. There is no rack here, so the
          bar is cleaned from the floor -- fine at the loads a dumbbell-to-
@@ -83,7 +88,11 @@ const EDRIN = [
          whatever plates get bought later and moves in single-plate steps. */
       {n:'Barbell Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'2×F',
        req:'barbell', alt:{n:'Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'2×F'}},
-      {n:'Standing Calf Raises',m:'Gastrocnemius, Soleus',s:'2×F'},
+      /* Four sets, here and Friday. At two a day the calves had four sets
+         a week, the least of any muscle in the program. Four a day makes
+         eight, the same as the side delts, and a set takes under a
+         minute. */
+      {n:'Standing Calf Raises',m:'Gastrocnemius, Soleus',s:'4×F'},
     ]},
     {tag:'Core',ex:[
       /* The rollout, not the crunch, anchors this block. It tops the EMG
@@ -168,7 +177,7 @@ const EDRIN = [
       {n:'Nordic Curl Negatives',m:'Hamstrings, Gastrocnemius',s:'2×F'},
     ]},
     {tag:'Accessories',ex:[
-      {n:'Standing Calf Raises',m:'Gastrocnemius, Soleus',s:'2×F'},
+      {n:'Standing Calf Raises',m:'Gastrocnemius, Soleus',s:'4×F'},
       /* Was a farmer's carry -- the only exercise in this file that never had
          a reason written down. Unchanged since the first commit, carried
          through every audit by not being looked at.
@@ -266,21 +275,25 @@ const EDRIN = [
     ]},
     {tag:null,ex:[
       /* With no bar and no table there is no anchor, and with no anchor
-         there is no true bodyweight pull — so the no-bar slot trains what a
-         body maneuver still can: the full retraction sweep, prone on the
-         bench so the arms can drop below the body line. Lats and biceps are
-         not abandoned, just relocated — Thursday's rows and curls carry
-         them, and the wheel rollout below is a straight-arm lat pull in
-         disguise. */
+         there is no true bodyweight pull — so the no-bar slot is a dumbbell
+         row. It was reverse snow angels, prone on the bench, until
+         2026-10-14. Those trained the retraction sweep and left the lats
+         at eight sets a week, every one of them on Thursday, under the
+         ten-plus the volume research points to and against eleven for the
+         chest. Rows here take the lats to eleven over two days. The rear
+         delts and mid traps the angels were for still get Thursday's four
+         sets of reverse flyes and every row. This is the one loaded
+         movement on a bodyweight day, and it is here because a body
+         maneuver cannot load the lats without an anchor. */
       {n:'Chin-Ups',m:'Lats, Biceps, Rhomboids, Forearms',s:'3×5-8',
-       req:'bar', alt:{n:'Reverse Snow Angels',m:'Rear Delts, Mid Traps, Rhomboids',s:'3×10-15',b:'Flat 0°',bc:'bench-flat'}},
+       req:'bar', alt:{n:'Single-Arm Rows',m:'Lats, Rhomboids, Rear Delts, Biceps',s:'3×F /arm',b:'Flat 0°',bc:'bench-flat'}},
       {line:'pushup'},
       /* The strength line that ends at the handstand push-up: pike on the
          floor → feet up on the bench → against the wall. */
       {line:'hspu'},
       /* Bench dips are gone. This day already ran nine pressing sets
-         against no loaded pull -- there is no bar here, so the pull slot
-         spends itself on scapular control instead. Dips were the redundant
+         against no loaded pull -- at the time, the no-bar pull slot spent
+         itself on scapular control instead. Dips were the redundant
          end of that: the triceps take Monday's overhead extensions plus
          every pressing set above, and shoulder-extension dips at depth are
          the one shape this program asks the front of the shoulder to hold
