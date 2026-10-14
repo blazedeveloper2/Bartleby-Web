@@ -22,8 +22,8 @@
    wrong person's data.
    ═══════════════════════════════════════════════════════════ */
 
-import { load as ld, save as sv, remove as rm } from '../../assets/js/storage.js?v=calf-oct14';
-export { todayStr, dateStr } from '../../assets/js/storage.js?v=calf-oct14';
+import { load as ld, save as sv, remove as rm } from '../../assets/js/storage.js?v=reps-oct14';
+export { todayStr, dateStr } from '../../assets/js/storage.js?v=reps-oct14';
 
 export const USER_KEY = 'bp_user';
 export const USERS = ['edrin', 'andrew'];      // the ids in PEOPLE, data.js

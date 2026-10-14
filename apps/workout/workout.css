@@ -176,11 +176,81 @@
 /* ── how to ──
    Numbered because the cues are an order — set up, move, the point that
    matters — and the mistakes sit apart in the colour this app already uses
-   for "not this". The video is a plain button until tapped (see
-   mmHowtoHTML), then a 16:9 frame in the same rounded box as the map. */
+   for "not this". */
 .mm-howto:empty{display:none}
-.mm-howto{padding:16px 20px 4px;border-bottom:1px solid var(--border)}
+.mm-howto{padding:16px 20px;border-bottom:1px solid var(--border)}
 .mm-howto-h{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-3);margin-bottom:10px}
+/* The animated rep (pose.js). Every fill is a theme token, so the figure
+   re-dresses itself with the theme: skin and clothes from the text greys,
+   the working muscle in the body map's primary colour, steel and pads from
+   the borders. The thin outline is the card's own background, which is
+   what separates a near arm from the head behind it. */
+.mm-anim{position:relative;margin:0 0 14px;padding:8px 8px 8px;border:1px solid var(--border);border-radius:10px;
+  background:radial-gradient(ellipse 70% 62% at 50% 44%,var(--bg-alt),var(--bg) 74%)}
+.mm-anim svg{display:block;width:100%;height:250px}
+.mm-anim path,.mm-anim circle,.mm-anim ellipse{stroke:var(--bg);stroke-width:.9;stroke-linejoin:round}
+.rp-skin{fill:var(--text-2)}
+.rp-skin-far{fill:color-mix(in srgb,var(--text-2) 52%,var(--bg))}
+.rp-shirt{fill:color-mix(in srgb,var(--text-3) 78%,var(--bg))}
+.rp-shirt-far{fill:color-mix(in srgb,var(--text-3) 50%,var(--bg))}
+.rp-shorts{fill:color-mix(in srgb,var(--text-3) 48%,var(--bg))}
+.rp-shorts-far{fill:color-mix(in srgb,var(--text-3) 32%,var(--bg))}
+.rp-shoe{fill:color-mix(in srgb,var(--text-3) 62%,var(--bg))}
+.rp-shoe-far{fill:color-mix(in srgb,var(--text-3) 40%,var(--bg))}
+.mm-anim .rp-sole{fill:var(--text-3);stroke:none}
+.rp-hair{fill:color-mix(in srgb,var(--text-3) 70%,var(--bg))}
+.rp-ear{fill:color-mix(in srgb,var(--text-2) 80%,var(--bg))}
+.mm-anim .rp-eye{fill:var(--bg);stroke:none}
+.mm-anim .rp-hi{fill:var(--map-p);stroke:none;opacity:.92;filter:drop-shadow(0 0 2.5px var(--map-p))}
+.mm-anim .rp-hi2{fill:var(--map-s);stroke:none;opacity:.9}
+.mm-anim .rp-plate-in{fill:color-mix(in srgb,var(--text) 80%,var(--bg));stroke:var(--text-3);stroke-width:.6}
+.mm-anim .rp-hub{fill:var(--text-3);stroke:none}
+.mm-anim .rp-far .rp-plate,.mm-anim .rp-far .rp-plate-in{fill:color-mix(in srgb,var(--text) 50%,var(--bg))}
+.mm-anim .rp-bb-plate{fill:color-mix(in srgb,var(--text) 72%,var(--bg));stroke:var(--bg);stroke-width:.8}
+.mm-anim .rp-bb-ring{fill:none;stroke:var(--text-3);stroke-width:.8}
+.mm-anim .rp-bb-sleeve{fill:var(--text-3);stroke:none}
+.mm-anim .rp-tyre{fill:var(--text-3);stroke:var(--bg);stroke-width:.8}
+.mm-anim .rp-rim{fill:var(--text-2);stroke:none}
+.mm-anim .rp-spoke{fill:none;stroke:var(--text-3);stroke-width:1.4;stroke-linecap:round}
+.rp-wall{fill:color-mix(in srgb,var(--text-3) 22%,var(--bg))}
+.rp-base{fill:color-mix(in srgb,var(--text-3) 55%,var(--bg))}
+.mm-anim .rp-pullbar{fill:var(--text-2);stroke:var(--bg);stroke-width:.6}
+.rp-mat{fill:color-mix(in srgb,var(--blue) 28%,var(--bg))}
+.rp-wedge{fill:color-mix(in srgb,var(--text-3) 60%,var(--bg))}
+.rp-book{fill:color-mix(in srgb,var(--text-3) 70%,var(--bg))}
+.rp-book.alt{fill:color-mix(in srgb,var(--blue) 40%,var(--bg))}
+.mm-anim .rp-pack{fill:color-mix(in srgb,var(--blue) 45%,var(--bg))}
+.mm-anim .rp-strap{fill:none;stroke:color-mix(in srgb,var(--blue) 45%,var(--bg));stroke-width:1.6}
+.rp-plate{fill:var(--text);stroke:var(--bg);stroke-width:.7}
+.mm-anim .rp-groove{fill:none;stroke:color-mix(in srgb,var(--text-3) 60%,var(--text));stroke-width:.5}
+.rp-handle{fill:var(--text-3)}
+.mm-anim .rp-pad{fill:color-mix(in srgb,var(--text-3) 32%,var(--bg-card));stroke:var(--border-lt);stroke-width:.9}
+.mm-anim .rp-pad-sheen{fill:none;stroke:color-mix(in srgb,var(--text-3) 50%,var(--bg-card));stroke-width:1.1;stroke-linecap:round}
+.mm-anim .rp-steel{fill:none;stroke:var(--text-3);stroke-width:3.6;stroke-linecap:round}
+.mm-anim .rp-steel-thin{fill:none;stroke:var(--text-3);stroke-width:2.2;stroke-linecap:round}
+.mm-anim .rp-ladder{fill:none;stroke:var(--text-3);stroke-width:2.6;stroke-dasharray:1.6 1.6}
+.rp-foot{fill:var(--text-3)}
+.mm-anim .rp-pin{fill:var(--bg-alt);stroke:var(--text-3);stroke-width:1.2}
+.mm-anim .rp-floor{fill:none;stroke:var(--border-lt);stroke-width:1}
+.rp-shadow{fill:var(--text);opacity:.07}
+.mm-anim .rp-trace{fill:none;stroke:var(--text-3);stroke-width:.9;stroke-dasharray:1.5 2.5;opacity:.8}
+.rp-pp{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;cursor:pointer;
+  background:var(--bg-card);border:1px solid var(--border);color:var(--text-2)}
+.rp-pp::before,.rp-pp::after{content:'';position:absolute;top:9px;width:3px;height:9px;border-radius:1px;background:currentColor}
+.rp-pp::before{left:9px}.rp-pp::after{left:15px}
+.mm-anim.paused .rp-pp::before{left:10px;width:0;height:0;border-radius:0;background:none;
+  border-style:solid;border-width:5px 0 5px 9px;border-color:transparent transparent transparent currentColor}
+.mm-anim.paused .rp-pp::after{display:none}
+.rp-pp:hover{color:var(--text);border-color:var(--border-lt)}
+.rp-bar{display:flex;gap:4px;margin-top:6px}
+.rp-seg{position:relative;min-width:0;display:flex;justify-content:space-between;align-items:baseline;gap:4px;
+  padding:5px 7px 6px;border-radius:6px;background:var(--bg-card);border:1px solid var(--border);overflow:hidden;
+  font-size:10.5px;color:var(--text-3);transition:color .2s,border-color .2s}
+.rp-seg i{position:absolute;left:0;bottom:0;height:2px;width:0;background:var(--blue)}
+.rp-seg b{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rp-seg em{font-style:normal;font-family:var(--mono);font-size:10px;flex-shrink:0}
+.rp-seg.on{color:var(--text);border-color:var(--border-lt)}
+.mm-anim.still .rp-seg i{display:none}
 .mm-cues{margin:0;padding:0;list-style:none;counter-reset:cue;display:flex;flex-direction:column;gap:7px}
 .mm-cues li{counter-increment:cue;position:relative;padding-left:24px;font-size:13px;line-height:1.45;color:var(--text)}
 .mm-cues li::before{content:counter(cue);position:absolute;left:0;top:1px;width:16px;height:16px;border-radius:4px;
@@ -190,19 +260,6 @@
 .mm-avoid>span{display:block;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--ink-red);margin-bottom:4px}
 .mm-avoid ul{margin:0;padding-left:16px;display:flex;flex-direction:column;gap:3px}
 .mm-avoid li{font-size:12.5px;line-height:1.45;color:var(--text-2)}
-.mm-vid{display:flex;align-items:center;gap:12px;width:100%;margin:14px 0 12px;padding:10px 12px;text-align:left;cursor:pointer;
-  background:var(--bg);border:1px solid var(--border);border-radius:10px;font-family:var(--font);color:var(--text);transition:border-color .15s}
-.mm-vid:hover{border-color:var(--border-lt)}
-.mm-vid-play{flex-shrink:0;width:38px;height:38px;border-radius:50%;background:var(--blue);position:relative}
-.mm-vid-play::after{content:'';position:absolute;left:15px;top:11px;border-style:solid;border-width:8px 0 8px 13px;
-  border-color:transparent transparent transparent var(--on-accent)}
-.mm-vid-txt{min-width:0;display:flex;flex-direction:column;gap:2px}
-.mm-vid-txt b{font-size:12.5px;font-weight:600;line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.mm-vid-txt em{font-style:normal;font-size:11px;color:var(--text-3)}
-.mm-vid-frame{margin:14px 0 6px;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#000;border:1px solid var(--border)}
-.mm-vid-frame iframe{width:100%;height:100%;border:0;display:block}
-.mm-vid-out{display:inline-block;margin-bottom:12px;font-size:11px;font-weight:600;color:var(--text-3);text-decoration:none}
-.mm-vid-out:hover{color:var(--blue)}
 .mm-muscles{padding:10px 20px 20px}
 .mm-muscles-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-3);margin-bottom:8px}
 .mm-muscle-list{display:flex;flex-wrap:wrap;gap:6px}

@@ -1,0 +1,56 @@
+<!doctype html>
+<!-- Every exercise's animated rep, frame by frame, for checking them all at
+     a glance after a change to apps/workout/pose.js or moves.js. Serve the
+     repo root (any static server) and open /tools/howto/anim.html.
+       ?q=press,curl   only exercises whose name contains one of these
+       ?i=0&n=12       a slice of the list, in program order
+       ?h=170          frame height in pixels
+       ?theme=light    any data-theme from assets/css/themes.css
+       ?play           live loops instead of still frames -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exercise animations</title>
+<link rel="stylesheet" href="../../assets/css/tokens.css">
+<link rel="stylesheet" href="../../assets/css/themes.css">
+<link rel="stylesheet" href="../../apps/workout/workout.css">
+<style>
+  body{margin:0;padding:12px;background:var(--bg-card);color:var(--text);font:12px/1.4 system-ui,sans-serif}
+  .ex{margin:0 0 10px;padding:8px;border:1px solid var(--border);border-radius:8px}
+  .ex h2{margin:0 0 6px;font-size:12px;font-weight:600}
+  .ex h2 small{color:var(--text-3);font-weight:400}
+  .row{display:flex;gap:6px;flex-wrap:wrap}
+  .row figure{margin:0}
+  .row .mm-anim{margin:0;padding:4px}
+  .row .mm-anim svg{height:var(--h);width:auto;max-width:100%}
+  .row .rp-bar,.row .rp-pp{display:none}
+  .row figcaption.lbl{font-size:10px;color:var(--text-3);text-align:center}
+</style>
+</head>
+<body>
+<div id="out"></div>
+<script type="module">
+  const qs = new URLSearchParams(location.search);
+  if (qs.get('theme')) document.documentElement.setAttribute('data-theme', qs.get('theme'));
+  document.body.style.setProperty('--h', (qs.get('h') || 170) + 'px');
+  const { MOTION, stillSVG, animHTML, playAnim } = await import('../../apps/workout/pose.js?v=' + Date.now());
+  let names = Object.keys(MOTION);
+  if (qs.get('q')) { const qq = qs.get('q').toLowerCase().split(','); names = names.filter(n => qq.some(q => n.toLowerCase().includes(q))); }
+  const i = +(qs.get('i') || 0), n = +(qs.get('n') || names.length);
+  names = names.slice(i, i + n);
+  const out = document.getElementById('out');
+  for (const name of names) {
+    const m = MOTION[name];
+    const poses = [...new Set(m.tempo.map(([p]) => p))];
+    const div = document.createElement('div');
+    div.className = 'ex';
+    div.innerHTML = `<h2>${name} <small>${m.view || 'side'} · ${m.tempo.map(t => t[2] + ' ' + t[1] + 's').join(' / ')}</small></h2>
+      <div class="row">${qs.has('play') ? `<figure>${animHTML(name)}</figure>`
+        : poses.map(p => `<figure>${stillSVG(name, p)}<figcaption class="lbl">${p}</figcaption></figure>`).join('')}</div>`;
+    out.append(div);
+    if (qs.has('play')) playAnim(div.querySelector('.mm-anim'), name);
+  }
+</script>
+</body>
+</html>

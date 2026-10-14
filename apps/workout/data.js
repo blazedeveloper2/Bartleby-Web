@@ -2,7 +2,7 @@
    WORKOUT — program definition + muscle-map lookup table.
    ═══════════════════════════════════════════════════════════ */
 
-import { USER } from './store.js?v=calf-oct14';
+import { USER } from './store.js?v=reps-oct14';
 
 /* An exercise with an `alt` names the kit it needs in `req` ('bar', 'wheel',
    'barbell'). Turn that piece of equipment off in Settings and the whole app
@@ -56,7 +56,13 @@ const EDRIN = [
     ]},
     {tag:'Isolation',ex:[
       {n:'Dumbbell Flyes',m:'Chest (stretch focus), Front Delts',s:'2×F',b:'Flat 0°',bc:'bench-flat'},
-      {n:'Overhead Tricep Extensions',m:'Triceps Long Head, Lateral Head',s:'2×F',b:'85°',bc:'bench-85'},
+      /* On the back pad at 55°, not upright. At 85° the pad sits right where
+         the dumbbell goes at the bottom, so the rep stops short of the
+         stretch or the back arches off the pad to make room. Reclined, the
+         head sits near the pad's top edge and the weight drops behind it.
+         The stretch itself comes from the arm being overhead, which is the
+         position the long head grew more in (Maeo et al.). */
+      {n:'Overhead Tricep Extensions',m:'Triceps Long Head, Lateral Head',s:'2×F',b:'55°',bc:'bench-55'},
       {n:'Preacher Curls',m:'Biceps Short Head, Brachialis',s:'2×F',b:'45°',bc:'bench-30'},
       /* Four sets, not the program's usual two. Pressing hammers the front
          head and barely touches the side one — a lateral raise reads ~30%

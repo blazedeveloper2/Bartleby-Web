@@ -6,34 +6,35 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER } from './data.js?v=calf-oct14';
-import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=calf-oct14';
-import { toast } from '../../assets/js/ui.js?v=calf-oct14';
-import { pctColor, ord, LIFTS } from './standards.js?v=calf-oct14';
+import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER } from './data.js?v=reps-oct14';
+import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=reps-oct14';
+import { toast } from '../../assets/js/ui.js?v=reps-oct14';
+import { pctColor, ord, LIFTS } from './standards.js?v=reps-oct14';
 import {
   setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, addSession, isManual, toggleHmEdit, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, icon,
   liftScores, standingOf, resEx, resKit, lvlOf, setLvl, resetTargets, applyReset,
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip,
-} from './rank.js?v=calf-oct14';
+} from './rank.js?v=reps-oct14';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
-import { MUSCLE_SVG } from './bodymap.js?v=calf-oct14';
-import { restBand, BANDS, fmtRest } from './rest.js?v=calf-oct14';
-import * as rest from './timer.js?v=calf-oct14';
-import * as timing from './sessions.js?v=calf-oct14';
-import { HOWTO } from './howto.js?v=calf-oct14';
-import { standingsFor } from './anthro.js?v=calf-oct14';
-import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=calf-oct14';
+import { MUSCLE_SVG } from './bodymap.js?v=reps-oct14';
+import { restBand, BANDS, fmtRest } from './rest.js?v=reps-oct14';
+import * as rest from './timer.js?v=reps-oct14';
+import * as timing from './sessions.js?v=reps-oct14';
+import { HOWTO } from './howto.js?v=reps-oct14';
+import { animHTML, playAnim } from './pose.js?v=reps-oct14';
+import { standingsFor } from './anthro.js?v=reps-oct14';
+import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=reps-oct14';
 import {
   prof, profSet, ACTIVITY, actOf, navyBF, BF_BANDS, smooth, within,
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor, whtrBand,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=calf-oct14';
+} from './body.js?v=reps-oct14';
 
 /* ── namespaced storage ── */
 const chks = () => load('bp_chk', {});
@@ -830,6 +831,8 @@ function openMM(ex) {
   info += `<span class="mm-tag mm-rest-tag" title="${band.n} — the timer that starts when you log a set">Rest ${fmtRest(band.s)}</span>`;
   q('#mm-info').innerHTML = info;
   q('#mm-howto').innerHTML = mmHowtoHTML(ex);
+  stopAnim();
+  stopAnim = playAnim(q('#mm-howto .mm-anim'), ex.n);
 
   /* Only a movement that can carry a load gets a weight field. On a belt
      the number is what is added to you, so blank reads as bodyweight. */
@@ -866,43 +869,27 @@ function openMM(ex) {
 }
 /* ── how to ──
 
-   Written cues first, because they are always there: offline, instantly,
-   and never taken down. The video under them is a facade — a plain button
-   that contacts nothing until it is tapped, and only then becomes a
-   youtube-nocookie player, so opening an exercise never phones YouTube.
-   Each one was checked against its own frames before it went in (see
-   howto.js). The link under the player is the way out when the embed
-   cannot load: offline, or a video pulled since. */
+   The animated rep (pose.js) leads, because it shows the shape and the
+   speed of a rep at a glance; the written cues under it spell out what it
+   shows. Both are drawn here, so the section works offline and never
+   contacts anything. There used to be a YouTube video under the cues; it
+   went in Oct 2026, once every exercise had its own animation. */
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
-const fmtDur = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+let stopAnim = () => {};
 
 function mmHowtoHTML(ex) {
   const h = HOWTO[ex.n];
   if (!h) return '';
-  const v = h.v;
-  const vid = !v ? '' : `<button class="mm-vid" data-act="mm-vid" aria-label="Play video: ${esc(v.t)}">
-      <span class="mm-vid-play" aria-hidden="true"></span>
-      <span class="mm-vid-txt"><b>${esc(v.t)}</b><em>${esc(v.c)}${v.d ? ` · ${fmtDur(v.d)}` : ''}${v.s ? ` · from ${fmtDur(v.s)}` : ''}</em></span>
-    </button>`;
   return `<div class="mm-howto-h">How to</div>
+    ${animHTML(ex.n)}
     <ol class="mm-cues">${h.do.map(c => `<li>${esc(c)}</li>`).join('')}</ol>
-    ${h.avoid?.length ? `<div class="mm-avoid"><span>Avoid</span><ul>${h.avoid.map(c => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}
-    ${vid}`;
-}
-
-function playVideo() {
-  const v = mmEx && HOWTO[mmEx.n]?.v;
-  const btn = q('.mm-vid');
-  if (!v || !btn) return;
-  const start = v.s ? `&start=${v.s}` : '';
-  btn.outerHTML = `<div class="mm-vid-frame"><iframe
-      src="https://www.youtube-nocookie.com/embed/${v.id}?autoplay=1&rel=0&playsinline=1${start}"
-      title="${esc(v.t)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>
-    <a class="mm-vid-out" href="https://www.youtube.com/watch?v=${v.id}${v.s ? `&t=${v.s}s` : ''}" target="_blank" rel="noopener">Open on YouTube</a>`;
+    ${h.avoid?.length ? `<div class="mm-avoid"><span>Avoid</span><ul>${h.avoid.map(c => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}`;
 }
 
 function closeMM() {
-  q('#mm-howto').innerHTML = '';            // a playing video stops with the modal
+  stopAnim();
+  q('#mm-howto').innerHTML = '';
   q('#mm-ol').classList.remove('on'); mmEx = null; mmSlot = null;
   mmReturnFocus?.focus({preventScroll:true});
 }
@@ -1725,7 +1712,6 @@ function onClick(e) {
       mmSlot = [+a.di, +a.si, +a.ei];
       openMM(resEx(PROGRAM[+a.di].sections[+a.si].ex[+a.ei])); break;
     case 'mm-lvl-up': mmLvlUp(); break;
-    case 'mm-vid':    playVideo(); break;
     case 'chk':       toggleChk(a.k); break;
     case 'clear':     clearChk(); break;
     case 'mm-close':  closeMM(); break;
@@ -1892,7 +1878,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=calf-oct14',
+  styles: 'apps/workout/workout.css?v=reps-oct14',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
