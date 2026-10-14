@@ -16,9 +16,9 @@
    build every frame of a rep without drawing anything.
    ═══════════════════════════════════════════════════════════ */
 
-import { MOTION } from './moves.js?v=3d-oct14';
-import { timeline } from './timeline.js?v=3d-oct14';
-import { skeleton, holds, points, normalize, W, v3 } from './rig.js?v=3d-oct14';
+import { MOTION } from './moves.js?v=3d-oct14b';
+import { timeline } from './timeline.js?v=3d-oct14b';
+import { skeleton, holds, points, normalize, W, v3 } from './rig.js?v=3d-oct14b';
 export { MOTION };
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -30,7 +30,7 @@ export function animHTML(name) {
     `<span class="rp-seg" style="flex:${Math.max(s, 1.1)}"><i></i><b>${esc(label)}</b><em>${s}s</em></span>`).join('');
   return `<figure class="mm-anim">
     <div class="rp-stage" role="img" aria-label="${esc(m.label || `${name}, one rep in 3D`)}"></div>
-    <span class="rp-hint" aria-hidden="true">Drag to turn</span>
+    <span class="rp-hint" aria-hidden="true">Drag to turn · pinch to zoom</span>
     <button type="button" class="rp-pp" aria-label="Pause animation" aria-pressed="false"></button>
     <figcaption class="rp-bar">${segs}</figcaption>
   </figure>`;
@@ -57,7 +57,7 @@ export function playAnim(fig, name) {
     handle?.pause(paused);
   });
   bar(0, 0);
-  import('./stage.js?v=3d-oct14')
+  import('./stage.js?v=3d-oct14b')
     .then(S => { if (!stopped) handle = S.mount(fig.querySelector('.rp-stage'), name, { still, onStep: bar }); })
     .catch(() => { fig.classList.add('no3d'); });
   return () => { stopped = true; handle?.stop(); };

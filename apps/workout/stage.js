@@ -18,9 +18,9 @@
    ═══════════════════════════════════════════════════════════ */
 
 import * as THREE from '../../assets/vendor/three/three.module.min.js';
-import { MOTION } from './moves.js?v=3d-oct14';
-import { timeline } from './timeline.js?v=3d-oct14';
-import { skeleton, holds, points, normalize, SEG, BODY, v3 } from './rig.js?v=3d-oct14';
+import { MOTION } from './moves.js?v=3d-oct14b';
+import { timeline } from './timeline.js?v=3d-oct14b';
+import { skeleton, holds, points, normalize, SEG, BODY, v3 } from './rig.js?v=3d-oct14b';
 
 const D = Math.PI / 180;
 const V = (a) => new THREE.Vector3(a[0], a[1], a[2]);
@@ -30,25 +30,32 @@ const V = (a) => new THREE.Vector3(a[0], a[1], a[2]);
 function palette(el) {
   const cs = getComputedStyle(el || document.documentElement);
   const c = name => new THREE.Color((cs.getPropertyValue(name) || '#888').trim() || '#888');
+  const hex = h => new THREE.Color(h);
   const mix = (a, b, k) => a.clone().lerp(b, k);
-  const bg = c('--bg'), card = c('--bg-card'), text = c('--text'), t2 = c('--text-2'), t3 = c('--text-3');
+  const bg = c('--bg'), t3 = c('--text-3');
   const light = bg.getHSL({}).l > 0.5;
+  /* The person and the kit look like a person and kit, whatever the
+     theme: a young, fit trainer with fair skin, short dark hair, a
+     fitted blue tee, grey shorts and white trainers;
+     a black-vinyl bench on a steel frame, black dumbbells with red
+     plates. Distinct hues, so clothes never melt into the bench. Only
+     the room (floor, wall, mat) and the muscle paint follow the theme. */
   return {
     light,
-    skin: light ? mix(t2, t3, 0.15) : mix(t2, t3, 0.12),
-    shirt: mix(t3, card, light ? 0.1 : 0.05),
-    shorts: mix(t3, bg, light ? 0.35 : 0.45),
-    shoe: mix(t3, bg, 0.6),
-    sole: mix(t3, bg, 0.75),
-    hair: mix(t3, bg, 0.55),
-    steel: mix(t3, t2, 0.4),
-    pad: mix(t3, card, light ? 0.35 : 0.62),
-    plate: mix(t2, t3, 0.35),
-    plateDark: mix(t3, bg, 0.3),
+    skin: hex('#e8b995'),
+    shirt: hex('#2f6db5'),
+    shorts: hex('#5a6170'),
+    shoe: hex('#eef0f2'),
+    sole: hex('#2c2e33'),
+    hair: hex('#3a2618'),
+    steel: hex('#a9afb7'),
+    pad: hex('#2a2a2f'),
+    plate: hex('#2a2c31'),
+    plateDark: hex('#b0352b'),
     wall: mix(t3, bg, light ? 0.72 : 0.8),
-    mat: mix(mix(t3, bg, 0.62), c('--blue'), 0.08),
-    book: mix(t3, card, 0.3),
-    book2: mix(c('--blue'), card, 0.55),
+    mat: light ? hex('#c9cfd6') : hex('#30363c'),
+    book: hex('#6b4f3a'),
+    book2: hex('#3f5f7a'),
     floor: c('--bg-alt'),
     muscle: c('--map-p'),
     muscle2: c('--map-s'),
@@ -124,16 +131,18 @@ function rod(a, b, r, mat, seg = 12) {
 
 /* ══ THE MANNEQUIN ══ */
 
+/* An athletic build: full shoulders and arms, a V from the chest to a
+   narrow waist, quads that sweep out and calves high on the shin. */
 const PROF = {
-  ua: [[0, 5.6], [0.22, 5.7], [0.45, 5.4], [0.8, 4.4], [1, 4.0]],
-  fa: [[0, 4.1], [0.2, 4.6], [0.6, 3.6], [1, 2.9]],
-  th: [[0, 7.8], [0.25, 7.5], [0.7, 6.0], [1, 4.9]],
-  sh: [[0, 4.9], [0.22, 5.5], [0.55, 4.3], [1, 3.2]],
+  ua: [[0, 6.3], [0.2, 6.4], [0.47, 6.0], [0.8, 4.7], [1, 4.1]],
+  fa: [[0, 4.4], [0.18, 5.0], [0.6, 3.8], [1, 2.9]],
+  th: [[0, 8.4], [0.25, 8.3], [0.7, 6.6], [1, 5.0]],
+  sh: [[0, 5.0], [0.22, 6.0], [0.55, 4.5], [1, 3.2]],
 };
 /* The torso's cross-section along the spine: half-width, half-depth, and
    how far the section's centre sits in front of the spine. */
-const TORSO = [[-0.18, 7.4, 6.0, -0.6], [-0.08, 12.2, 8.6, -1.1], [0.05, 12.9, 9.2, -1.4], [0.22, 12.0, 8.0, -0.3],
-  [0.38, 11.2, 7.6, 0.4], [0.55, 12.3, 8.9, 0.9], [0.72, 13.8, 9.8, 1.1], [0.86, 15.0, 8.8, 0.5], [0.95, 11.6, 6.8, 0.1], [1.01, 5.6, 4.8, 0.2]];
+const TORSO = [[-0.18, 8.6, 6.4, -0.6], [-0.08, 13.0, 8.6, -1.4], [0.05, 12.8, 8.8, -1.6], [0.22, 12.0, 7.6, -0.2],
+  [0.38, 11.4, 7.2, 0.3], [0.55, 12.8, 8.6, 0.8], [0.72, 14.9, 10.2, 1.3], [0.86, 16.3, 9.4, 0.8], [0.95, 12.9, 7.2, 0.0], [1.01, 6.2, 5.0, 0.2]];
 const torsoAt = t => {
   for (let i = 0; i < TORSO.length - 1; i++) {
     const a = TORSO[i], b = TORSO[i + 1];
@@ -294,12 +303,15 @@ class TorsoTube {
     }
     for (let r = 0; r < rings; r++) for (let a = 0; a < around; a++) {
       const i = r * around + a, j = r * around + (a + 1) % around;
-      idx.push(i, i + around, j, j, i + around, j + around);
+      idx.push(i, j, i + around, j, j + around, i + around);
     }
+    /* Wound so every face points outward: with the ring running from the
+       near side (L) toward the front (N) and the rings climbing the spine
+       (T), counter-clockwise from outside is ring-then-around. */
     const b = (rings + 1) * around, top = b + 1;
     for (let a = 0; a < around; a++) {
-      idx.push(b, a, (a + 1) % around);
-      idx.push(top, rings * around + (a + 1) % around, rings * around + a);
+      idx.push(b, (a + 1) % around, a);
+      idx.push(top, rings * around + a, rings * around + (a + 1) % around);
     }
     this.geo = new THREE.BufferGeometry();
     this.geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3));
@@ -345,9 +357,9 @@ class Mannequin {
     const U = this.uniforms;
     const std = (color, rough = 0.6) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0 });
     this.mat = {
-      skin: bodyMaterial(pal.skin, 0.5, U),
-      shirt: bodyMaterial(pal.shirt, 0.8, U),
-      shorts: bodyMaterial(pal.shorts, 0.82, U),
+      skin: bodyMaterial(pal.skin, 0.62, U),
+      shirt: bodyMaterial(pal.shirt, 0.85, U),
+      shorts: bodyMaterial(pal.shorts, 0.8, U),
       shoe: std(pal.shoe, 0.55),
       sole: std(pal.sole, 0.7),
       hair: std(pal.hair, 0.88),
@@ -356,8 +368,8 @@ class Mannequin {
     const add = (geo, mat) => { const mm = new THREE.Mesh(geo, mat); mm.castShadow = mm.receiveShadow = true; this.group.add(mm); return mm; };
     const base = {
       ua: limbGeo(SEG.ua, PROF.ua), fa: limbGeo(SEG.fa, PROF.fa), th: limbGeo(SEG.th, PROF.th), sh: limbGeo(SEG.sh, PROF.sh),
-      sleeve: limbGeo(SEG.ua * 0.4, [[0, 6.6], [1, 6.2]]),
-      legShort: limbGeo(SEG.th * 0.48, [[0, 8.4], [1, 7.4]]),
+      sleeve: limbGeo(SEG.ua * 0.36, [[0, 7.1], [1, 6.7]]),
+      legShort: limbGeo(SEG.th * 0.46, [[0, 9.9], [0.5, 9.6], [1, 9.1]]),
     };
     this.side = {};
     for (const [s, sg] of [['n', 1], ['f', -1]]) {
@@ -369,27 +381,37 @@ class Mannequin {
         sh: add(paint('sh', 'sh', SEG.sh), this.mat.skin),
         sleeve: add(paint('sleeve', 'ua', SEG.ua, -1.5), this.mat.shirt),
         legShort: add(paint('legShort', 'th', SEG.th, -2), this.mat.shorts),
-        delt: add(paintDelt(new THREE.SphereGeometry(6.4, 24, 16), sg, hi, hi2), this.mat.shirt),
-        elbow: add(new THREE.SphereGeometry(4.0, 18, 12), this.mat.skin),
-        knee: add(new THREE.SphereGeometry(5.0, 18, 12), this.mat.skin),
+        delt: add(paintDelt(new THREE.SphereGeometry(7.0, 24, 16), sg, hi, hi2), this.mat.shirt),
+        elbow: add(new THREE.SphereGeometry(4.2, 18, 12), this.mat.skin),
+        knee: add(new THREE.SphereGeometry(5.2, 18, 12), this.mat.skin),
         wrist: add(new THREE.SphereGeometry(2.9, 14, 10), this.mat.skin),
-        hand: add(roundBox(3.3, SEG.hand, 6.0, 1.5), this.mat.skin),
+        hand: add(roundBox(3.4, SEG.hand, 6.8, 1.5), this.mat.skin),
         thumb: add(limbGeo(3.4, [[0, 1.35], [1, 1.1]], 10), this.mat.skin),
-        shoe: add(limbGeo(SEG.toe + SEG.heel + 2.4, [[0, 3.0], [0.3, 3.3], [0.75, 3.4], [1, 2.9]], 18), this.mat.shoe),
-        sole: add(limbGeo(SEG.toe + SEG.heel + 3.0, [[0, 3.1], [0.5, 3.5], [1, 3.1]], 18), this.mat.sole),
+        shoe: add(limbGeo(SEG.toe + SEG.heel + 4.2, [[0, 3.0], [0.3, 3.3], [0.75, 3.4], [1, 2.9]], 18), this.mat.shoe),
+        sole: add(limbGeo(SEG.toe + SEG.heel + 4.8, [[0, 3.1], [0.5, 3.5], [1, 3.1]], 18), this.mat.sole),
       };
     }
     this.shirt = new TorsoTube(0.15, 1.01, 0.35, this.mat.shirt, hi, hi2);
     this.shorts = new TorsoTube(-0.18, 0.24, 0.55, this.mat.shorts, hi, hi2, 7);
     this.group.add(this.shirt.mesh, this.shorts.mesh);
-    this.neck = add(limbGeo(9.5, [[0, 4.0], [1, 3.7]]), this.mat.skin);
+    this.neck = add(limbGeo(9.5, [[0, 4.9], [1, 4.4]]), this.mat.skin);
+    /* The head: narrower than it is deep and tall (about 15 x 18 x 21 cm),
+       with a jaw, short hair with a hairline over the forehead, brows,
+       eyes, nose and ears, so it reads as a young face from any side. */
+    const HS = [0.78, 1.1, 0.96];
     this.head = add(new THREE.SphereGeometry(BODY.headR, 36, 28), this.mat.skin);
-    this.head.scale.set(0.88, 1.05, 0.98);
-    this.hair = add(new THREE.SphereGeometry(BODY.headR + 0.45, 36, 18, 0, Math.PI * 2, 0, Math.PI * 0.55), this.mat.hair);
-    this.hair.scale.set(0.9, 1.05, 1.0);
-    this.nose = add(new THREE.SphereGeometry(1.4, 12, 8), this.mat.skin);
-    this.nose.scale.set(0.8, 1.3, 1);
-    this.ears = [0, 1].map(() => { const e = add(new THREE.SphereGeometry(1.7, 12, 8), this.mat.skin); e.scale.set(0.55, 1.2, 0.9); return e; });
+    this.head.scale.set(...HS);
+    this.jaw = add(new THREE.SphereGeometry(BODY.headR * 0.56, 24, 16), this.mat.skin);
+    this.jaw.scale.set(1.0, 0.8, 1.05);
+    const hairCap = (theta, k) => { const h = add(new THREE.SphereGeometry(BODY.headR + 0.55, 36, 14, 0, Math.PI * 2, 0, theta), this.mat.hair); h.scale.set(HS[0] * k, HS[1] * k, HS[2] * k); return h; };
+    this.hairTop = hairCap(Math.PI * 0.4, 1.03);
+    this.hairBack = hairCap(Math.PI * 0.5, 1.0);
+    this.nose = add(new THREE.SphereGeometry(1.35, 12, 8), this.mat.skin);
+    this.nose.scale.set(0.75, 1.35, 1);
+    this.ears = [0, 1].map(() => { const e = add(new THREE.SphereGeometry(1.7, 12, 8), this.mat.skin); e.scale.set(0.5, 1.2, 0.85); return e; });
+    const dark = new THREE.MeshStandardMaterial({ color: new THREE.Color('#241a14'), roughness: 0.5 });
+    this.eyes = [0, 1].map(() => { const e = add(new THREE.SphereGeometry(0.6, 10, 8), dark); e.castShadow = false; return e; });
+    this.brows = [0, 1].map(() => { const b = add(roundBox(2.8, 0.5, 0.55, 0.2, 1), this.mat.hair); b.castShadow = false; return b; });
   }
 
   update(J, effort) {
@@ -416,7 +438,7 @@ class Mannequin {
       /* The shoe: a rounded last along the foot, flattened, its sole
          toward the floor side of the shin. */
       const up = v3.norm(v3.sub(v3.mul(s.shDir, -1), v3.mul(s.footDir, v3.dot(v3.mul(s.shDir, -1), s.footDir))));
-      const heel = v3.mad(s.ank, s.footDir, -(SEG.heel + 1.2));
+      const heel = v3.mad(s.ank, s.footDir, -(SEG.heel + 1.8));
       seg(m.shoe, v3.mad(heel, up, -0.9), s.footDir, up);
       m.shoe.scale.set(1.05, 1, 0.78);
       seg(m.sole, v3.mad(v3.mad(heel, up, -2.9), s.footDir, -0.3), s.footDir, up);
@@ -427,14 +449,24 @@ class Mannequin {
     const H = J.head;
     const nb = v3.mad(J.spine(0.92).p, J.spine(0.92).N, 0.4);
     seg(this.neck, nb, v3.sub(H.centre, nb), H.face);
+    const R = BODY.headR;
+    const at = (up, fwd, side = 0) => V(v3.mad(v3.mad(v3.mad(H.centre, H.dir, up), H.face, fwd), H.side, side));
     this.head.position.copy(V(H.centre));
     orient(this.head, H.dir, H.face);
-    /* Hair over the crown and the back of the head. */
-    this.hair.position.copy(V(v3.mad(H.centre, H.face, -0.7)));
-    orient(this.hair, v3.norm(v3.sub(H.dir, v3.mul(H.face, 0.5))), H.face);
-    this.nose.position.copy(V(v3.mad(v3.mad(H.centre, H.face, BODY.headR * 0.95), H.dir, -1.2)));
+    this.jaw.position.copy(at(-R * 0.42, R * 0.2));
+    orient(this.jaw, H.dir, H.face);
+    /* Short hair: a cap over the crown down to a hairline on the
+       forehead, and one tipped back over the back of the head to the
+       nape. */
+    this.hairTop.position.copy(at(0.5, -0.3));
+    orient(this.hairTop, v3.norm(v3.sub(H.dir, v3.mul(H.face, 0.14))), H.face);
+    this.hairBack.position.copy(at(0, -0.5));
+    orient(this.hairBack, v3.norm(v3.sub(H.dir, v3.mul(H.face, 1.05))), H.face);
+    this.nose.position.copy(at(-1.6, R * 0.95));
     orient(this.nose, H.dir, H.face);
-    this.ears.forEach((e, i) => { e.position.copy(V(v3.mad(v3.mad(H.centre, H.side, (i ? 1 : -1) * BODY.headR * 0.86), H.face, -0.8))); orient(e, H.dir, H.side); });
+    this.ears.forEach((e, i) => { e.position.copy(at(-0.6, -0.6, (i ? 1 : -1) * R * 0.78)); orient(e, H.dir, H.side); });
+    this.eyes.forEach((e, i) => e.position.copy(at(0.9, R * 0.83, (i ? 1 : -1) * 2.6)));
+    this.brows.forEach((b, i) => { b.position.copy(at(2.4, R * 0.88, (i ? 1 : -1) * 2.6)); orient(b, H.face, H.dir); });
   }
 }
 
@@ -443,10 +475,10 @@ class Mannequin {
 function kitMaterials(pal) {
   const std = (color, rough, metal = 0) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal });
   return {
-    steel: std(pal.steel, 0.32, 0.65), pad: std(pal.pad, 0.62), plate: std(pal.plate, 0.42, 0.1),
-    plateDark: std(pal.plateDark, 0.5, 0.2), wall: std(pal.wall, 0.95), mat: std(pal.mat, 0.9),
-    book: std(pal.book, 0.8), book2: std(pal.book2, 0.8), rubber: std(pal.plateDark, 0.85),
-    pack: std(pal.shorts.clone().lerp(pal.accent, 0.18), 0.85),
+    steel: std(pal.steel, 0.28, 0.75), pad: std(pal.pad, 0.48), plate: std(pal.plate, 0.45, 0.15),
+    plateDark: std(pal.plateDark, 0.45, 0.1), wall: std(pal.wall, 0.95), mat: std(pal.mat, 0.92),
+    book: std(pal.book, 0.8), book2: std(pal.book2, 0.8), rubber: std(new THREE.Color('#1c1d20'), 0.85),
+    pack: std(new THREE.Color('#3b4a3a'), 0.85),
   };
 }
 const shadow = o => { o.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } }); return o; };
@@ -621,7 +653,7 @@ function renderer(own = false) {
   r.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
   r.outputColorSpace = THREE.SRGBColorSpace;
   r.toneMapping = THREE.ACESFilmicToneMapping;
-  r.toneMappingExposure = 1.18;
+  r.toneMappingExposure = 1.05;
   r.shadowMap.enabled = true;
   r.shadowMap.type = THREE.PCFSoftShadowMap;
   r.domElement.className = 'rp-canvas';
@@ -747,7 +779,7 @@ export class Stage {
       }
       t.addScaledVector(right, ((x0 + x1) / 2) * dist * th * 0.9).addScaledVector(up, ((y0 + y1) / 2) * dist * tv * 0.9);
     }
-    dist *= 1.04;
+    dist *= 1.04 * (this.zoom || 1);
     this.aimAt = t;
     c.position.copy(t).addScaledVector(dir, dist);
     /* A wall between the camera and the figure turns to a faint ghost,
@@ -838,22 +870,49 @@ export function mount(box, name, { onStep, still = false } = {}) {
     if (dirty) frame();
   };
 
-  /* Drag to turn the camera; double-click puts it back. */
+  /* One finger or the mouse turns the camera; two fingers pinch to zoom,
+     and so do ctrl+wheel and a trackpad pinch (which browsers send as
+     ctrl+wheel). A plain wheel is left to scroll the page. Double-click
+     or double-tap puts the view back. */
   const cv = r.domElement;
-  let drag = null;
-  const down = e => { drag = { x: e.clientX, y: e.clientY, az: stage.az, el: stage.el }; cv.setPointerCapture(e.pointerId); box.classList.add('turned'); };
+  const ptrs = new Map();
+  let drag = null, pinch = null;
+  const ZMIN = 0.42, ZMAX = 1.8;
+  const zoomTo = z => { stage.zoom = Math.max(ZMIN, Math.min(ZMAX, z)); stage.aim(); dirty = true; box.classList.add('turned'); };
+  const spread = () => { const [a, b] = [...ptrs.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
+  const down = e => {
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    cv.setPointerCapture(e.pointerId);
+    if (ptrs.size === 2) { drag = null; pinch = { d: spread(), z: stage.zoom || 1 }; }
+    else if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY, az: stage.az, el: stage.el };
+  };
   const move = e => {
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && ptrs.size === 2) { zoomTo(pinch.z * (pinch.d / spread())); return; }
     if (!drag) return;
     stage.az = drag.az - (e.clientX - drag.x) * 0.45;
     stage.el = Math.max(-4, Math.min(70, drag.el + (e.clientY - drag.y) * 0.3));
+    box.classList.add('turned');
     stage.aim(); dirty = true;
   };
-  const up = () => { drag = null; };
-  const reset = () => { stage.az = stage.az0; stage.el = stage.el0; stage.aim(); dirty = true; };
+  const up = e => {
+    ptrs.delete(e.pointerId);
+    if (ptrs.size < 2) pinch = null;
+    if (ptrs.size === 1) { const [p] = [...ptrs.values()]; drag = { x: p.x, y: p.y, az: stage.az, el: stage.el }; }
+    if (!ptrs.size) drag = null;
+  };
+  const wheel = e => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    zoomTo((stage.zoom || 1) * Math.exp(e.deltaY * 0.01));
+  };
+  const reset = () => { stage.az = stage.az0; stage.el = stage.el0; stage.zoom = 1; stage.aim(); dirty = true; };
   cv.addEventListener('pointerdown', down);
   cv.addEventListener('pointermove', move);
   cv.addEventListener('pointerup', up);
   cv.addEventListener('pointercancel', up);
+  cv.addEventListener('wheel', wheel, { passive: false });
   cv.addEventListener('dblclick', reset);
 
   const io = new IntersectionObserver(es => { visible = es[0]?.isIntersecting ?? true; });
@@ -870,6 +929,7 @@ export function mount(box, name, { onStep, still = false } = {}) {
       cv.removeEventListener('pointermove', move);
       cv.removeEventListener('pointerup', up);
       cv.removeEventListener('pointercancel', up);
+      cv.removeEventListener('wheel', wheel);
       cv.removeEventListener('dblclick', reset);
       if (cv.parentNode === box) box.removeChild(cv);
       stage.dispose();
@@ -884,6 +944,7 @@ export function stillImage(name, poseName, w = 360, h = 240, opts = {}) {
   const stage = new Stage(name, document.documentElement);
   if (opts.az != null) stage.az = opts.az;
   if (opts.el != null) stage.el = opts.el;
+  if (opts.zoom != null) stage.zoom = opts.zoom;
   r.setSize(w, h, false);
   stage.aim(w / h);
   stage.pose(stage.tl.pose(poseName) || stage.tl.at(0));

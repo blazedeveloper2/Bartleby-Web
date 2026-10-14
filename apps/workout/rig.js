@@ -35,8 +35,11 @@
                 side views did
    ═══════════════════════════════════════════════════════════ */
 
-export const SEG = { torso: 50, ua: 27, fa: 25, hand: 7.5, th: 38, sh: 41, toe: 10.5, heel: 2.6 };
-export const BODY = { shoW: 15.5, hipW: 8.5, headR: 8.6 };
+/* Segment lengths follow standard adult proportions (Drillis & Contini):
+   the upper arm about a fifth longer than the forearm, shoulders a bit
+   under a quarter of the height across, the head about an eighth of it. */
+export const SEG = { torso: 50, ua: 29, fa: 23.5, hand: 8.8, th: 38, sh: 41, toe: 10.5, heel: 2.6 };
+export const BODY = { shoW: 16.5, hipW: 8.5, headR: 9.2 };
 const SCREEN_FLOOR = 194;
 const D = Math.PI / 180;
 

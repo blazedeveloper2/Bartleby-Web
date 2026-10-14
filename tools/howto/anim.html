@@ -7,6 +7,7 @@
        ?i=0&n=12       a slice of the list, in program order
        ?w=300&h=200    frame size in pixels
        ?az=90&el=10    look from another angle than the exercise's own
+       ?zoom=0.5       closer (under 1) or further (over 1)
        ?theme=light    any data-theme from assets/css/themes.css
        ?play           live loops instead of still frames -->
 <html lang="en">
@@ -43,7 +44,7 @@
   const i = +(qs.get('i') || 0), n = +(qs.get('n') || names.length);
   names = names.slice(i, i + n);
   const w = +(qs.get('w') || 300), h = +(qs.get('h') || 200);
-  const opts = { az: qs.has('az') ? +qs.get('az') : null, el: qs.has('el') ? +qs.get('el') : null };
+  const opts = { az: qs.has('az') ? +qs.get('az') : null, el: qs.has('el') ? +qs.get('el') : null, zoom: qs.has('zoom') ? +qs.get('zoom') : null };
   const out = document.getElementById('out');
   for (const name of names) {
     const m = MOTION[name];
