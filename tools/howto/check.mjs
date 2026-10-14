@@ -2,6 +2,9 @@
 // against the program. See ./README.md.
 //
 //   node tools/howto/check.mjs            coverage + shape (offline, instant)
+//   node tools/howto/check.mjs --anim     also list every animation note:
+//                                         joints below the floor, planted
+//                                         hands and feet off their marks
 //
 // Exits non-zero when anything needs fixing, so it can gate a commit.
 /* The app's modules are plain browser ES modules with no package.json
@@ -10,7 +13,7 @@
 process.removeAllListeners('warning');
 const { PROGRAM, LADDERS } = await import('../../apps/workout/data.js');
 const { HOWTO } = await import('../../apps/workout/howto.js');
-const { MOTION, checkMotion } = await import('../../apps/workout/pose.js');
+const { MOTION, checkMotion, motionNotes } = await import('../../apps/workout/pose.js');
 
 const MAX = 90;                                   // characters per cue line
 const problems = [], notes = [];
@@ -44,6 +47,17 @@ for (const [n, m] of Object.entries(MOTION)) {
   const err = checkMotion(m);
   if (err) problems.push(`"${n}": animation ${err}`);
 }
+
+/* Frame by frame, what a careful eye would catch: joints through the
+   floor, planted hands and feet off their marks, sudden jumps. Notes,
+   not failures — `--anim` prints every one. */
+const animNotes = [];
+for (const [n, m] of Object.entries(MOTION)) {
+  if (checkMotion(m)) continue;
+  for (const note of motionNotes(m)) animNotes.push(`"${n}": ${note}`);
+}
+if (process.argv.includes('--anim')) animNotes.forEach(n => console.log('  anim: ' + n));
+else if (animNotes.length) notes.push(`${animNotes.length} animation notes (run with --anim to list them)`);
 
 console.log(`${names.size} exercises in the program, ${Object.keys(HOWTO).length} how-tos, ${Object.keys(MOTION).length} animations`);
 notes.slice(0, 10).forEach(n => console.log('  note: ' + n));

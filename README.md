@@ -312,8 +312,8 @@ That's it — it shows up as a tab automatically.
 
 ### Changing an exercise
 
-Every exercise has written cues in `apps/workout/howto.js` and an animated
-rep in `apps/workout/moves.js` (drawn by `pose.js`). After adding, renaming
+Every exercise has written cues in `apps/workout/howto.js` and a 3D animated
+rep in `apps/workout/moves.js` (drawn by `rig.js` and `stage.js`). After adding, renaming
 or removing one in `data.js`, run `node tools/howto/check.mjs`. It names
 every exercise left without a how-to or an animation.
 [`tools/howto/README.md`](tools/howto/README.md) has the method for writing

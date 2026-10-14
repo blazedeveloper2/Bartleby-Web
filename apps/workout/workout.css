@@ -180,60 +180,21 @@
 .mm-howto:empty{display:none}
 .mm-howto{padding:16px 20px;border-bottom:1px solid var(--border)}
 .mm-howto-h{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-3);margin-bottom:10px}
-/* The animated rep (pose.js). Every fill is a theme token, so the figure
-   re-dresses itself with the theme: skin and clothes from the text greys,
-   the working muscle in the body map's primary colour, steel and pads from
-   the borders. The thin outline is the card's own background, which is
-   what separates a near arm from the head behind it. */
-.mm-anim{position:relative;margin:0 0 14px;padding:8px 8px 8px;border:1px solid var(--border);border-radius:10px;
-  background:radial-gradient(ellipse 70% 62% at 50% 44%,var(--bg-alt),var(--bg) 74%)}
-.mm-anim svg{display:block;width:100%;height:250px}
-.mm-anim path,.mm-anim circle,.mm-anim ellipse{stroke:var(--bg);stroke-width:.9;stroke-linejoin:round}
-.rp-skin{fill:var(--text-2)}
-.rp-skin-far{fill:color-mix(in srgb,var(--text-2) 52%,var(--bg))}
-.rp-shirt{fill:color-mix(in srgb,var(--text-3) 78%,var(--bg))}
-.rp-shirt-far{fill:color-mix(in srgb,var(--text-3) 50%,var(--bg))}
-.rp-shorts{fill:color-mix(in srgb,var(--text-3) 48%,var(--bg))}
-.rp-shorts-far{fill:color-mix(in srgb,var(--text-3) 32%,var(--bg))}
-.rp-shoe{fill:color-mix(in srgb,var(--text-3) 62%,var(--bg))}
-.rp-shoe-far{fill:color-mix(in srgb,var(--text-3) 40%,var(--bg))}
-.mm-anim .rp-sole{fill:var(--text-3);stroke:none}
-.rp-hair{fill:color-mix(in srgb,var(--text-3) 70%,var(--bg))}
-.rp-ear{fill:color-mix(in srgb,var(--text-2) 80%,var(--bg))}
-.mm-anim .rp-eye{fill:var(--bg);stroke:none}
-.mm-anim .rp-hi{fill:var(--map-p);stroke:none;opacity:.92;filter:drop-shadow(0 0 2.5px var(--map-p))}
-.mm-anim .rp-hi2{fill:var(--map-s);stroke:none;opacity:.9}
-.mm-anim .rp-plate-in{fill:color-mix(in srgb,var(--text) 80%,var(--bg));stroke:var(--text-3);stroke-width:.6}
-.mm-anim .rp-hub{fill:var(--text-3);stroke:none}
-.mm-anim .rp-far .rp-plate,.mm-anim .rp-far .rp-plate-in{fill:color-mix(in srgb,var(--text) 50%,var(--bg))}
-.mm-anim .rp-bb-plate{fill:color-mix(in srgb,var(--text) 72%,var(--bg));stroke:var(--bg);stroke-width:.8}
-.mm-anim .rp-bb-ring{fill:none;stroke:var(--text-3);stroke-width:.8}
-.mm-anim .rp-bb-sleeve{fill:var(--text-3);stroke:none}
-.mm-anim .rp-tyre{fill:var(--text-3);stroke:var(--bg);stroke-width:.8}
-.mm-anim .rp-rim{fill:var(--text-2);stroke:none}
-.mm-anim .rp-spoke{fill:none;stroke:var(--text-3);stroke-width:1.4;stroke-linecap:round}
-.rp-wall{fill:color-mix(in srgb,var(--text-3) 22%,var(--bg))}
-.rp-base{fill:color-mix(in srgb,var(--text-3) 55%,var(--bg))}
-.mm-anim .rp-pullbar{fill:var(--text-2);stroke:var(--bg);stroke-width:.6}
-.rp-mat{fill:color-mix(in srgb,var(--blue) 28%,var(--bg))}
-.rp-wedge{fill:color-mix(in srgb,var(--text-3) 60%,var(--bg))}
-.rp-book{fill:color-mix(in srgb,var(--text-3) 70%,var(--bg))}
-.rp-book.alt{fill:color-mix(in srgb,var(--blue) 40%,var(--bg))}
-.mm-anim .rp-pack{fill:color-mix(in srgb,var(--blue) 45%,var(--bg))}
-.mm-anim .rp-strap{fill:none;stroke:color-mix(in srgb,var(--blue) 45%,var(--bg));stroke-width:1.6}
-.rp-plate{fill:var(--text);stroke:var(--bg);stroke-width:.7}
-.mm-anim .rp-groove{fill:none;stroke:color-mix(in srgb,var(--text-3) 60%,var(--text));stroke-width:.5}
-.rp-handle{fill:var(--text-3)}
-.mm-anim .rp-pad{fill:color-mix(in srgb,var(--text-3) 32%,var(--bg-card));stroke:var(--border-lt);stroke-width:.9}
-.mm-anim .rp-pad-sheen{fill:none;stroke:color-mix(in srgb,var(--text-3) 50%,var(--bg-card));stroke-width:1.1;stroke-linecap:round}
-.mm-anim .rp-steel{fill:none;stroke:var(--text-3);stroke-width:3.6;stroke-linecap:round}
-.mm-anim .rp-steel-thin{fill:none;stroke:var(--text-3);stroke-width:2.2;stroke-linecap:round}
-.mm-anim .rp-ladder{fill:none;stroke:var(--text-3);stroke-width:2.6;stroke-dasharray:1.6 1.6}
-.rp-foot{fill:var(--text-3)}
-.mm-anim .rp-pin{fill:var(--bg-alt);stroke:var(--text-3);stroke-width:1.2}
-.mm-anim .rp-floor{fill:none;stroke:var(--border-lt);stroke-width:1}
-.rp-shadow{fill:var(--text);opacity:.07}
-.mm-anim .rp-trace{fill:none;stroke:var(--text-3);stroke-width:.9;stroke-dasharray:1.5 2.5;opacity:.8}
+/* The animated rep (pose.js, drawn in 3D by stage.js). The canvas sits on
+   the card's own gradient so the floor fades into it; every colour inside
+   the 3D view is read from the theme's tokens when the lab opens. The
+   hint fades once the view has been turned. */
+.mm-anim{position:relative;margin:0 0 14px;padding:0 0 8px;border:1px solid var(--border);border-radius:12px;overflow:hidden;
+  background:radial-gradient(ellipse 80% 70% at 50% 38%,var(--bg-alt),var(--bg) 78%)}
+.rp-stage{position:relative;height:280px;cursor:grab;touch-action:pan-y}
+.rp-stage:active{cursor:grabbing}
+.rp-canvas{display:block;width:100%;height:100%}
+.rp-hint{position:absolute;left:12px;top:10px;font-size:10px;font-weight:600;letter-spacing:.4px;color:var(--text-3);
+  pointer-events:none;transition:opacity .4s}
+.mm-anim:has(.turned) .rp-hint{opacity:0}
+.mm-anim.no3d .rp-stage{display:flex;align-items:center;justify-content:center;cursor:default}
+.mm-anim.no3d .rp-stage::after{content:'3D view not available on this device';font-size:11px;color:var(--text-3)}
+.mm-anim .rp-bar{padding:0 8px}
 .rp-pp{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;cursor:pointer;
   background:var(--bg-card);border:1px solid var(--border);color:var(--text-2)}
 .rp-pp::before,.rp-pp::after{content:'';position:absolute;top:9px;width:3px;height:9px;border-radius:1px;background:currentColor}

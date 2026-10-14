@@ -1,10 +1,12 @@
 <!doctype html>
-<!-- Every exercise's animated rep, frame by frame, for checking them all at
-     a glance after a change to apps/workout/pose.js or moves.js. Serve the
-     repo root (any static server) and open /tools/howto/anim.html.
+<!-- Every exercise's 3D rep, frame by frame, for checking them all at a
+     glance after a change to apps/workout/moves.js, rig.js or stage.js.
+     Serve the repo root and open /tools/howto/anim (no .html: the dev
+     server's clean URLs drop the query along with it).
        ?q=press,curl   only exercises whose name contains one of these
        ?i=0&n=12       a slice of the list, in program order
-       ?h=170          frame height in pixels
+       ?w=300&h=200    frame size in pixels
+       ?az=90&el=10    look from another angle than the exercise's own
        ?theme=light    any data-theme from assets/css/themes.css
        ?play           live loops instead of still frames -->
 <html lang="en">
@@ -22,10 +24,9 @@
   .ex h2 small{color:var(--text-3);font-weight:400}
   .row{display:flex;gap:6px;flex-wrap:wrap}
   .row figure{margin:0}
-  .row .mm-anim{margin:0;padding:4px}
-  .row .mm-anim svg{height:var(--h);width:auto;max-width:100%}
-  .row .rp-bar,.row .rp-pp{display:none}
-  .row figcaption.lbl{font-size:10px;color:var(--text-3);text-align:center}
+  .row img{display:block;border-radius:8px;background:radial-gradient(ellipse 80% 70% at 50% 38%,var(--bg-alt),var(--bg) 78%)}
+  .row figcaption{font-size:10px;color:var(--text-3);text-align:center}
+  .live{width:520px}
 </style>
 </head>
 <body>
@@ -33,24 +34,37 @@
 <script type="module">
   const qs = new URLSearchParams(location.search);
   if (qs.get('theme')) document.documentElement.setAttribute('data-theme', qs.get('theme'));
-  document.body.style.setProperty('--h', (qs.get('h') || 170) + 'px');
-  const { MOTION, stillSVG, animHTML, playAnim } = await import('../../apps/workout/pose.js?v=' + Date.now());
+  const v = Date.now();
+  const { MOTION } = await import('../../apps/workout/moves.js?v=' + v);
+  const pose = await import('../../apps/workout/pose.js?v=' + v);
+  const stage = await import('../../apps/workout/stage.js?v=' + v);
   let names = Object.keys(MOTION);
   if (qs.get('q')) { const qq = qs.get('q').toLowerCase().split(','); names = names.filter(n => qq.some(q => n.toLowerCase().includes(q))); }
   const i = +(qs.get('i') || 0), n = +(qs.get('n') || names.length);
   names = names.slice(i, i + n);
+  const w = +(qs.get('w') || 300), h = +(qs.get('h') || 200);
+  const opts = { az: qs.has('az') ? +qs.get('az') : null, el: qs.has('el') ? +qs.get('el') : null };
   const out = document.getElementById('out');
   for (const name of names) {
     const m = MOTION[name];
     const poses = [...new Set(m.tempo.map(([p]) => p))];
     const div = document.createElement('div');
     div.className = 'ex';
-    div.innerHTML = `<h2>${name} <small>${m.view || 'side'} · ${m.tempo.map(t => t[2] + ' ' + t[1] + 's').join(' / ')}</small></h2>
-      <div class="row">${qs.has('play') ? `<figure>${animHTML(name)}</figure>`
-        : poses.map(p => `<figure>${stillSVG(name, p)}<figcaption class="lbl">${p}</figcaption></figure>`).join('')}</div>`;
+    div.innerHTML = `<h2>${name} <small>${m.tempo.map(t => t[2] + ' ' + t[1] + 's').join(' / ')}</small></h2><div class="row"></div>`;
     out.append(div);
-    if (qs.has('play')) playAnim(div.querySelector('.mm-anim'), name);
+    const row = div.querySelector('.row');
+    if (qs.has('play')) {
+      row.innerHTML = `<div class="live">${pose.animHTML(name)}</div>`;
+      pose.playAnim(row.querySelector('.mm-anim'), name);
+    } else {
+      for (const p of poses) {
+        const f = document.createElement('figure');
+        f.innerHTML = `<img width="${w}" height="${h}" src="${stage.stillImage(name, p, w, h, opts)}" alt=""><figcaption>${p}</figcaption>`;
+        row.append(f);
+      }
+    }
   }
+  document.body.dataset.done = '1';
 </script>
 </body>
 </html>

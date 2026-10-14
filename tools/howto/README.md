@@ -1,24 +1,32 @@
 # Exercise how-to: method and tools
 
 Every exercise the Workout app can show has a **How to** section in its
-exercise lab: an animated rep at the top, then three or four written cues
-and one or two mistakes to avoid. The cues live in
+exercise lab: a 3D animation of one rep at the top, then three or four
+written cues and one or two mistakes to avoid. The cues live in
 [`apps/workout/howto.js`](../../apps/workout/howto.js) and the animations in
 [`apps/workout/moves.js`](../../apps/workout/moves.js), both keyed by
-exercise name; [`apps/workout/pose.js`](../../apps/workout/pose.js) draws
-them. This folder holds the method they were made with and the tools that
-check them, so the same standard holds when the program changes.
+exercise name. The animation pipeline is four small files:
+[`timeline.js`](../../apps/workout/timeline.js) turns a loop of poses into a
+pose for any moment, [`rig.js`](../../apps/workout/rig.js) turns a pose into a
+3D body, [`stage.js`](../../apps/workout/stage.js) draws it with three.js
+(vendored in `assets/vendor/three/`), and
+[`pose.js`](../../apps/workout/pose.js) puts it in the lab. This folder holds
+the method they were made with and the tools that check them, so the same
+standard holds when the program changes.
 
-**After any change to the program, `howto.js`, `moves.js` or `pose.js`:**
+**After any change to the program, `howto.js`, or any of the animation files:**
 
 ```bash
-node tools/howto/check.mjs
+node tools/howto/check.mjs --anim
 ```
 
 It lists every exercise with no how-to or no animation (including ladder
 steps you have not reached yet), every entry whose exercise is gone, cues
 that are malformed or too long, and any animation that names a pose it does
-not have or draws a frame with NaN in it.
+not have or builds a frame with NaN in it. With `--anim` it also plays every
+rep at 120 frames a second and names any joint that goes through the floor,
+any planted hand or foot off its mark, and anything that jumps between
+frames rather than moving.
 
 Then look at the animations: serve the repo root and open
 `/tools/howto/anim` (see [Checking the animations](#checking-the-animations)).
@@ -75,46 +83,57 @@ The key must match the exercise's `n` exactly, as written in `data.js`
 ## Animating an exercise
 
 An entry in `moves.js` is a few **poses** and a **tempo** that walks
-between them. A pose is joint angles (degrees, absolute, 0 = the way the
-figure faces, 90 = up) or targets for planted hands and feet; the engine
-solves the elbows and knees. The full list of pose keys is at the top of
-`pose.js`, and the entry keys at the top of `moves.js`. In short:
+between them. The full list of keys is at the top of `rig.js`, and the
+entry keys at the top of `moves.js`. In short:
 
-- **Side view** for movements that go front-to-back (almost everything).
-  **Front view** (`view: 'front'`) when the arms or body move side-to-side
-  and a side view would show them swinging at the camera: lateral raises,
-  flyes (from above), reverse flyes, pull-ups, the side plank, archer
-  push-ups, the one-arm handstand.
+- **Angles are side-view angles** in the body's own front-to-back plane
+  (0 forward, 90 up, 270 down), absolute rather than relative to the
+  parent joint, so a pose reads straight off. The **third dimension** comes
+  from abduction (`uab`, `lab`: out to the side, as in a lateral raise or
+  a straddle), `twist` of the shoulders, grip widths and other sideways
+  offsets given as a third number, and, for a body lying on its side,
+  `bodyF`/`bodyU`.
 - **Plant what is planted.** Hands on the floor or a bar, feet on the floor
   or a bench: give them a `hand`/`foot` target, or hang the pose from that
-  joint with `root`/`at`, so they stay put while the rest moves.
-- **The scene is the program's kit at the program's settings:** the bench at
-  the angle `data.js` names, the wall on the side the cues put it, books
-  rather than dumbbells under the hands, the Nordic anchor over the heels.
+  joint with `root`/`at`, so they stay put while the rest moves. The elbow
+  or knee is solved to reach; `ep`/`kp` say which way it points when the
+  reach leaves the side-view plane.
+- **The scene is the program's kit at the program's settings:** the bench
+  at the angle `data.js` names (end-on with `yaw: 90` when the body crosses
+  it), the wall on the side the cues put it, books rather than dumbbells
+  under the hands, the Nordic anchor over the heels. A wall between the
+  camera and the figure fades to a ghost on its own.
 - **The tempo is the cues' tempo,** in phases with one-word labels (Lower,
   Stretch, Press …). Holds get Enter / Hold / Exit and stay under about 8 s.
-- **Light the working muscle** (`hi`) and the helpers (`hi2`), the same ones
-  `data.js` lists first for the exercise.
-- **`still`** is the frame reduced-motion users see: the position the cues
-  care most about, usually the bottom of the stretch or the hold.
+  `timeline.js` moves smoothly through the keyframes, takes the short way
+  round between angles, and fades planted hands and feet in and out, so
+  write poses, not transitions.
+- **Paint the working muscle** (`hi`) and the helpers (`hi2`), the same
+  ones `data.js` lists first; `peak` names the contracted position, where
+  the paint glows brightest.
+- **`still`** is the frame reduced-motion users see; **`cam`** the starting
+  view (`az` round from the near side toward the front, `el` height).
 
 ## Checking the animations
 
-`tools/howto/anim.html` shows every animation frame by frame. Serve the repo
-root with any static server and open `/tools/howto/anim` (the app's own dev
-server drops the `.html` and the query with it, so leave it off):
+`tools/howto/anim.html` shows every animation frame by frame in 3D. Serve
+the repo root with any static server and open `/tools/howto/anim` (the
+app's own dev server drops the `.html` and the query with it, so leave it
+off):
 
 ```
 /tools/howto/anim?q=press,curl      only names containing these
-/tools/howto/anim?i=0&n=12&h=170    a slice of the list, frame height
+/tools/howto/anim?i=0&n=12          a slice of the list, in program order
+/tools/howto/anim?w=300&h=200       frame size
+/tools/howto/anim?az=90&el=10       look from another angle
 /tools/howto/anim?theme=light       any theme in assets/css/themes.css
-/tools/howto/anim?play              the live loops instead of frames
+/tools/howto/anim?play              the live loops, as the lab shows them
 ```
 
-Look for: limbs through the floor, the bench or the wall; a planted hand or
-foot that floats; elbows or knees bending the wrong way (flip `eb`/`kb`);
-kit drawn on the wrong side of an arm; a figure too small in its frame. Then
-open the exercise in the app on a phone-width screen and watch one loop.
+Look for: a limb through a bench, a wall or the body; an elbow or knee
+bending the wrong way (flip `eb`/`kb`, or give `ep`/`kp`); kit in the wrong
+hand or at the wrong angle; a view that hides the movement. Then open the
+exercise in the app on a phone-width screen and watch one loop.
 
 ## Adding or changing an exercise
 
@@ -131,7 +150,8 @@ open the exercise in the app on a phone-width screen and watch one loop.
   from the sources listed in each entry's `src`, and a second, independent
   pass read every cue again for correctness and safety. Each entry also had
   a reviewed YouTube video then.
-- **October 2026:** the videos were replaced by animations drawn in code.
+- **October 2026:** the videos were replaced by animations drawn in code,
+  first as side views and then rebuilt in 3D.
   Four research passes re-checked every exercise's technique against its
   sources and against its own cues; 21 entries changed (among them the
   overhead extension moving to a 55° back pad, the wall handstand push-up
