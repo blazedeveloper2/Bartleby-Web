@@ -65,6 +65,11 @@
    Barbell toggle on, that slot runs a bilateral barbell hip thrust instead,
    and that one does have a published standard -- see the barbell rows below.
 
+   Standing Calf Raises left the program in Oct 2026 for single-leg calf
+   raises on the bench, which have no published dumbbell standard and
+   log unscored. Its row below stays so the weights already logged under
+   that name still read as off-sheet history.
+
    Saturday's calisthenics work is absent for the same reason: Strength
    Level scores push-ups, dips and bodyweight chin-ups in REPS, and the
    holds (wall handstand, hollow, arch) in seconds, neither of which this

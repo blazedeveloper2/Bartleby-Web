@@ -50,7 +50,6 @@ const BY_NAME = {
   'Scapular Push-Ups':         'small',
   'Scapular Pulls':            'small',
   'Arch Hangs':                'small',
-  'Reverse Snow Angels':       'isolation',
   'Reverse Hyperextensions':   'isolation',
   'Weighted Reverse Hyperextensions': 'isolation',
   'Incline One-Arm Push-Ups':  'skill',

@@ -218,20 +218,18 @@ export const HOWTO = {
          r:"Scott Herman; short, but shows a clean dumbbell hinge with a flat back from the side." },
     src: ["https://exrx.net/WeightExercises/Hamstrings/DBStrBackStrLegDeadlift", "https://www.trainuntamed.com/how-to-romanian-deadlift-prevent-back-pain/"],
   },
-  "Standing Calf Raises": {
+  "Single-Leg Calf Raises": {
     do: [
-      "Balls of your feet on a step, heels hanging off, dumbbells at your sides, knees straight",
-      "Rise as high as you can onto your big toes and hold the top for a moment",
-      "Lower slowly, over 2 to 3 seconds, until your heels sink below the step",
-      "Pause for a second in the bottom stretch instead of bouncing out of it",
+      "Flat bench by a wall; stand mid-bench on one foot, heel off the side",
+      "Dumbbell in the hand on the working side, other hand on the wall, knee straight",
+      "Rise as high as you can onto your big toe and hold the top for a moment",
+      "Lower over 2 to 3 seconds until the heel sinks below the bench; pause there",
     ],
     avoid: [
+      "Standing on the end of the bench, where your weight can tip it up",
       "Quick, bouncy half reps that let your Achilles tendon do the work",
-      "Bending your knees to help push yourself up",
     ],
-    v: { id:"-qsRtp_PbVM", t:"How To FORCE YOUR CALVES To Grow With Smarter Training Methods", c:"Jeff Nippard", d:465,
-         r:"RP's pick is ~9 minutes of talking head with two frames of calf raises. Replaced with Jeff Nippard's, which demonstrates throughout and puts the 1-2s pause at the bottom on screen." },
-    src: ["https://exrx.net/WeightExercises/Gastrocnemius/DBStandingCalfRaise", "https://www.nasm.org/resource-center/blog/training/calf-training-how-to-program-this-stubborn-muscle-group-for-clients"],
+    src: ["https://exrx.net/WeightExercises/Gastrocnemius/DBSingleLegCalfRaise", "https://www.nasm.org/resource-center/blog/training/calf-training-how-to-program-this-stubborn-muscle-group-for-clients"],
   },
   "Kneeling Rollouts to a Wall": {
     do: [
@@ -907,21 +905,6 @@ export const HOWTO = {
     v: { id:"qV7vOUcUfD4", t:"How To Do CHIN-UPS: Grip, Weighted Chin-Ups, Programming, & Fixing Common Errors", c:"Barbell Logic", d:140,
          r:"Borderline pass. Barbell Logic (53k views, 2:20) demonstrates supinated, shoulder-width chin-ups for about 0:10-1:08: straight arms at the bottom, chin over the bar, common errors. The rest is coach talk on programming and weighted chin-ups with a dip-belt insert, which fits the app's belt cue." },
     src: ["https://exrx.net/WeightExercises/LatissimusDorsi/BWUnderhandChinup", "https://www.youtube.com/watch?v=qV7vOUcUfD4", "https://stevenlow.org/myth-busting-the-differences-in-scapular-positioning-for-bodyweight-and-barbell-exercises-and-cuing-versus-technique/"],
-  },
-  "Reverse Snow Angels": {
-    do: [
-      "Lie face down on a flat bench, arms by your hips, thumbs pointing up",
-      "Lift your straight arms to body height and sweep them out wide until they meet overhead",
-      "Sweep them back to your hips the same way, arms lifted the whole time",
-      "Keep your shoulders away from your ears, especially as your arms pass overhead",
-    ],
-    avoid: [
-      "Shrugging your shoulders up as your arms reach overhead",
-      "Arching your lower back or lifting your chest high off the bench",
-    ],
-    v: { id:"b3e9rENJGCE", t:"Reverse Snow Angels | CrossFit Invictus Gymnastics", c:"CrossFit Invictus", d:69,
-         r:"CrossFit Invictus (220k views, 1:09) explains briefly, then about 45 s of prone reps sweep straight, hovering arms from the hips to overhead and back, with the chest mostly down. It is done on the floor rather than a bench, but nothing contradicts the cues; bench alternatives found showed the chest lifted high." },
-    src: ["https://www.bodbot.com/Exercises/1098/Reverse-snow-angels", "https://library.theprehabguys.com/vimeo-video/reverse-snow-angel/", "https://www.youtube.com/watch?v=b3e9rENJGCE"],
   },
   "Push-Ups": {
     do: [

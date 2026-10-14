@@ -2,7 +2,7 @@
    WORKOUT — program definition + muscle-map lookup table.
    ═══════════════════════════════════════════════════════════ */
 
-import { USER } from './store.js?v=volume-oct14';
+import { USER } from './store.js?v=calf-oct14';
 
 /* An exercise with an `alt` names the kit it needs in `req` ('bar', 'wheel',
    'barbell'). Turn that piece of equipment off in Settings and the whole app
@@ -91,8 +91,15 @@ const EDRIN = [
       /* Four sets, here and Friday. At two a day the calves had four sets
          a week, the least of any muscle in the program. Four a day makes
          eight, the same as the side delts, and a set takes under a
-         minute. */
-      {n:'Standing Calf Raises',m:'Gastrocnemius, Soleus',s:'4×F'},
+         minute.
+         One leg at a time, standing on the flat bench with the heel off the
+         side. On two legs, a pair of 52.5s split between both calves was the
+         ceiling, and the grip went before the calves did. On one leg the
+         whole body is on that calf before any dumbbell, so one lighter
+         dumbbell in one hand loads it harder than the pair did, and the
+         free hand is on the wall for balance. Unscored: Strength Level
+         publishes no single-leg dumbbell calf raise standard. */
+      {n:'Single-Leg Calf Raises',ld:1,m:'Gastrocnemius, Soleus',s:'4×F /leg',b:'Flat 0°',bc:'bench-flat'},
     ]},
     {tag:'Core',ex:[
       /* The rollout, not the crunch, anchors this block. It tops the EMG
@@ -177,7 +184,7 @@ const EDRIN = [
       {n:'Nordic Curl Negatives',m:'Hamstrings, Gastrocnemius',s:'2×F'},
     ]},
     {tag:'Accessories',ex:[
-      {n:'Standing Calf Raises',m:'Gastrocnemius, Soleus',s:'4×F'},
+      {n:'Single-Leg Calf Raises',ld:1,m:'Gastrocnemius, Soleus',s:'4×F /leg',b:'Flat 0°',bc:'bench-flat'},
       /* Was a farmer's carry -- the only exercise in this file that never had
          a reason written down. Unchanged since the first commit, carried
          through every audit by not being looked at.
