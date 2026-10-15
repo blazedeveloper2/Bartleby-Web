@@ -43,7 +43,6 @@ import { load, save, remove, todayStr, dateStr } from './store.js?v=3d-oct14d';
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
 import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=3d-oct14d';
-import { checkup } from './checkup.js?v=3d-oct14d';
 import { TIME_RESET, timeCount } from './sessions.js?v=3d-oct14d';
 import { gripOn, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_HOW } from './grip.js?v=3d-oct14d';
 
@@ -1547,31 +1546,6 @@ function heroHTML(st) {
   </div>`;
 }
 
-function verdictHTML(st) {
-  if (!st.counted.length) return '';
-  const w = st.weakest, s = st.strongest;
-  const gap = s.pct - w.pct;
-  let line;
-  if (st.overall < 5)       line = 'You are below the lowest bracket that gets logged. This is the starting line, not a rank.';
-  else if (st.overall < 20) line = 'Beginner territory. Everything is a weak point right now, which also means everything responds fast.';
-  else if (st.overall < 50) line = 'Below average. You are past novice on some lifts and nowhere near it on others.';
-  else if (st.overall < 80) line = 'Average. Respectable, and also the level most people plateau at forever.';
-  else if (st.overall < 95) line = 'Advanced. Progress from here is slow and has to be earned in small increments.';
-  else                      line = 'Elite by the published standards. Verify your form and rep counts are honest.';
-  const spread = gap > 35
-    ? `Your lifts are badly uneven — <b>${w.name}</b> sits ${Math.round(gap)} percentile points behind <b>${s.name}</b>. That imbalance is what is dragging the letter down.`
-    : `Your lifts are reasonably balanced, within ${Math.round(gap)} percentile points top to bottom.`;
-  return `<div class="pg-card rk-verdict">
-    <div class="pg-card-head"><div class="pg-card-title">Straight Answer</div></div>
-    <div class="rk-verdict-t">${line}</div>
-    <div class="rk-verdict-s">${spread}</div>
-    <div class="rk-verdict-w">
-      <div><span class="rk-vw-l">Weakest</span><span class="rk-vw-n">${w.name}</span><span class="rk-vw-p" style="color:var(${w.rank.c})">${w.rank.l} · ${Math.round(w.pct)}%</span></div>
-      <div><span class="rk-vw-l">Strongest</span><span class="rk-vw-n">${s.name}</span><span class="rk-vw-p" style="color:var(${s.rank.c})">${s.rank.l} · ${Math.round(s.pct)}%</span></div>
-    </div>
-  </div>`;
-}
-
 /* The chip on each row saying where its rep count came from, which is the
    difference between an estimate and a guess and is worth one word. */
 function repChip(l) {
@@ -1615,9 +1589,7 @@ function liftsHTML(st) {
   /* The dial is now a fallback, and saying so is the point: it stops being
      the thing you tune to move your rank and becomes the thing you stop
      needing. */
-  const repNote = `<div class="rk-basis-note" title="At 50 lbs, assuming five reps gives a 58 lb 1RM and assuming fifteen gives 75 — same entry, same arithmetic, different guess. Counting the set is what turns it into a measurement. Open a lift from the Program tab to log its sets; the best one scores.">${st.loggedReps
-    ? `<b>${st.loggedReps} of ${st.liftCount}</b> lifts use counted reps. The dial fills in for the rest.`
-    : `No reps counted yet — every estimate here is running on this dial. Log sets from the <b>Program</b> tab.`}</div>`;
+  const repNote = st.loggedReps ? '' : `<div class="rk-basis-note" title="At 50 lbs, assuming five reps gives a 58 lb 1RM and assuming fifteen gives 75 — same entry, same arithmetic, different guess. Counting the set is what turns it into a measurement. Open a lift from the Program tab to log its sets; the best one scores.">No reps counted yet — every estimate here is running on this dial. Log sets from the <b>Program</b> tab.</div>`;
 
   /* The divisor is no longer a choice, so the only thing left to say is
      when the tape measurement it needs is missing. */
@@ -2032,35 +2004,6 @@ function slideMarkers(scope) {
   });
 }
 
-/* The health check. Loud when something is wrong, one quiet line when it
-   is not — a card that takes up the same room whether or not it has
-   anything to say teaches you to scroll past it. */
-function checkupHTML(s, st) {
-  const c = checkup(s, st);
-
-  if (c.steady) {
-    if (!c.evidence.length) return '';          // too early to claim anything
-    return `<div class="ck-card steady">
-      <span class="ck-tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12.5 9.5 18 20 6.5"/></svg></span>
-      <div><b>Everything reads steady.</b> ${c.evidence.join(', ')} — nothing in the numbers looks off.</div>
-    </div>`;
-  }
-
-  const rows = c.findings.map(f => `
-    <div class="ck-row ${f.sev}">
-      <div class="ck-t">${f.t}</div>
-      <div class="ck-d">${f.d}</div>
-    </div>`).join('');
-
-  return `<div class="ck-card">
-    <div class="ck-head">
-      <span class="ck-title">Worth a look</span>
-      <span class="ck-count ${c.warns ? 'warn' : ''}">${c.findings.length}</span>
-    </div>
-    ${rows}
-  </div>`;
-}
-
 /* ═══════════════════ THE THREE TABS ═══════════════════
 
    This was one tab with thirteen sections in it — 6,200px, about eight
@@ -2069,7 +2012,7 @@ function checkupHTML(s, st) {
    header draws, because that line was always there:
 
      RANK    the letter. Earned by lifting more, and nothing else moves
-             it. Hero, the straight answer, every lift, progression.
+             it. Hero, every lift, grip, progression.
      STREAK  attendance. Earned by turning up, and it cannot touch the
              letter. Level, streak tiles, next session, heatmap, log.
      AWARDS  the trophy cabinet. Browsed occasionally, not read every
@@ -2086,13 +2029,7 @@ export function renderRank(root) {
   if (!p) return;
   const st = strength(), s = stats();
 
-  /* The checkup reports on lifts AND attendance AND data sanity, so it
-     has no natural home in the split. It stays here because this is the
-     tab you open to ask how it is going, and a finding you never see is
-     worth nothing wherever it is filed. */
   let h = heroHTML(st);
-  h += checkupHTML(s, st);
-  h += verdictHTML(st);
   h += liftsHTML(st);
   h += gripHTML();
   h += progressionHTML(s, st);

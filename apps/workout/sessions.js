@@ -161,7 +161,6 @@ export function renderTime(root) {
   h += byDayHTML(all);
   h += weeksHTML(all);
   h += recentHTML(all);
-  h += `<p class="tm-foot">Timed from your first logged set or check-off to the last one, starting when you opened that first exercise. Breaks over ${GAP_CAP / 60000} minutes count as ${GAP_CAP / 60000}. Sessions marked partial began before timing could see them and stay out of the averages.</p>`;
   p.innerHTML = h;
 }
 
