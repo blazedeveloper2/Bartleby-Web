@@ -59,7 +59,7 @@ export const v3 = {
 const { add, sub, mul, dot, cross, len, norm, lerp, mad } = v3;
 
 /* Rotate v about the unit axis k by deg (Rodrigues). */
-const rot = (v, k, deg) => {
+export const rot = (v, k, deg) => {
   const c = Math.cos(deg * D), s = Math.sin(deg * D), kv = dot(k, v), kx = cross(k, v);
   return [v[0] * c + kx[0] * s + k[0] * kv * (1 - c), v[1] * c + kx[1] * s + k[1] * kv * (1 - c), v[2] * c + kx[2] * s + k[2] * kv * (1 - c)];
 };
@@ -303,7 +303,9 @@ export function holds(J, m) {
   const sideAxis = s => perp(cross(s.faDir, J.L), s.handDir, J.U);
   const one = (spec, s) => {
     switch (spec) {
-      case 'db': return { kind: 'db', pos: s.grip, axis: J.L, up: s.handDir };
+      /* `turn` angles the handles in from straight across, as avatar.js
+         turns the palms */
+      case 'db': return { kind: 'db', pos: s.grip, axis: m.turn ? rot(J.L, s.handDir, s.side * m.turn) : J.L, up: s.handDir };
       case 'db-side': return { kind: 'db', pos: s.grip, axis: sideAxis(s), up: s.handDir };
       case 'db-fwd': return { kind: 'db', pos: s.grip, axis: J.F, up: s.handDir };
       default: return null;

@@ -23,7 +23,7 @@
    ═══════════════════════════════════════════════════════════ */
 
 import * as THREE from '../../assets/vendor/three/three.module.min.js';
-import { SEG, v3 } from './rig.js?v=3d-oct14d';
+import { SEG, v3, rot } from './rig.js?v=3d-oct14h';
 
 /* Each model lives in assets/models/<name>/ as <name>.json + <name>.bin:
    'trainer' (the Rocketbox scan in a tee and shorts) and 'athlete' (a
@@ -409,7 +409,9 @@ function handState(J, m, p, s, isPlanted) {
   const ex = m.palm && (typeof m.palm === 'object' && !Array.isArray(m.palm) ? m.palm[far ? 'f' : 'n'] : m.palm);
   const kw = ex || (held ? HOLD_PALM[held] : onBar ? 'fwd' : flat ? 'floor' : 'in');
   const grip = held || onBar ? 1 : flat ? 0 : planted ? 0.6 : 0.3;
-  return { palm: palmVec(kw, J, s), grip };
+  /* a press's handles angled in (m.turn, rig.holds): the palms turn with them */
+  const palm = held === 'db' && m.turn && !ex ? rot(palmVec(kw, J, s), s.handDir, s.side * m.turn) : palmVec(kw, J, s);
+  return { palm, grip };
 }
 
 /* ══ ONE TRAINER IN ONE SCENE ══ */

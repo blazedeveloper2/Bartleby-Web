@@ -22,7 +22,7 @@ export const HOWTO = {
     do: [
       "Set the bench to 30°, sit back and kick the dumbbells up to your shoulders as you lie down",
       "Plant your feet and squeeze your shoulder blades back and down into the bench",
-      "Lower to the sides of your upper chest, elbows angled about 45° out from your body",
+      "Lower to the sides of your upper chest, handles turned in a little, elbows about 45° out",
       "Get a full stretch at the bottom, then press up and slightly in until over your shoulders",
     ],
     avoid: [
@@ -35,7 +35,7 @@ export const HOWTO = {
     do: [
       "Sit on the end of a flat bench, dumbbells on your thighs, and kick them up as you lie back",
       "Feet flat, shoulder blades pulled back and down, a small natural arch in your lower back",
-      "Lower to the sides of your mid-chest, elbows about 45° from your body, forearms upright",
+      "Lower beside your mid-chest, forearms upright, handles angled in a bit, elbows about 45°",
       "Go deep enough to stretch your chest, then press up in a slight arc to over your chest",
     ],
     avoid: [
@@ -47,7 +47,7 @@ export const HOWTO = {
   "Dumbbell Shoulder Press": {
     do: [
       "Set the bench back nearly upright (about 85°) and sit with your lower back against the pad",
-      "Start with the dumbbells at shoulder height, palms forward, wrists stacked over elbows",
+      "Dumbbells at shoulder height, palms forward but angled in a little, wrists over elbows",
       "Press up and slightly in until your arms are straight overhead, then lower with control",
       "Keep elbows a little in front of your body and bring the weights back to shoulder level",
     ],

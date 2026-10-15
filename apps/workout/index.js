@@ -25,8 +25,8 @@ import { MUSCLE_SVG } from './bodymap.js?v=3d-oct14d';
 import { restBand, BANDS, fmtRest } from './rest.js?v=3d-oct14d';
 import * as rest from './timer.js?v=3d-oct14d';
 import * as timing from './sessions.js?v=3d-oct14e';
-import { HOWTO } from './howto.js?v=3d-oct14d';
-import { animHTML, playAnim } from './pose.js?v=3d-oct14f';
+import { HOWTO } from './howto.js?v=3d-oct14h';
+import { animHTML, playAnim } from './pose.js?v=3d-oct14h';
 import { standingsFor } from './anthro.js?v=3d-oct14d';
 import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=3d-oct14d';
 import {
@@ -878,7 +878,7 @@ function openMM(ex) {
 let mv3 = null, mv3Load = null;
 function show3D(ex) {
   const map = q('.mm-map'), box = q('.mm-3d');
-  (mv3Load ||= import('./muscleview.js?v=3d-oct14f').then(m => (mv3 = m)))
+  (mv3Load ||= import('./muscleview.js?v=3d-oct14h').then(m => (mv3 = m)))
     .then(mv => mmEx === ex && mv.show(box, ex.m, { onTap: r => mmReadout(r ? r.name : 'No mapped muscle there') }))
     .then(shown => { if (shown !== false && mmEx === ex) map.classList.add('is-3d'); })
     .catch(() => map.classList.remove('is-3d'));

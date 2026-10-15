@@ -12,8 +12,8 @@
      await S.snaps('Push-Ups')    // [size, bone, at seconds]
      await S.snapsAll()           // every exercise, worst first */
 import * as THREE from '../../assets/vendor/three/three.module.min.js';
-import * as STAGE from '../../apps/workout/stage.js?v=3d-oct14d';
-import { MOTION } from '../../apps/workout/moves.js?v=3d-oct14d';
+import * as STAGE from '../../apps/workout/stage.js?v=3d-oct14h';
+import { MOTION } from '../../apps/workout/moves.js?v=3d-oct14h';
 
 const PART = n => n.replace(/^[LR]_/, '').replace(/Finger.*/, 'Finger').replace(/^(Spine\d?|Pelvis|Clavicle|ShoulderHelper)$/, 'Torso').replace(/\d+$/, '');
 
