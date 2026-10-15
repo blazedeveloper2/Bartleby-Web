@@ -1471,31 +1471,21 @@ export function verseHTML() {
   </div>`;
 }
 
+/* The hero is the letter, the rank, the score and how far the next rank
+   is, and nothing else: read at a glance, like a game's rank screen.
+   What the numbers mean lives in the rows below and in tooltips. */
 function heroHTML(st) {
-  if (!st.bodyweight) {
-    return `<div class="rk-hero" style="--rc:var(--text-3)"><span class="rk-scan"></span>
-      <div class="rk-kicker">No Rank</div>
-      <div class="rk-hero-row"><div class="rk-badge"><span class="rk-letter">?</span></div>
-        <div class="rk-hero-txt"><div class="rk-name">Bodyweight missing</div>
-        <div class="rk-blurb">Strength standards are relative to bodyweight. Log yours in the <b>Body</b> tab and this fills in immediately.</div></div></div>
-    </div>`;
-  }
-  if (!st.counted.length) {
-    /* Two different nothings. Usually there are no weights at all; rarely
-       every weight sits on a movement the current equipment setting has
-       swapped off the sheet, and telling that user to go and log a weight
-       they already logged would be nonsense. */
-    return `<div class="rk-hero" style="--rc:var(--text-3)"><span class="rk-scan"></span>
-      <div class="rk-kicker">No Rank</div>
-      <div class="rk-hero-row"><div class="rk-badge"><span class="rk-letter">?</span></div>
-        <div class="rk-hero-txt"><div class="rk-name">${st.scored ? 'Nothing on your current sheet' : 'No weights logged'}</div>
-        <div class="rk-blurb">${st.scored
-          ? `Your ${st.scored} logged weight${st.scored === 1 ? ' is' : 's are'} all on movements the current equipment setting has swapped out, so there is nothing on the sheet to score. They are kept and listed below — change the equipment back in <b>Settings</b>, or log a weight on a movement you can reach.`
-          : 'Tap any exercise in the <b>Program</b> tab and set its working weight. Rank is computed from what you actually lift — nothing else moves it.'}</div></div></div>
-    </div>`;
-  }
+  const unranked = line => `<div class="rk-hero" style="--rc:var(--text-3)"><span class="rk-scan"></span>
+    <div class="rk-hero-row"><div class="rk-badge"><span class="rk-letter">?</span></div>
+      <div class="rk-hero-txt"><div class="rk-name">Unranked</div><div class="rk-sub">${line}</div></div></div>
+  </div>`;
+  if (!st.bodyweight) return unranked('Log your bodyweight in <b>Body</b> to get ranked.');
+  /* Two different nothings: usually no weights at all; rarely every weight
+     sits on a movement the equipment setting has swapped off the sheet. */
+  if (!st.counted.length) return unranked(st.scored
+    ? 'Your logged weights are all swapped off the sheet. Change equipment in <b>Settings</b>.'
+    : 'Set a working weight in <b>Program</b> to get ranked.');
   const rk = st.rank;
-  const beat = Math.round(st.overall);
   const n = st.liftCount, gr = st.grip ? ' + grip' : '';
   const nx = rk.next;
   const pv = st.proven, pend = st.pending.length;
@@ -1518,31 +1508,25 @@ function heroHTML(st) {
      The disclaimer that used to sit under the bar saying as much is gone
      too: the fix was removing the false claim, and a paragraph explaining
      a claim the tab no longer makes is just more to read. */
+  const est = pend && `${pend} untested lift${pend === 1 ? '' : 's'}: an estimate until you finish a session at ${pend === 1 ? 'that weight' : 'those weights'}. ${
+    pv.counted.length ? `Confirmed: ${pv.rank.l} at ${Math.round(pv.overall)}.` : 'Nothing confirmed yet.'}`;
   return `<div class="rk-hero" style="--rc:var(${rk.c})"><span class="rk-scan"></span>
-    <div class="rk-hero-top">
-      <div class="rk-kicker">Strength Score</div>
-      <div class="rk-kicker">${n} lift${n === 1 ? '' : 's'}${gr} · ${st.usingLean
-        ? `${Math.round(st.lean)} lb lean mass` : `${st.bodyweight} lb bodyweight`}</div>
-    </div>
     <div class="rk-hero-row">
       <div class="rk-badge"><span class="rk-letter">${rk.l}</span></div>
       <div class="rk-hero-txt">
         <div class="rk-name">${rk.name}</div>
-        <div class="rk-pct">Bartleby score <b>${beat}</b> — the average of your ${n} lift percentile${n === 1 ? '' : 's'}${st.grip ? ' and your grip' : ''}</div>
-        <div class="rk-blurb">${rk.blurb}</div>
+        ${pend ? `<span class="rk-chip" title="${est}">Estimate</span>` : ''}
+      </div>
+      <div class="rk-score" title="The average of your ${n} lift percentile${n === 1 ? '' : 's'}${gr}, scored against ${st.usingLean
+        ? `${Math.round(st.lean)} lb lean mass` : `${st.bodyweight} lb bodyweight`}">
+        <span class="rk-foot-pct" data-cnt="${st.overall.toFixed(1)}" data-dec="1">0.0</span>
+        <span class="rk-score-l">Score</span>
       </div>
     </div>
     ${bandTrack(st.overall, true)}
-    <div class="rk-hero-foot">
-      <span>${nx ? `Next: <b>${nx.l} · ${nx.name}</b> at a score of ${nx.min}` : 'Off the top of the published data.'}</span>
-      <span class="rk-foot-pct" data-cnt="${st.overall.toFixed(1)}" data-dec="1">0.0</span>
-    </div>
-    ${st.offSheet ? `<div class="rk-hero-note">${st.offSheet} off-sheet weight${st.offSheet === 1 ? '' : 's'} listed below, excluded.</div>` : ''}
-    ${pend ? `<div class="rk-pending" title="Milestones and rank-ups land when you finish a session that trains the untested weight. Until then the letter above is what you would rank if it holds.">
-      <b>${pend} untested lift${pend === 1 ? '' : 's'}</b>, so this is an estimate.
-      ${pv.counted.length ? `Confirmed: <b style="color:var(${pv.rank.c})">${pv.rank.l}</b> at ${Math.round(pv.overall)}.`
-                  : 'Nothing confirmed yet.'}
-    </div>` : ''}
+    <div class="rk-up">${nx
+      ? `Next <b style="color:var(${nx.c})">${nx.l}</b> · ${(nx.min - st.overall).toFixed(1)} pts`
+      : '<b>Max rank</b>'}</div>
   </div>`;
 }
 

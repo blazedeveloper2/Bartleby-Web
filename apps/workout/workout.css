@@ -690,8 +690,6 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
   padding:16px;margin-bottom:14px}
 .rk-hero::before{content:'';position:absolute;inset:0 0 auto 0;height:2px;background:var(--rc)}
 .rk-scan{display:none}
-.rk-hero-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
-.rk-kicker{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-3)}
 .rk-hero-row{display:flex;align-items:center;gap:16px}
 /* hexagonal emblem: outer shape is the rank colour, inner inset punches it
    back to the card colour, leaving a 2px ring around the letter */
@@ -701,24 +699,18 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
   clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
 .rk-letter{position:relative;z-index:1;font-family:var(--mono);font-size:40px;font-weight:700;line-height:1;
   color:var(--rc);letter-spacing:-2px;text-align:center}
-.rk-hero-txt{min-width:0}
-.rk-name{font-size:18px;font-weight:700;letter-spacing:-.2px}
-.rk-pct{font-size:12.5px;color:var(--text-2);margin-top:4px}
-.rk-pct b{color:var(--text);font-family:var(--mono)}
-.rk-blurb{font-size:11.5px;color:var(--text-3);margin-top:6px;line-height:1.5}
-.rk-blurb b{color:var(--text-2)}
-.rk-hero-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;font-size:11px;color:var(--text-3)}
-.rk-hero-foot b{color:var(--text-2);font-weight:600}
-/* What the number above is and is not. Quiet on purpose — it is a
-   standing caveat, not a warning, and it should read once and then
-   recede rather than compete with the letter every time the tab opens. */
-.rk-hero-note{margin-top:10px;font-size:10.5px;line-height:1.55;color:var(--text-3);opacity:.9}
-.rk-foot-pct{font-family:var(--mono);font-weight:700;color:var(--rc);flex-shrink:0}
-
-/* an estimate that hasn't been trained yet says so, in the same breath as the letter */
-.rk-pending{margin-top:12px;padding:9px 11px;font-size:11px;line-height:1.55;color:var(--text-3);
-  background:var(--bg);border:1px solid var(--border);border-left:2px solid var(--amber);border-radius:var(--rs)}
-.rk-pending b{color:var(--text-2);font-weight:700}
+.rk-hero-txt{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.rk-name{font-size:22px;font-weight:800;letter-spacing:2px;text-transform:uppercase;line-height:1;color:var(--rc)}
+.rk-sub{font-size:12px;line-height:1.45;color:var(--text-3)}
+.rk-sub b{color:var(--text-2)}
+/* an untested weight: one word, the detail in its tooltip */
+.rk-chip{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--amber);
+  padding:3px 7px;border:1px solid color-mix(in srgb,var(--amber) 45%,transparent);border-radius:2px;cursor:help}
+.rk-score{display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;cursor:help}
+.rk-foot-pct{font-family:var(--mono);font-size:34px;font-weight:700;line-height:1;letter-spacing:-1px;color:var(--text)}
+.rk-score-l{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-3);margin-top:6px}
+.rk-up{margin-top:12px;font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-3)}
+.rk-up b{color:var(--text)}
 
 /* â”€â”€ percentile band track: widths are to scale, so it's obvious how wide
       "average" is and how narrow "elite" is â”€â”€ */
@@ -959,7 +951,8 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
   .wk .ex-idx{font-size:9px}
   .day-title{font-size:10.5px;letter-spacing:.8px}
   .day-idx{font-size:13px}
-  .rk-name{font-size:16px}
+  .rk-name{font-size:18px;letter-spacing:1.5px}
+  .rk-foot-pct{font-size:28px}
   .rk-verdict-w{grid-template-columns:1fr}
   .rk-reps{justify-content:space-between}
   .pg-big-v{font-size:29px}
