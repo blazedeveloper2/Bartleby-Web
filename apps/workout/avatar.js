@@ -331,9 +331,12 @@ export function skinLook(sh, skin) {
 }
 
 /* The texture materials with the muscle paint mixed in, glowing with
-   the rep's effort, exactly as stage.js's own body materials do. aBlend
+   the rep's effort, exactly as stage.js's own body materials do. On cloth
+   (`cloth` true) it is a softer tint with a clean edge and no glow, the
+   muscle showing through the fabric rather than painted over it. aBlend
    fades a grafted part's edge into uNeck, the colour where it joins. */
-export function paintedMaterial(opts, U, skin = false) {
+export function paintedMaterial(opts, U, skin = false, cloth = false) {
+  const k = cloth ? 0.55 : 1, glow = cloth ? 0 : 1;
   const m = opts.sheen ? new THREE.MeshPhysicalMaterial(opts) : new THREE.MeshStandardMaterial(opts);
   m.onBeforeCompile = sh => {
     skinLook(sh, skin);
@@ -347,16 +350,19 @@ export function paintedMaterial(opts, U, skin = false) {
         '#include <color_fragment>',
         'diffuseColor.rgb = mix(diffuseColor.rgb, uNeck, vBlend);',
         'float mE = clamp((uEffort - 0.45) / 0.55, 0.0, 1.0);',
-        'float mA = vMus * uMusOn, mB = vMus2 * uMusOn;',
+        /* on cloth a part-painted point would mix to a muddy brown on the
+           dark fabric, so the paint there has a short, clean edge instead */
+        cloth ? `float mA = smoothstep(0.3, 0.55, vMus) * uMusOn * ${k.toFixed(2)}, mB = smoothstep(0.3, 0.55, vMus2) * uMusOn * ${k.toFixed(2)};`
+              : 'float mA = vMus * uMusOn, mB = vMus2 * uMusOn;',
         'diffuseColor.rgb = mix(diffuseColor.rgb, uMusCol2, mB * 0.7);',
         'diffuseColor.rgb = mix(diffuseColor.rgb, uMusCol, min(1.0, mA * (0.82 + 0.18 * mE)));',
       ].join('\n'))
       .replace('#include <emissivemap_fragment>', [
         '#include <emissivemap_fragment>',
-        'totalEmissiveRadiance += uMusCol * mA * (0.1 + 0.4 * mE) + uMusCol2 * mB * 0.05;',
+        `totalEmissiveRadiance += (uMusCol * mA * (0.1 + 0.4 * mE) + uMusCol2 * mB * 0.05) * ${glow.toFixed(1)};`,
       ].join('\n'));
   };
-  m.customProgramCacheKey = () => (skin ? 'trainer-paint-skin' : 'trainer-paint');
+  m.customProgramCacheKey = () => (skin ? 'trainer-paint-skin' : cloth ? 'trainer-paint-cloth' : 'trainer-paint');
   return m;
 }
 
@@ -430,7 +436,7 @@ export class Trainer {
       if (d.doubleSide) o.side = THREE.DoubleSide;
       /* cloth: a soft sheen at grazing angles, the way knit fabric catches light */
       if (d.sheen) Object.assign(o, { sheen: d.sheen, sheenRoughness: 0.55, sheenColor: new THREE.Color('#9aa0a8') });
-      const mat = d.paint ? paintedMaterial(o, U, isSkin(n)) : (o.sheen ? new THREE.MeshPhysicalMaterial(o) : new THREE.MeshStandardMaterial(o));
+      const mat = d.paint ? paintedMaterial(o, U, isSkin(n), n === 'shorts') : (o.sheen ? new THREE.MeshPhysicalMaterial(o) : new THREE.MeshStandardMaterial(o));
       mat.visible = !d.hidden;   // a part kept only for tools (the skin under the shorts)
       mat.name = n;
       return mat;

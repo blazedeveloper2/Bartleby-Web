@@ -21,9 +21,9 @@ import * as THREE from '../../assets/vendor/three/three.module.min.js';
 import { MOTION } from './moves.js?v=3d-oct14d';
 import { timeline } from './timeline.js?v=3d-oct14d';
 import { skeleton, holds, points, normalize, SEG, BODY, v3, W } from './rig.js?v=3d-oct14d';
-import { loadTrainer, Trainer, studioEnv } from './avatar.js?v=3d-oct14f';
+import { loadTrainer, Trainer, studioEnv } from './avatar.js?v=3d-oct14g';
 import { axisLock } from './drag.js?v=3d-oct14d';
-import { regionPaint } from './muscles3d.js?v=3d-oct14d';
+import { regionPaint } from './muscles3d.js?v=3d-oct14e';
 import { MMAP } from './data.js?v=3d-oct14d';
 
 const D = Math.PI / 180;
@@ -1234,7 +1234,11 @@ export function mount(box, name, { onStep, onFrame, still = false, free = false 
   const ptrs = new Map();
   let drag = null, pinch = null;
   const ZMIN = 0.42, ZMAX = 1.8, ELMAX = free ? 88 : 70;
-  const zoomTo = z => { glide = null; stage.zoom = Math.max(ZMIN, Math.min(ZMAX, z)); stage.aim(); dirty = true; box.classList.add('turned'); };
+  const zoomTo = z => {
+    z = Math.max(ZMIN, Math.min(ZMAX, z));
+    if (glide) { glide.z = z; return; }      // a camera move under way takes the new zoom with it
+    stage.zoom = z; stage.aim(); dirty = true; box.classList.add('turned');
+  };
   const spread = () => { const [a, b] = [...ptrs.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
   /* one finger: sideways turns, up and down scrolls the page (drag.js) */
   const lock = axisLock();
@@ -1297,7 +1301,7 @@ export function mount(box, name, { onStep, onFrame, still = false, free = false 
     /* the working muscles painted on, or a plain body */
     muscles(on) { const u = stage.body.uniforms?.uMusOn; if (u) { u.value = on ? 1 : 0; dirty = true; } },
     view(az, el, z) { glideTo(az, el, z); },
-    zoom(k) { zoomTo((stage.zoom || 1) * k); },
+    zoom(k) { zoomTo((glide ? glide.z : stage.zoom || 1) * k); },
     reset() { glideTo(stage.az0, stage.el0, 1); },
     /* where the camera is, to carry between the card and the viewer */
     get camera() { return { az: stage.az, el: stage.el, zoom: stage.zoom || 1 }; },

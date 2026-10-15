@@ -16,8 +16,8 @@
    ═══════════════════════════════════════════════════════════ */
 
 import * as THREE from '../../assets/vendor/three/three.module.min.js';
-import { loadTrainer, Trainer, skinLook, isSkin, studioEnv } from './avatar.js?v=3d-oct14f';
-import { REGIONS, regionsOf, regionsOfMuscle } from './muscles3d.js?v=3d-oct14d';
+import { loadTrainer, Trainer, skinLook, isSkin, studioEnv } from './avatar.js?v=3d-oct14g';
+import { REGIONS, regionsOf, regionsOfMuscle } from './muscles3d.js?v=3d-oct14e';
 import { MMAP } from './data.js?v=3d-oct14d';
 import { axisLock } from './drag.js?v=3d-oct14d';
 

@@ -174,14 +174,71 @@ export function regionsFor(T, overrides) {
     for (const k of surf) if (k !== best) w[k][i] *= 0.25;
   }
   /* Hand-painted corrections: { regionId: { vertexIndex: weight } } */
+  const touched = new Set();
   if (overrides) for (const [id, m] of Object.entries(overrides)) {
     const k = ri[id]; if (k === undefined) continue;
     for (const [vi, val] of Object.entries(m)) {
       if (val > 0 && !REGIONS[k].deep) for (const s2 of surf) w[s2][vi] = Math.min(w[s2][vi], 1 - val);
       w[k][vi] = val;
+      touched.add(+vi);
     }
   }
+  clothFromSkin(T, w, touched, span);
   return { ids: REGIONS.map(r => r.id), w };
+}
+
+/* The rules above read a point's bone and which way its surface faces.
+   Loose shorts break both — folds turn the cloth every which way and its
+   points swap between hip and thigh bones — so painted by the rules the
+   glutes came out in hard-edged blocks. The skin under the shorts (the
+   athlete's hidden "bareskin", the body as it is) paints cleanly, so each
+   shorts point takes the regions of the skin under it: the nearest skin
+   point, blurred over a few centimetres round it, since the skin's own
+   steps that read as a faint wash on skin show as hard brown bands on
+   dark fabric. avatar.js then draws the paint on cloth with a clean edge.
+   A point hand-painted in the anatomy bench keeps its own paint. */
+function clothFromSkin(T, w, touched, span) {
+  const { geo, matNames } = T;
+  const cloth = matNames?.indexOf('shorts'), skin = matNames?.indexOf('bareskin');
+  if (!(cloth >= 0 && skin >= 0)) return;
+  const idx = geo.index.array, X = geo.attributes.position.array;
+  const verts = mi => {
+    const s = new Set();
+    for (const g of geo.groups) if (g.materialIndex === mi) for (let i = g.start; i < g.start + g.count; i++) s.add(idx[i]);
+    return [...s];
+  };
+  const from = verts(skin), to = verts(cloth).filter(i => !touched.has(i));
+  if (!from.length || !to.length) return;
+  const R = span * 0.07, s2 = 2 * (R / 2) ** 2;   // blur radius, about 3.5 cm on the athlete
+  /* a grid of R-sized cells over the skin */
+  const c = i => [Math.floor(X[3 * i] / R), Math.floor(X[3 * i + 1] / R), Math.floor(X[3 * i + 2] / R)];
+  const key = (x, y, z) => ((x + 512) * 1024 + (y + 512)) * 1024 + (z + 512);
+  const grid = new Map();
+  for (const i of from) { const k = key(...c(i)); (grid.get(k) || grid.set(k, []).get(k)).push(i); }
+  const d2 = (i, j) => { const a = 3 * i, b = 3 * j, dx = X[a] - X[b], dy = X[a + 1] - X[b + 1], dz = X[a + 2] - X[b + 2]; return dx * dx + dy * dy + dz * dz; };
+  const live = w.filter(a => from.some(i => a[i] > 0));   // regions with any paint under the shorts
+  const js = [], ks = [];
+  for (const i of to) {
+    const [cx, cy, cz] = c(i);
+    /* the skin point under this one */
+    let q = -1, bd = Infinity;
+    for (let r = 1; r <= 4 && q < 0; r++)
+      for (let x = cx - r; x <= cx + r; x++) for (let y = cy - r; y <= cy + r; y++) for (let z = cz - r; z <= cz + r; z++)
+        for (const j of grid.get(key(x, y, z)) || []) { const d = d2(i, j); if (d < bd) { bd = d; q = j; } }
+    for (const a of w) a[i] = 0;
+    if (q < 0) continue;
+    /* and the skin round it */
+    const [qx, qy, qz] = c(q);
+    let sum = 0;
+    js.length = ks.length = 0;
+    for (let x = qx - 1; x <= qx + 1; x++) for (let y = qy - 1; y <= qy + 1; y++) for (let z = qz - 1; z <= qz + 1; z++)
+      for (const j of grid.get(key(x, y, z)) || []) { const d = d2(q, j); if (d <= R * R) { const k = Math.exp(-d / s2); js.push(j); ks.push(k); sum += k; } }
+    for (const a of live) {
+      let v = 0;
+      for (let n = 0; n < js.length; n++) v += a[js[n]] * ks[n];
+      a[i] = v / sum;
+    }
+  }
 }
 
 /* regionsFor(T) worked out once per model (about 0.2 s) and shared by

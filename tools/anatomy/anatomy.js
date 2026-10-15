@@ -2,11 +2,11 @@
    body, its posing and its muscle regions are exactly what the app draws. */
 import * as THREE from '../../assets/vendor/three/three.module.min.js';
 import * as STAGE from '../../apps/workout/stage.js?v=3d-oct14d';
-import { Trainer, studioEnv, skinLook, isSkin } from '../../apps/workout/avatar.js?v=3d-oct14f';
+import { Trainer, studioEnv, skinLook, isSkin } from '../../apps/workout/avatar.js?v=3d-oct14g';
 import { MOTION } from '../../apps/workout/moves.js?v=3d-oct14d';
 import { skeleton } from '../../apps/workout/rig.js?v=3d-oct14d';
 import { MMAP, PROGRAM } from '../../apps/workout/data.js?v=3d-oct14d';
-import { REGIONS, regionsFor, regionsOfMuscle } from '../../apps/workout/muscles3d.js?v=3d-oct14d';
+import { REGIONS, regionsFor, regionsOfMuscle } from '../../apps/workout/muscles3d.js?v=3d-oct14e';
 
 const $ = s => document.querySelector(s);
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
