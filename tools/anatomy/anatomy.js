@@ -2,7 +2,7 @@
    body, its posing and its muscle regions are exactly what the app draws. */
 import * as THREE from '../../assets/vendor/three/three.module.min.js';
 import * as STAGE from '../../apps/workout/stage.js?v=3d-oct14d';
-import { Trainer } from '../../apps/workout/avatar.js?v=3d-oct14d';
+import { Trainer, studioEnv, skinLook, isSkin } from '../../apps/workout/avatar.js?v=3d-oct14e';
 import { MOTION } from '../../apps/workout/moves.js?v=3d-oct14d';
 import { skeleton } from '../../apps/workout/rig.js?v=3d-oct14d';
 import { MMAP, PROGRAM } from '../../apps/workout/data.js?v=3d-oct14d';
@@ -68,7 +68,11 @@ function tintMaterial(src) {
   if (src.normalScale) m.normalScale = src.normalScale.clone();
   m.name = src.name; m.visible = src.visible;
   m.userData.U = { uNeck: view?.trainer.uniforms.uNeck || { value: new THREE.Color('#c39071') }, uGlow: { value: 0.4 } };
+  /* the app's own skin shading and studio (avatar.js) */
+  const skin = isSkin(src.name);
+  m.envMap = src.envMap; m.envMapIntensity = src.envMapIntensity;
   m.onBeforeCompile = sh => {
+    skinLook(sh, skin);
     Object.assign(sh.uniforms, m.userData.U);
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute vec4 aTint;\nattribute float aBlend;\nvarying vec4 vTint;\nvarying float vBlend;')
@@ -78,7 +82,7 @@ function tintMaterial(src) {
       .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, uNeck, vBlend);\ndiffuseColor.rgb = mix(diffuseColor.rgb, vTint.rgb, vTint.a);')
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vTint.rgb * vTint.a * uGlow;');
   };
-  m.customProgramCacheKey = () => 'anat-tint';
+  m.customProgramCacheKey = () => (skin ? 'anat-tint-skin' : 'anat-tint');
   return m;
 }
 function dressTrainer(tr) {
@@ -108,13 +112,15 @@ function applyShorts() {
 function baseScene() {
   const s = new THREE.Scene();
   s.background = new THREE.Color('#0d0f12');
-  s.add(new THREE.HemisphereLight(0xffffff, 0x2a2622, 1.45));
-  const key = new THREE.DirectionalLight(0xffffff, 2.3);
+  /* the app's light (stage.js, muscleview.js): soft light mostly from the
+     studio the body reflects, a warm key, a cool rim, a faint fill */
+  s.add(new THREE.HemisphereLight(0xffffff, 0x2a2622, 0.95));
+  const key = new THREE.DirectionalLight(0xfff0e0, 2.5);
   key.position.set(140, 260, 180); key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
   Object.assign(key.shadow.camera, { left: -150, right: 150, top: 150, bottom: -150, near: 1, far: 900 });
   key.shadow.bias = -0.0004; key.shadow.normalBias = 0.5;
-  const rim = new THREE.DirectionalLight(0xbfd8ff, 1.1); rim.position.set(-200, 160, -220);
-  const fill = new THREE.DirectionalLight(0xffffff, 0.5); fill.position.set(-120, 80, 200);
+  const rim = new THREE.DirectionalLight(0xbfd8ff, 1.7); rim.position.set(-200, 160, -220);
+  const fill = new THREE.DirectionalLight(0xe6eeff, 0.45); fill.position.set(-120, 80, 200);
   s.add(key, rim, fill);
   const floor = new THREE.Mesh(new THREE.CircleGeometry(220, 64), new THREE.MeshStandardMaterial({ color: '#16191e', roughness: 0.95 }));
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; s.add(floor);
@@ -126,6 +132,7 @@ const zeroPaint = { weights: Tm => { const n = Tm.geo.attributes.position.count;
 function buildRest() {
   scene = baseScene();
   const tr = new Trainer(T, pal(), { hi: [], hi2: [] }, zeroPaint);
+  tr.useEnv(studioEnv(R));
   view = { trainer: tr };
   dressTrainer(tr);
   /* the rest pose: every bone at its bind transform, scaled to rig units */

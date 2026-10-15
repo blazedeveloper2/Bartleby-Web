@@ -73,6 +73,9 @@ export function loadTrainer(name = 'trainer') {
     geo.setAttribute('skinWeight', new THREE.BufferAttribute(arr('skinWeight', Uint8Array), 4, true));
     geo.setIndex(new THREE.BufferAttribute(arr('index', meta.layout.index.type === 'Uint32Array' ? Uint32Array : Uint16Array), 1));
     if (meta.layout.skinBlend) geo.setAttribute('aBlend', new THREE.BufferAttribute(arr('skinBlend', Uint8Array), 1, true));
+    /* Baked ambient occlusion, stored here as how shut in each point is,
+       so a model without it (an unset attribute reads 0) shades as open. */
+    if (meta.layout.ao) geo.setAttribute('aOcc', new THREE.BufferAttribute(arr('ao', Uint8Array).map(a => 255 - a), 1, true));
     const legacy = { m002_body: 'body', m002_head: 'head', m002_opacity: 'hair' };
     for (const r of meta.ranges) geo.addGroup(r.start, r.count, Math.max(0, matNames.indexOf(legacy[r.mat] || r.mat)));
     const bones = meta.bones.map(b => ({ ...b, P: new THREE.Vector3(...b.p) }));
@@ -267,12 +270,73 @@ function paintWeights(T, hi, hi2, paint) {
   return [w1, w2];
 }
 
+/* A soft studio for the kit's metal and the skin to reflect: a dim room
+   with a broad light overhead and two at the sides, made once per
+   renderer. On the skin it is the soft light from above that the baked
+   occlusion shades, and the faint sheen along its edges. */
+const ENV = new WeakMap(), ENV_K = 0.45;
+export function studioEnv(r) {
+  if (ENV.has(r)) return ENV.get(r);
+  const sc = new THREE.Scene();
+  const room = new THREE.Mesh(new THREE.BoxGeometry(10, 6, 10), new THREE.MeshBasicMaterial({ color: '#2a2c30', side: THREE.BackSide }));
+  sc.add(room);
+  const panel = (w, h, pos, rot, k) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(k, k, k) })); m.position.set(...pos); m.rotation.set(...rot); sc.add(m); };
+  panel(5, 2, [0, 2.9, 0], [Math.PI / 2, 0, 0], 4.0);
+  panel(3, 3, [-4.9, 1, 1], [0, Math.PI / 2, 0], 1.6);
+  panel(2, 4, [3, 0.5, -4.9], [0, 0, 0], 1.0);
+  const pm = new THREE.PMREMGenerator(r);
+  const env = pm.fromScene(sc, 0.04).texture;
+  pm.dispose();
+  ENV.set(r, env);
+  return env;
+}
+
+/* ── how skin takes the light ──
+   Shared by the rep (paintedMaterial) and the card's muscle map
+   (muscleview.js). Three small changes to the standard shading:
+     occlusion  the baked aOcc darkens the soft light (sky and studio) in
+                the creases between muscles in full, and the lamps by half,
+                for the fine shadow the shadow map is too coarse to draw
+     wrap       on skin, light reaches a little past where a surface turns
+                away from it, red furthest, the way it scatters under the
+                skin: a softer, warmer edge to every shadow
+     specular   held back in the creases too, so only the tops of the
+                muscles catch a highlight */
+const SKIN_PARTS = new Set(['skin', 'head', 'hands', 'bareskin', 'underskin', 'body']);
+export const isSkin = name => SKIN_PARTS.has(name);
+export function skinLook(sh, skin) {
+  sh.vertexShader = sh.vertexShader
+    .replace('#include <common>', '#include <common>\nattribute float aOcc;\nvarying float vOcc;')
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvOcc = aOcc;');
+  let frag = sh.fragmentShader
+    .replace('#include <common>', '#include <common>\nvarying float vOcc;')
+    .replace('#include <aomap_fragment>', [
+      '#include <aomap_fragment>',
+      'float skOpen = 1.0 - vOcc;',
+      /* in a skin crease the light that does get in comes back redder */
+      skin ? 'vec3 skAO = pow(vec3(skOpen), vec3(1.15, 1.5, 1.65));' : 'vec3 skAO = vec3(skOpen * skOpen);',
+      'reflectedLight.indirectDiffuse *= skAO;',
+      'reflectedLight.indirectSpecular *= skOpen * skOpen;',
+      'reflectedLight.directDiffuse *= mix(vec3(1.0), skAO, 0.6);',
+      'reflectedLight.directSpecular *= skOpen;',
+    ].join('\n'));
+  if (skin) frag = frag.replace('#include <lights_physical_pars_fragment>', THREE.ShaderChunk.lights_physical_pars_fragment.replace(
+    'reflectedLight.directDiffuse += irradiance * BRDF_Lambert( material.diffuseColor );',
+    [
+      'vec3 skW = vec3( 0.3, 0.15, 0.1 );',
+      'vec3 skWrap = clamp( ( dot( geometryNormal, directLight.direction ) + skW ) / ( 1.0 + skW ), 0.0, 1.0 );',
+      'reflectedLight.directDiffuse += skWrap * directLight.color * BRDF_Lambert( material.diffuseColor );',
+    ].join('\n')));
+  sh.fragmentShader = frag;
+}
+
 /* The texture materials with the muscle paint mixed in, glowing with
    the rep's effort, exactly as stage.js's own body materials do. aBlend
    fades a grafted part's edge into uNeck, the colour where it joins. */
-export function paintedMaterial(opts, U) {
+export function paintedMaterial(opts, U, skin = false) {
   const m = opts.sheen ? new THREE.MeshPhysicalMaterial(opts) : new THREE.MeshStandardMaterial(opts);
   m.onBeforeCompile = sh => {
+    skinLook(sh, skin);
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute float aMus;\nattribute float aMus2;\nattribute float aBlend;\nvarying float vMus;\nvarying float vMus2;\nvarying float vBlend;')
@@ -291,7 +355,7 @@ export function paintedMaterial(opts, U) {
         'totalEmissiveRadiance += uMusCol * vMus * (0.1 + 0.4 * mE) + uMusCol2 * vMus2 * 0.05;',
       ].join('\n'));
   };
-  m.customProgramCacheKey = () => 'trainer-paint';
+  m.customProgramCacheKey = () => (skin ? 'trainer-paint-skin' : 'trainer-paint');
   return m;
 }
 
@@ -365,7 +429,7 @@ export class Trainer {
       if (d.doubleSide) o.side = THREE.DoubleSide;
       /* cloth: a soft sheen at grazing angles, the way knit fabric catches light */
       if (d.sheen) Object.assign(o, { sheen: d.sheen, sheenRoughness: 0.55, sheenColor: new THREE.Color('#9aa0a8') });
-      const mat = d.paint ? paintedMaterial(o, U) : (o.sheen ? new THREE.MeshPhysicalMaterial(o) : new THREE.MeshStandardMaterial(o));
+      const mat = d.paint ? paintedMaterial(o, U, isSkin(n)) : (o.sheen ? new THREE.MeshPhysicalMaterial(o) : new THREE.MeshStandardMaterial(o));
       mat.visible = !d.hidden;   // a part kept only for tools (the skin under the shorts)
       mat.name = n;
       return mat;
@@ -378,6 +442,12 @@ export class Trainer {
     mesh.castShadow = mesh.receiveShadow = true;
     this.group.add(mesh);
     this.prep();
+  }
+
+  /* The studio (studioEnv) on every part of the body, once the renderer
+     is known. */
+  useEnv(env, k = ENV_K) {
+    for (const m of this.mesh.material) { m.envMap = env; m.envMapIntensity = k; m.needsUpdate = true; }
   }
 
   /* Bind-pose frames for every driven bone, worked out once. */
@@ -477,6 +547,24 @@ export class Trainer {
       R[set] = { ids, out: new Float32Array(ids.length * 3) };
     }
     return this.skinAt(R[set].ids, R[set].out);
+  }
+
+  /* Each sole's points (the underside of the foot in the A-pose), in the
+     pose just set, as x, y, z runs: { R, L }. For the contact shadows. */
+  soles() {
+    if (!this.soleIdx) {
+      const P = this.mesh.geometry.attributes.position.array;
+      this.soleIdx = {};
+      for (const s of ['R', 'L']) {
+        const ids = this.sampleOf(new RegExp(`^${s}_(Foot|Toe0)$`), 1).filter(i => P[3 * i + 1] < 2.5);
+        const step = Math.max(1, Math.floor(ids.length / 40));
+        const pick = ids.filter((_, k) => k % step === 0);
+        this.soleIdx[s] = { ids: pick, out: new Float32Array(pick.length * 3) };
+      }
+    }
+    const o = {};
+    for (const s of ['R', 'L']) o[s] = this.skinAt(this.soleIdx[s].ids, this.soleIdx[s].out);
+    return o;
   }
 
   /* The lowest point of the body, from a fixed sample of skin points, in

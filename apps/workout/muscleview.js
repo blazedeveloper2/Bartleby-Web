@@ -16,7 +16,7 @@
    ═══════════════════════════════════════════════════════════ */
 
 import * as THREE from '../../assets/vendor/three/three.module.min.js';
-import { loadTrainer, Trainer } from './avatar.js?v=3d-oct14d';
+import { loadTrainer, Trainer, skinLook, isSkin, studioEnv } from './avatar.js?v=3d-oct14e';
 import { REGIONS, regionsOf, regionsOfMuscle } from './muscles3d.js?v=3d-oct14d';
 import { MMAP } from './data.js?v=3d-oct14d';
 import { axisLock } from './drag.js?v=3d-oct14d';
@@ -33,7 +33,9 @@ function tintMaterial(src, uNeck) {
   const m = new THREE.MeshStandardMaterial({ map: src.map || null, normalMap: src.normalMap || null, color: src.color.clone(), roughness: src.roughness, metalness: 0, alphaTest: src.alphaTest, side: src.side });
   if (src.normalScale) m.normalScale = src.normalScale.clone();
   m.name = src.name; m.visible = src.visible;
+  const skin = isSkin(src.name);
   m.onBeforeCompile = sh => {
+    skinLook(sh, skin);
     sh.uniforms.uNeck = uNeck;
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute vec4 aTint;\nattribute float aBlend;\nvarying vec4 vTint;\nvarying float vBlend;')
@@ -41,9 +43,9 @@ function tintMaterial(src, uNeck) {
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\nuniform vec3 uNeck;\nvarying vec4 vTint;\nvarying float vBlend;')
       .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, uNeck, vBlend);\ndiffuseColor.rgb = mix(diffuseColor.rgb, vTint.rgb, vTint.a);')
-      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vTint.rgb * vTint.a * 0.22;');
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vTint.rgb * vTint.a * 0.3;');
   };
-  m.customProgramCacheKey = () => 'mm-tint';
+  m.customProgramCacheKey = () => (skin ? 'mm-tint-skin' : 'mm-tint');
   return m;
 }
 
@@ -59,8 +61,10 @@ async function build() {
   renderer.domElement.className = 'mv-canvas';
 
   const scene = new THREE.Scene();
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x2a2622, 1.5));
-  const key = new THREE.DirectionalLight(0xffffff, 2.1), rim = new THREE.DirectionalLight(0xbfd8ff, 1.0), fill = new THREE.DirectionalLight(0xffffff, 0.55);
+  /* as the rep's stage: soft light mostly from the studio (useEnv below),
+     a warm key, a cool rim for the outline, a faint fill */
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x2a2622, 0.95));
+  const key = new THREE.DirectionalLight(0xfff0e0, 2.4), rim = new THREE.DirectionalLight(0xbfd8ff, 1.7), fill = new THREE.DirectionalLight(0xe6eeff, 0.45);
   scene.add(key, rim, fill);
 
   /* The body at rest: every bone at its bind transform, in rig units. */
@@ -71,6 +75,7 @@ async function build() {
   const old = body.mesh.material;
   body.mesh.material = old.map(o => tintMaterial(o, body.uniforms.uNeck));
   old.forEach(o => o.dispose());
+  body.useEnv(studioEnv(renderer));
   const n = body.mesh.geometry.attributes.position.count;
   body.mesh.geometry.setAttribute('aTint', new THREE.BufferAttribute(new Float32Array(n * 4), 4));
   body.mesh.frustumCulled = false;

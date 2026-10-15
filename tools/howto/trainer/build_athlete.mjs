@@ -1,6 +1,7 @@
 // node tools/howto/trainer/build_athlete.mjs <body.json> assets/models/trainer assets/models/athlete
 //   body.json: the sculpt reduced by reduce.mjs. Set HEAT_WEIGHTS to Blender's
-//   weights (blender_weights.py) to use them; see tools/howto/README.md.
+//   weights (blender_weights.py) to use them, and AO to the ambient occlusion
+//   blender_ao.py baked on this build; see tools/howto/README.md.
 // The sculpted body (CC-BY "Male body" by Chin Eeyang) with the Rocketbox
 // trainer's head and hands grafted on, a skeleton placed inside it, skin
 // weights, and fitted shorts. Writes athlete.json + athlete.bin in the same
@@ -450,6 +451,14 @@ OV.forEach((v, i) => {
 const index = [], ranges = [];
 for (const g of groups) { ranges.push({ mat: g.mat, start: index.length, count: g.tris.length * 3 }); for (const t of g.tris) index.push(...t); }
 const parts = [['position', pos], ['normal', nor], ['uv', uv], ['skinIndex', si], ['skinWeight', sw], ['index', V > 65535 ? new Uint32Array(index) : new Uint16Array(index)], ['skinBlend', blend]];
+/* Ambient occlusion per point (AO, from blender_ao.py run on this same
+   build), so the creases between muscles stay shaded under soft light. */
+if (process.env.AO) {
+  const A = JSON.parse(readFileSync(process.env.AO, 'utf8'));
+  if (A.vertices !== V) throw new Error(`AO is for ${A.vertices} points, this build has ${V}: bake it again on this build`);
+  parts.push(['ao', Uint8Array.from(A.ao)]);
+  console.log(`ao: ${V} points`);
+}
 let off = 0; const layout = {}, chunks = [];
 for (const [name, a] of parts) { const pad = (4 - (off % 4)) % 4; if (pad) { chunks.push(Buffer.alloc(pad)); off += pad; } layout[name] = { offset: off, length: a.length, type: a.constructor.name }; chunks.push(Buffer.from(a.buffer)); off += a.byteLength; }
 mkdirSync(outDir, { recursive: true });
@@ -458,12 +467,12 @@ writeFileSync(outDir + '/athlete.json', JSON.stringify({
   source: 'Body: "Male body" by Chin Eeyang (CC-BY-4.0). Head and hands: Microsoft Rocketbox Male_Adult_01 (MIT).',
   units: 'sculpt (about 1 cm)', rigPerUnit: 47.1 / 51, posScale: 1 / PS, vertices: V, layout, ranges,
   materials: {
-    skin: { color: '#be8c70', neck: '#be8c70', roughness: 0.72, paint: true, ...(process.env.BODY_UV ? { normalMap: 'body_n.jpg', normalScale: 1 } : {}) },
-    head: { map: '../trainer/head.jpg', normalMap: '../trainer/head_n.jpg', normalScale: 0.18, roughness: 0.72, paint: true },
+    skin: { color: '#be8c70', neck: '#be8c70', roughness: 0.6, paint: true, ...(process.env.BODY_UV ? { normalMap: 'body_n.jpg', normalScale: 1 } : {}) },
+    head: { map: '../trainer/head.jpg', normalMap: '../trainer/head_n.jpg', normalScale: 0.18, roughness: 0.64, paint: true },
     hair: { map: 'hair.png', alphaTest: 0.5, roughness: 0.85 },
-    hands: { map: '../trainer/body.jpg', roughness: 0.72, paint: true },
-    bareskin: { color: '#be8c70', roughness: 0.72, paint: true, hidden: true, ...(process.env.BODY_UV ? { normalMap: 'body_n.jpg', normalScale: 1 } : {}) },
-    underskin: { color: '#be8c70', roughness: 0.72, paint: true, ...(process.env.BODY_UV ? { normalMap: 'body_n.jpg', normalScale: 1 } : {}) },
+    hands: { map: '../trainer/body.jpg', roughness: 0.64, paint: true },
+    bareskin: { color: '#be8c70', roughness: 0.6, paint: true, hidden: true, ...(process.env.BODY_UV ? { normalMap: 'body_n.jpg', normalScale: 1 } : {}) },
+    underskin: { color: '#be8c70', roughness: 0.6, paint: true, ...(process.env.BODY_UV ? { normalMap: 'body_n.jpg', normalScale: 1 } : {}) },
     shorts: { map: 'shorts.jpg', normalMap: 'shorts_n.jpg', normalScale: 0.14, color: '#ffffff', roughness: 0.83, sheen: 0.22, doubleSide: true, paint: true },
   },
   bones,

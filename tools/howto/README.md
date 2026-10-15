@@ -247,7 +247,26 @@ DUMP_FOR_BLENDER=for_blender.json node tools/howto/trainer/build_athlete.mjs bod
 blender --background --factory-startup --python tools/howto/trainer/blender_weights.py -- for_blender.json heat_weights.json
 # 3. build
 HEAT_WEIGHTS=heat_weights.json node tools/howto/trainer/build_athlete.mjs body.json assets/models/trainer assets/models/athlete
+# 4. bake the ambient occlusion on that build (4 cm reach, 384 samples), then build again with it
+blender --background --factory-startup --python tools/howto/trainer/blender_ao.py -- assets/models/athlete/athlete.json ao.json 4 384
+AO=ao.json HEAT_WEIGHTS=heat_weights.json node tools/howto/trainer/build_athlete.mjs body.json assets/models/trainer assets/models/athlete
 ```
+
+The build is repeatable (the same inputs give the same bytes), so the
+second build lays the occlusion on exactly the points it was baked on;
+it refuses an `ao.json` baked on a build with a different point count.
+
+**How it is lit.** The skin is shaded in `avatar.js` (`skinLook`), the same
+in the rep, the card's muscle map and the anatomy bench: the baked
+occlusion (one byte a point, about 170 KB) shades the soft light in the
+creases between muscles, warmer the deeper the crease, and the lamps by
+half; light wraps a little past where the skin turns away from it, red
+furthest; and the body reflects the same small studio as the kit
+(`studioEnv`). Over it, a warm key that casts the shadows, a cool rim
+from behind for the outline, a faint fill and a low sky light. Each foot
+has a soft contact shadow on whatever it stands on (`placePrints` in
+stage.js), fading as the foot lifts. None of it adds a render pass or a
+texture beyond a 64-pixel blob.
 
 The body is about 300,000 triangles (the sculpt's 1.37 million, reduced),
 and it keeps the sculpt's own normals: normals worked out again from the

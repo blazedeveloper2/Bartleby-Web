@@ -21,7 +21,7 @@ import * as THREE from '../../assets/vendor/three/three.module.min.js';
 import { MOTION } from './moves.js?v=3d-oct14d';
 import { timeline } from './timeline.js?v=3d-oct14d';
 import { skeleton, holds, points, normalize, SEG, BODY, v3, W } from './rig.js?v=3d-oct14d';
-import { loadTrainer, Trainer } from './avatar.js?v=3d-oct14d';
+import { loadTrainer, Trainer, studioEnv } from './avatar.js?v=3d-oct14e';
 import { axisLock } from './drag.js?v=3d-oct14d';
 import { regionPaint } from './muscles3d.js?v=3d-oct14d';
 import { MMAP } from './data.js?v=3d-oct14d';
@@ -541,25 +541,6 @@ const knurl = () => {
   return normalTexture('knurl', n, h, 4.0, [3, 4]);
 };
 
-/* A soft studio around the kit for metal to reflect: a dim room with two
-   broad lights, made once per renderer. */
-const ENV = new WeakMap();
-function studioEnv(r) {
-  if (ENV.has(r)) return ENV.get(r);
-  const sc = new THREE.Scene();
-  const room = new THREE.Mesh(new THREE.BoxGeometry(10, 6, 10), new THREE.MeshBasicMaterial({ color: '#2a2c30', side: THREE.BackSide }));
-  sc.add(room);
-  const panel = (w, h, pos, rot, k) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(k, k, k) })); m.position.set(...pos); m.rotation.set(...rot); sc.add(m); };
-  panel(5, 2, [0, 2.9, 0], [Math.PI / 2, 0, 0], 4.0);
-  panel(3, 3, [-4.9, 1, 1], [0, Math.PI / 2, 0], 1.6);
-  panel(2, 4, [3, 0.5, -4.9], [0, 0, 0], 1.0);
-  const pm = new THREE.PMREMGenerator(r);
-  const env = pm.fromScene(sc, 0.04).texture;
-  pm.dispose();
-  ENV.set(r, env);
-  return env;
-}
-
 function kitMaterials(pal) {
   const std = (color, rough, metal = 0) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal });
   /* bench pads: black vinyl over a pebbled leather grain, a little satin */
@@ -798,6 +779,22 @@ function floorDisc(pal, radius) {
   return m;
 }
 
+/* A soft round shadow (dark in the middle, gone at the edge) for the
+   contact shadows, made once. */
+let BLOB = null;
+function blobTexture() {
+  if (BLOB) return BLOB;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const x = c.getContext('2d');
+  const gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, '#fff'); gr.addColorStop(0.45, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
+  BLOB = new THREE.CanvasTexture(c);
+  BLOB.userData.shared = true;
+  return BLOB;
+}
+
 export class Stage {
   constructor(name, el) {
     const m = MOTION[name];
@@ -847,8 +844,11 @@ export class Stage {
     this.az = this.az0; this.el = this.el0;
     this.camera = new THREE.PerspectiveCamera(30, 2, 1, 4000);
 
-    S.add(new THREE.HemisphereLight(0xffffff, pal.floor, pal.light ? 1.7 : 1.9));
-    const key = new THREE.DirectionalLight(0xffffff, pal.light ? 2.1 : 2.4);
+    /* Soft light from the room (most of it now from the studio the body
+       and kit reflect, see useEnv), a warm key that casts the shadows, a
+       cool rim from behind that draws the silhouette, and a faint fill. */
+    S.add(new THREE.HemisphereLight(0xffffff, pal.floor, pal.light ? 1.15 : 1.25));
+    const key = new THREE.DirectionalLight(0xfff0e0, pal.light ? 2.4 : 2.7);
     key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024);
     key.shadow.bias = -0.0004;
@@ -858,10 +858,10 @@ export class Stage {
     Object.assign(key.shadow.camera, { left: -r, right: r, top: r, bottom: -r, near: 1, far: r * 6 });
     this.key = key;
     S.add(key, key.target);
-    const rim = new THREE.DirectionalLight(pal.accent.clone().lerp(new THREE.Color(0xffffff), 0.55), pal.light ? 0.9 : 1.6);
+    const rim = new THREE.DirectionalLight(pal.accent.clone().lerp(new THREE.Color(0xffffff), 0.55), pal.light ? 1.5 : 2.3);
     this.rim = rim;
     S.add(rim, rim.target);
-    const fill = new THREE.DirectionalLight(0xffffff, 0.45);
+    const fill = new THREE.DirectionalLight(0xe6eeff, 0.4);
     this.fill = fill;
     S.add(fill, fill.target);
 
@@ -869,6 +869,15 @@ export class Stage {
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     S.add(floorDisc(pal, Math.max(120, this.radius * 1.6)), floor);
+    if (this.body.soles) {
+      this.printK = pal.light ? 0.38 : 0.6;
+      this.prints = Object.fromEntries(['R', 'L'].map(s => {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0x000000, map: blobTexture(), transparent: true, depthWrite: false }));
+        m.renderOrder = 1;
+        S.add(m);
+        return [s, m];
+      }));
+    }
     this.aim();
   }
 
@@ -1039,6 +1048,7 @@ export class Stage {
   useEnv(r) {
     const e = studioEnv(r);
     for (const [m, k] of [[this.K.steel, 1], [this.K.frame, 0.8], [this.K.pad, 0.6], [this.K.plate, 0.5], [this.K.plateDark, 0.5]]) { m.envMap = e; m.envMapIntensity = k; m.needsUpdate = true; }
+    this.body.useEnv?.(e);
   }
 
   /* Camera and lights from the current orbit angles. */
@@ -1111,6 +1121,7 @@ export class Stage {
     }
     const J = skeleton(p);
     this.body.update(J, p.effort ?? 0.45, p);
+    if (this.prints) this.placePrints();
     holds(J, this.m).forEach((it, i) => {
       const o = this.held[i];
       if (!o) return;
@@ -1121,6 +1132,31 @@ export class Stage {
       orient(o, it.axis, it.up || [0, 1, 0]);
     });
     return J;
+  }
+
+  /* The contact shadow under each foot: a soft dark print the size and
+     heading of the sole, on the floor or the pad under it, fading as the
+     foot lifts. The key light's shadow is too soft and too far to the side
+     to show where a foot meets the ground; this does. */
+  placePrints() {
+    const S = this.body.soles();
+    for (const [s, m] of Object.entries(this.prints)) {
+      const o = S[s], n = o.length / 3;
+      let cx = 0, cz = 0, y0 = Infinity;
+      for (let k = 0; k < n; k++) { cx += o[3 * k]; cz += o[3 * k + 2]; y0 = Math.min(y0, o[3 * k + 1]); }
+      cx /= n; cz /= n;
+      let xx = 0, zz = 0, xz = 0;
+      for (let k = 0; k < n; k++) { const dx = o[3 * k] - cx, dz = o[3 * k + 2] - cz; xx += dx * dx; zz += dz * dz; xz += dx * dz; }
+      const a = 0.5 * Math.atan2(2 * xz, xx - zz), ca = Math.cos(a), sa = Math.sin(a);
+      let l = 0, w = 0;
+      for (let k = 0; k < n; k++) { const dx = o[3 * k] - cx, dz = o[3 * k + 2] - cz; l = Math.max(l, Math.abs(dx * ca + dz * sa)); w = Math.max(w, Math.abs(-dx * sa + dz * ca)); }
+      const top = this.surfaceAt([cx, y0, cz]), h = Math.max(0, y0 - top);
+      m.position.set(cx, top + 0.15, cz);
+      m.rotation.set(-Math.PI / 2, 0, -a);
+      m.scale.set(2 * l + 7, 2 * w + 6, 1);
+      m.material.opacity = this.printK * Math.max(0, 1 - h / 9);
+      m.visible = m.material.opacity > 0.01;
+    }
   }
 
   draw(r) { r.render(this.scene, this.camera); }
