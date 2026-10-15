@@ -43,7 +43,7 @@ import { load, save, remove, todayStr, dateStr } from './store.js?v=3d-oct14d';
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
 import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=3d-oct14d';
-import { TIME_RESET, timeCount } from './sessions.js?v=3d-oct14d';
+import { TIME_RESET, timeCount } from './sessions.js?v=3d-oct14e';
 import { gripOn, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_HOW } from './grip.js?v=3d-oct14d';
 
 /* ── storage ── */

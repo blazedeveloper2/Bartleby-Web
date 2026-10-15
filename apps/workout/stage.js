@@ -21,7 +21,7 @@ import * as THREE from '../../assets/vendor/three/three.module.min.js';
 import { MOTION } from './moves.js?v=3d-oct14d';
 import { timeline } from './timeline.js?v=3d-oct14d';
 import { skeleton, holds, points, normalize, SEG, BODY, v3, W } from './rig.js?v=3d-oct14d';
-import { loadTrainer, Trainer, studioEnv } from './avatar.js?v=3d-oct14e';
+import { loadTrainer, Trainer, studioEnv } from './avatar.js?v=3d-oct14f';
 import { axisLock } from './drag.js?v=3d-oct14d';
 import { regionPaint } from './muscles3d.js?v=3d-oct14d';
 import { MMAP } from './data.js?v=3d-oct14d';
@@ -279,16 +279,17 @@ function bodyMaterial(color, rough, U) {
       .replace('#include <common>', '#include <common>\nattribute float aMus;\nattribute float aMus2;\nvarying float vMus;\nvarying float vMus2;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvMus = aMus;\nvMus2 = aMus2;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uMusCol;\nuniform vec3 uMusCol2;\nuniform float uEffort;\nvarying float vMus;\nvarying float vMus2;')
+      .replace('#include <common>', '#include <common>\nuniform vec3 uMusCol;\nuniform vec3 uMusCol2;\nuniform float uEffort;\nuniform float uMusOn;\nvarying float vMus;\nvarying float vMus2;')
       .replace('#include <color_fragment>', [
         '#include <color_fragment>',
         'float mE = clamp((uEffort - 0.45) / 0.55, 0.0, 1.0);',
-        'diffuseColor.rgb = mix(diffuseColor.rgb, uMusCol2, vMus2 * 0.8);',
-        'diffuseColor.rgb = mix(diffuseColor.rgb, uMusCol, min(1.0, vMus * (0.9 + 0.2 * mE)));',
+        'float mA = vMus * uMusOn, mB = vMus2 * uMusOn;',
+        'diffuseColor.rgb = mix(diffuseColor.rgb, uMusCol2, mB * 0.8);',
+        'diffuseColor.rgb = mix(diffuseColor.rgb, uMusCol, min(1.0, mA * (0.9 + 0.2 * mE)));',
       ].join('\n'))
       .replace('#include <emissivemap_fragment>', [
         '#include <emissivemap_fragment>',
-        'totalEmissiveRadiance += uMusCol * vMus * (0.12 + 0.42 * mE) + uMusCol2 * vMus2 * 0.06;',
+        'totalEmissiveRadiance += uMusCol * mA * (0.12 + 0.42 * mE) + uMusCol2 * mB * 0.06;',
       ].join('\n'));
   };
   m.customProgramCacheKey = () => 'muscle-paint';
@@ -365,7 +366,7 @@ class TorsoTube {
 class Mannequin {
   constructor(pal, m) {
     const hi = m.hi || [], hi2 = m.hi2 || [];
-    this.uniforms = { uMusCol: { value: pal.muscle.clone() }, uMusCol2: { value: pal.muscle2.clone() }, uEffort: { value: 0.45 } };
+    this.uniforms = { uMusCol: { value: pal.muscle.clone() }, uMusCol2: { value: pal.muscle2.clone() }, uEffort: { value: 0.45 }, uMusOn: { value: 1 } };
     const U = this.uniforms;
     const std = (color, rough = 0.6) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0 });
     this.mat = {
@@ -1171,8 +1172,11 @@ export class Stage {
 
 /* ── the lab ── */
 
-/* Runs the rep in `box` (an element sized by CSS); returns the stop. */
-export function mount(box, name, { onStep, still = false } = {}) {
+/* Runs the rep in `box` (an element sized by CSS); returns its handle.
+   `free` is for the full-screen viewer (pose.js), which has no page to
+   scroll: every drag turns, a plain wheel zooms and the camera can look
+   straight down. onFrame hears where in the rep each drawn frame is. */
+export function mount(box, name, { onStep, onFrame, still = false, free = false } = {}) {
   const own = BUSY;
   const r = renderer(own);
   if (!own) BUSY = true;
@@ -1180,6 +1184,8 @@ export function mount(box, name, { onStep, still = false } = {}) {
   stage.useEnv(r);
   box.appendChild(r.domElement);
   let raf = 0, clock = 0, last = 0, paused = still, dirty = true, visible = true;
+  let speed = 1, spin = false, glide = null;
+  const total = stage.tl.total;
 
   const size = () => {
     const w = box.clientWidth || 300, h = box.clientHeight || 200;
@@ -1199,13 +1205,23 @@ export function mount(box, name, { onStep, still = false } = {}) {
     if (!still) for (const [k, amp, hz] of stage.m.sway || []) if (typeof p[k] === 'number') p[k] += amp * Math.sin(2 * Math.PI * hz * clock);
     stage.pose(p);
     stage.draw(r);
-    if (!still) { const s = stage.tl.step(clock); onStep?.(s.i, s.u); }
+    if (!still) { const s = stage.tl.step(clock); onStep?.(s.i, s.u); onFrame?.(((clock % total) + total) % total); }
     dirty = false;
   };
   const tick = now => {
     raf = requestAnimationFrame(tick);
     if (!visible) { last = 0; return; }
-    if (!paused) { clock += last ? Math.min(0.1, (now - last) / 1000) : 0; dirty = true; }
+    const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
+    if (!paused) { clock += dt * speed; dirty = true; }
+    /* a camera move asked for by a button eases there rather than cutting */
+    if (glide) {
+      const k = Math.min(1, (now - glide.t0) / 450), e = k * k * (3 - 2 * k);
+      stage.az = glide.az0 + (glide.az - glide.az0) * e;
+      stage.el = glide.el0 + (glide.el - glide.el0) * e;
+      stage.zoom = glide.z0 + (glide.z - glide.z0) * e;
+      stage.aim(); dirty = true;
+      if (k >= 1) glide = null;
+    } else if (spin && !drag) { stage.az += dt * 24; stage.aim(); dirty = true; }
     last = now;
     if (dirty) frame();
   };
@@ -1217,8 +1233,8 @@ export function mount(box, name, { onStep, still = false } = {}) {
   const cv = r.domElement;
   const ptrs = new Map();
   let drag = null, pinch = null;
-  const ZMIN = 0.42, ZMAX = 1.8;
-  const zoomTo = z => { stage.zoom = Math.max(ZMIN, Math.min(ZMAX, z)); stage.aim(); dirty = true; box.classList.add('turned'); };
+  const ZMIN = 0.42, ZMAX = 1.8, ELMAX = free ? 88 : 70;
+  const zoomTo = z => { glide = null; stage.zoom = Math.max(ZMIN, Math.min(ZMAX, z)); stage.aim(); dirty = true; box.classList.add('turned'); };
   const spread = () => { const [a, b] = [...ptrs.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
   /* one finger: sideways turns, up and down scrolls the page (drag.js) */
   const lock = axisLock();
@@ -1232,9 +1248,10 @@ export function mount(box, name, { onStep, still = false } = {}) {
     if (!ptrs.has(e.pointerId)) return;
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pinch && ptrs.size === 2) { zoomTo(pinch.z * (pinch.d / spread())); return; }
-    if (!drag || lock.move(e) !== 'turn') return;
+    if (!drag || (!free && lock.move(e) !== 'turn')) return;
+    glide = null;
     stage.az = drag.az - (e.clientX - drag.x) * 0.45;
-    stage.el = Math.max(-4, Math.min(70, drag.el + (e.clientY - drag.y) * 0.3));
+    stage.el = Math.max(-4, Math.min(ELMAX, drag.el + (e.clientY - drag.y) * 0.3));
     box.classList.add('turned');
     stage.aim(); dirty = true;
   };
@@ -1245,11 +1262,17 @@ export function mount(box, name, { onStep, still = false } = {}) {
     if (!ptrs.size) { drag = null; lock.up(); }
   };
   const wheel = e => {
-    if (!e.ctrlKey) return;
+    if (!e.ctrlKey && !free) return;
     e.preventDefault();
     zoomTo((stage.zoom || 1) * Math.exp(e.deltaY * 0.01));
   };
-  const reset = () => { stage.az = stage.az0; stage.el = stage.el0; stage.zoom = 1; stage.aim(); dirty = true; };
+  const reset = () => { glide = null; stage.az = stage.az0; stage.el = stage.el0; stage.zoom = 1; stage.aim(); dirty = true; };
+  /* the short way round to a heading, so "Front" from 350° turns 100°, not 260° */
+  const glideTo = (az, el, z = stage.zoom || 1) => {
+    const from = stage.az, to = from + ((((az - from) % 360) + 540) % 360 - 180);
+    glide = { t0: performance.now(), az0: from, el0: stage.el, z0: stage.zoom || 1, az: to, el: Math.max(-4, Math.min(ELMAX, el)), z: Math.max(ZMIN, Math.min(ZMAX, z)) };
+    box.classList.add('turned');
+  };
   cv.addEventListener('pointerdown', down);
   cv.addEventListener('pointermove', move);
   cv.addEventListener('pointerup', up);
@@ -1263,7 +1286,22 @@ export function mount(box, name, { onStep, still = false } = {}) {
   frame();
   raf = requestAnimationFrame(tick);
   return {
+    total,
+    az0: stage.az0, el0: stage.el0,
     pause(on) { paused = on; last = 0; },
+    get paused() { return paused; },
+    get time() { return ((clock % total) + total) % total; },
+    seek(t) { clock = t; dirty = true; },
+    speed(x) { speed = x; },
+    spin(on) { spin = on; },
+    /* the working muscles painted on, or a plain body */
+    muscles(on) { const u = stage.body.uniforms?.uMusOn; if (u) { u.value = on ? 1 : 0; dirty = true; } },
+    view(az, el, z) { glideTo(az, el, z); },
+    zoom(k) { zoomTo((stage.zoom || 1) * k); },
+    reset() { glideTo(stage.az0, stage.el0, 1); },
+    /* where the camera is, to carry between the card and the viewer */
+    get camera() { return { az: stage.az, el: stage.el, zoom: stage.zoom || 1 }; },
+    set camera(c) { glide = null; stage.az = c.az; stage.el = c.el; stage.zoom = c.zoom; stage.aim(); dirty = true; },
     stop() {
       cancelAnimationFrame(raf);
       ro.disconnect(); io.disconnect();

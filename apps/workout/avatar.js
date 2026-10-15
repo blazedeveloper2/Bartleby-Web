@@ -342,17 +342,18 @@ export function paintedMaterial(opts, U, skin = false) {
       .replace('#include <common>', '#include <common>\nattribute float aMus;\nattribute float aMus2;\nattribute float aBlend;\nvarying float vMus;\nvarying float vMus2;\nvarying float vBlend;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvMus = aMus;\nvMus2 = aMus2;\nvBlend = aBlend;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uMusCol;\nuniform vec3 uMusCol2;\nuniform vec3 uNeck;\nuniform float uEffort;\nvarying float vMus;\nvarying float vMus2;\nvarying float vBlend;')
+      .replace('#include <common>', '#include <common>\nuniform vec3 uMusCol;\nuniform vec3 uMusCol2;\nuniform vec3 uNeck;\nuniform float uEffort;\nuniform float uMusOn;\nvarying float vMus;\nvarying float vMus2;\nvarying float vBlend;')
       .replace('#include <color_fragment>', [
         '#include <color_fragment>',
         'diffuseColor.rgb = mix(diffuseColor.rgb, uNeck, vBlend);',
         'float mE = clamp((uEffort - 0.45) / 0.55, 0.0, 1.0);',
-        'diffuseColor.rgb = mix(diffuseColor.rgb, uMusCol2, vMus2 * 0.7);',
-        'diffuseColor.rgb = mix(diffuseColor.rgb, uMusCol, min(1.0, vMus * (0.82 + 0.18 * mE)));',
+        'float mA = vMus * uMusOn, mB = vMus2 * uMusOn;',
+        'diffuseColor.rgb = mix(diffuseColor.rgb, uMusCol2, mB * 0.7);',
+        'diffuseColor.rgb = mix(diffuseColor.rgb, uMusCol, min(1.0, mA * (0.82 + 0.18 * mE)));',
       ].join('\n'))
       .replace('#include <emissivemap_fragment>', [
         '#include <emissivemap_fragment>',
-        'totalEmissiveRadiance += uMusCol * vMus * (0.1 + 0.4 * mE) + uMusCol2 * vMus2 * 0.05;',
+        'totalEmissiveRadiance += uMusCol * mA * (0.1 + 0.4 * mE) + uMusCol2 * mB * 0.05;',
       ].join('\n'));
   };
   m.customProgramCacheKey = () => (skin ? 'trainer-paint-skin' : 'trainer-paint');
@@ -414,7 +415,7 @@ export class Trainer {
     this.CM = T.cm;
     this.ankleUp = T.ankleUp;
     const skinCol = T.mats.skin?.neck || T.mats.skin?.color || '#c39071';
-    const U = this.uniforms = { uMusCol: { value: pal.muscle.clone() }, uMusCol2: { value: pal.muscle2.clone() }, uEffort: { value: 0.45 }, uNeck: { value: new THREE.Color(skinCol) } };
+    const U = this.uniforms = { uMusCol: { value: pal.muscle.clone() }, uMusCol2: { value: pal.muscle2.clone() }, uEffort: { value: 0.45 }, uMusOn: { value: 1 }, uNeck: { value: new THREE.Color(skinCol) } };
     const geo = T.geo.clone();
     const [w1, w2] = paint.weights ? paint.weights(T, m) : paintWeights(T, m.hi || [], m.hi2 || [], paint);
     geo.setAttribute('aMus', new THREE.BufferAttribute(w1, 1));
