@@ -9,6 +9,12 @@
    which nerve runs it, and what in your program trains it — each of
    those a way into that exercise's card.
 
+   Settings (the sliders button) dress the body: shorts on or off, every
+   muscle in its own colour or its group's, a slow auto-spin, and a
+   hologram skin. The quiz runs in the readout: name the muscle that
+   lights up, or find the one named on the body, with the muscles you
+   miss coming round more often.
+
    The body is the exercise card's own 3D view, borrowed while this is
    open. There is one canvas for both, so opening an exercise from here
    takes it into the card, and closing the card hands it back (attach()).
@@ -245,7 +251,20 @@ const I = {
   find:  ico('<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>'),
   home:  ico('<path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/><circle cx="12" cy="12" r="2.5"/>'),
   close: ico('<path d="M6 6l12 12"/><path d="M18 6L6 18"/>'),
+  set:   ico('<path d="M4 6h9"/><path d="M17 6h3"/><path d="M4 12h3"/><path d="M11 12h9"/><path d="M4 18h11"/><path d="M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>'),
 };
+
+/* Colours for "show every muscle": each muscle its own hue, spread round
+   the wheel by the golden angle so neighbours differ, or one hue per
+   group. Both keep out of 0–50°, the skin's own range, so a colour never
+   reads as skin. The deep muscles stay out: they would muddy the ones
+   over them. */
+const SURFACE = REGIONS.filter(r => !r.deep);
+const HUE = {
+  muscle: Object.fromEntries(SURFACE.map((r, i) => [r.id, 55 + (i * 137.508) % 290])),
+  group: Object.fromEntries(SURFACE.map(r => [r.id, 55 + GROUPS.indexOf(r.group) * 290 / GROUPS.length])),
+};
+const swatch = (id, by) => HUE[by]?.[id] === undefined ? null : `hsl(${Math.round(HUE[by][id])}, 72%, 55%)`;
 
 /* The exercise card's 2D map with its own class names and no ids, so the
    card's code, which looks its map up across the whole app, never finds
@@ -287,6 +306,13 @@ const PREF = 'bp_anat';
 const pref = load(PREF, {});
 let sel = R(pref.sel) ? pref.sel : 'pec';
 let min = !!pref.min;    // the readout folded down to its name
+/* the settings; atlas is '' (off), 'muscle' or 'group' */
+const look = { shorts: true, atlas: '', spin: false, holo: false, ...(pref.look || {}) };
+if (!['', 'muscle', 'group'].includes(look.atlas)) look.atlas = '';
+/* quiz record, id → [right, asked] */
+const stats = pref.quiz && typeof pref.quiz === 'object' ? pref.quiz : {};
+let hudOn = true;        // the readout is up (a tap on empty space puts it away)
+let quiz = null;         // the quiz under way: { kind, id, lit, opts, done, picked, right, total, streak }
 let grp = '', qry = '';
 let X = null;            // the full-screen layer, #ax
 let idx = new Map();     // trainers()
@@ -295,7 +321,8 @@ let mv = null;           // muscleview.js, once loaded
 let is3d = false;
 let ro = null;
 
-const keep = () => save(PREF, { sel, min });
+const keep = () => save(PREF, { sel, min, look, quiz: stats });
+const atlasMap = () => look.atlas ? new Map(SURFACE.map(r => [r.id, swatch(r.id, look.atlas)])) : null;
 const wide = () => matchMedia('(min-width: 900px)').matches;
 const $ = s => X.querySelector(s);
 
@@ -312,7 +339,7 @@ export function open() {
   X = ctx.layer();
   if (!X || isOpen()) return;
   idx = trainers();
-  is3d = false;
+  is3d = false; hudOn = true;
   X.innerHTML = layerHTML();
   X.hidden = false;
   document.documentElement.classList.add('wk-ax');
@@ -332,16 +359,19 @@ export function close(fromPop) {
   removeEventListener('popstate', onPop);
   X.hidden = true;
   X.innerHTML = '';
-  is3d = false;
+  is3d = false; quiz = null;
   document.documentElement.classList.remove('wk-ax');
   if (!fromPop && history.state?.ax) history.back();
   ctx.closed?.();
 }
 const onPop = () => close(true);
 
-/* Escape folds the list away first, then closes. */
+/* Escape puts away the settings, then the list, then the quiz, then
+   closes. */
 export function escape() {
-  if (!$('#ax-drawer').hidden) toggleList(false);
+  if (!$('#ax-set').hidden) toggleSet(false);
+  else if (!$('#ax-drawer').hidden) toggleList(false);
+  else if (quiz) endQuiz();
   else close();
 }
 
@@ -354,20 +384,19 @@ export function refresh() {
 
 /* ── markup ── */
 function layerHTML() {
-  return `<div class="ax-stage"><div class="ax-2d">${MAP_2D}</div><div class="ax-3d"></div></div>
+  return `<div class="ax-stage"><div class="ax-2d" data-act="an-air">${MAP_2D}</div><div class="ax-3d"></div></div>
     <svg class="ax-wire" aria-hidden="true"><path class="ax-lead"/><path class="ax-tick"/><circle class="ax-ring" r="12"/><circle class="ax-dot" r="3.5"/></svg>
     <header class="ax-top">
-      <div class="ax-title">
-        <div class="ax-k">Anatomy<i>//</i><span>${REGIONS.length} muscles</span></div>
-        <div class="ax-hint"><span class="ax-touch">Drag to turn · pinch to zoom · tap a muscle</span><span class="ax-mouse">Drag to turn · scroll to zoom · right-drag to move · click a muscle</span></div>
-      </div>
+      <div class="ax-title"><div class="ax-k">Anatomy</div></div>
       <div class="ax-tools">
         <button type="button" class="ax-btn ax-find" data-act="an-list" aria-expanded="false" aria-controls="ax-drawer">${I.find}<span>Muscles</span></button>
+        <button type="button" class="ax-btn ax-gear" data-act="an-set" aria-expanded="false" aria-controls="ax-set" aria-label="Settings and quiz" title="Settings and quiz">${I.set}</button>
         <button type="button" class="ax-btn" data-act="an-home" aria-label="Whole body" title="Whole body">${I.home}</button>
         <button type="button" class="ax-btn ax-close" data-act="an-close" aria-label="Close anatomy" title="Close">${I.close}</button>
       </div>
     </header>
     <div class="ax-load" id="ax-load">Loading the 3D body…</div>
+    <div class="ax-set" id="ax-set" hidden></div>
     <section class="ax-hud" id="ax-hud" aria-live="polite"></section>
     <aside class="ax-drawer" id="ax-drawer" hidden aria-label="Muscles">
       <div class="ax-drawer-h">
@@ -434,7 +463,8 @@ function listHTML() {
     [...new Set(rs.map(r => r.group))].map(g =>
       `<div class="an-grp-h">${g}</div>` + rs.filter(r => r.group === g).map(r => {
         const n = idx.get(r.id)?.size || 0;
-        return `<button type="button" class="an-row${r.id === sel ? ' on' : ''}" data-act="an-pick" data-id="${r.id}"${r.id === sel ? ' aria-current="true"' : ''}>
+        const sw = look.atlas && swatch(r.id, look.atlas);
+        return `<button type="button" class="an-row${r.id === sel ? ' on' : ''}${sw ? ' sw' : ''}" data-act="an-pick" data-id="${r.id}"${r.id === sel ? ' aria-current="true"' : ''}${sw ? ` style="--sw:${sw}"` : ''}>
           <span class="an-row-t"><span class="an-row-n">${r.name}${r.deep ? '<i>deep</i>' : ''}</span><span class="an-row-l">${A[r.id].l}</span></span>
           <span class="an-row-c${n ? '' : ' none'}" title="${n} exercise${n === 1 ? '' : 's'} in your program work${n === 1 ? 's' : ''} it">${n}</span>
         </button>`;
@@ -443,8 +473,10 @@ function listHTML() {
 
 function paint() {
   const hud = $('#ax-hud');
-  hud.innerHTML = hudHTML();
-  hud.classList.toggle('min', min);
+  hud.innerHTML = quiz ? quizHTML() : hudHTML();
+  hud.classList.toggle('min', min && !quiz);
+  hud.classList.toggle('quiz', !!quiz);
+  $('#ax-set').innerHTML = setHTML();
   $('#an-groups').innerHTML = groupsHTML();
   $('#an-list').innerHTML = listHTML();
   light();
@@ -457,13 +489,18 @@ function paint() {
    selected muscle's own group. */
 const groupIds = () => REGIONS.filter(r => r.group === (grp || R(sel).group) && r.id !== sel).map(r => r.id);
 
+/* What is lit: the selected muscle, or in a quiz the one asked about
+   (none while you are looking for it); the faint group round it only
+   when the colours and the quiz are not doing that job. */
+const litId = () => (quiz ? quiz.lit : hudOn ? sel : null);
 function light() {
-  const g = new Set(groupIds());
-  if (is3d) mv.study(sel, [...g]);
+  const id = litId(), g = new Set(quiz || look.atlas ? [] : groupIds());
+  if (is3d) mv.study(id, [...g]);
   X.querySelectorAll('.an-region').forEach(el => {
-    const id = regionOfMapId(el.dataset.mid);
-    el.classList.toggle('lvl-1', id === sel);
-    el.classList.toggle('lvl-3', id !== sel && g.has(id));
+    const rid = regionOfMapId(el.dataset.mid), sw = look.atlas && rid !== id && swatch(rid, look.atlas);
+    el.classList.toggle('lvl-1', rid === id);
+    el.classList.toggle('lvl-3', rid !== id && g.has(rid));
+    el.style.fill = sw || '';
   });
   lead();
 }
@@ -474,6 +511,7 @@ function insets() {
   const xr = X.getBoundingClientRect(), h = $('#ax-hud').getBoundingClientRect(), top = $('.ax-top').getBoundingClientRect();
   const d = $('#ax-drawer'), dr = !d.hidden && wide() ? d.getBoundingClientRect() : null;
   const ins = { t: top.bottom - xr.top, l: dr ? dr.right - xr.left : 0, r: 0, b: 0 };
+  if ($('#ax-hud').hidden) return ins;
   if (wide()) ins.r = xr.right - h.left + 12; else ins.b = xr.bottom - h.top + 10;
   return ins;
 }
@@ -493,7 +531,9 @@ function lead() {
   if (!isOpen()) return;
   const xr = X.getBoundingClientRect(), wire = $('.ax-wire'), hr = $('#ax-hud').getBoundingClientRect();
   let p = null;
-  if (is3d) p = mv.anchorOf(sel);
+  const id = litId();
+  if (!id) p = null;
+  else if (is3d) p = mv.anchorOf(id);
   else {
     const el = [...X.querySelectorAll('.ax-2d .an-region.lvl-1')].find(e => e.getClientRects().length);
     if (el) { const b = el.getBoundingClientRect(); p = { x: b.x + b.width / 2 - xr.x, y: b.y + b.height / 2 - xr.y, front: true, on: true }; }
@@ -529,7 +569,7 @@ export function attach() {
     .then(m => {
       mv = m;
       if (!box.isConnected || !ctx.free()) return false;
-      return m.orbit(box, { onTap: r => r && pick(r.id, true), onFrame: lead, inset: insets() });
+      return m.orbit(box, { onTap: (r, air) => r ? pick(r.id, true) : air && tapAir(), onFrame: lead, inset: insets(), look: { ...look, atlas: atlasMap() } });
     })
     .then(ok => {
       if (ok === false || !box.isConnected) return;
@@ -537,7 +577,7 @@ export function attach() {
       X.classList.add('is-3d');
       layout();
       light();
-      if (back) mv.face(sel);
+      if (back && litId()) mv.face(litId());
     })
     .catch(() => { is3d = false; X?.classList.add('no-3d'); layout(); });
 }
@@ -545,8 +585,10 @@ export function attach() {
 /* ── interaction ── */
 function pick(id, fly) {
   if (!R(id)) return;
+  if (quiz) { if (quiz.kind === 'find') answer(id); return; }
   sel = id;
   keep();
+  showHud(true);
   $('#ax-hud').innerHTML = hudHTML();
   X.querySelectorAll('.an-row').forEach(b => {
     const on = b.dataset.id === id;
@@ -555,6 +597,29 @@ function pick(id, fly) {
   });
   light();
   if (fly && is3d) mv.face(id);
+}
+
+/* A tap on empty space puts away whatever is open, the way apps do:
+   the settings, then the list where it covers the body, then the
+   readout. A quiz stays: it is waiting on an answer. */
+function tapAir() {
+  if (!$('#ax-set').hidden) toggleSet(false);
+  else if (!$('#ax-drawer').hidden && !wide()) toggleList(false);
+  else if (!quiz && hudOn) showHud(false);
+}
+function showHud(on) {
+  if (hudOn === on) return;
+  hudOn = on;
+  $('#ax-hud').hidden = !on;
+  light();
+  layout();
+}
+
+function toggleSet(on) {
+  const d = $('#ax-set');
+  if (on) d.innerHTML = setHTML();
+  d.hidden = !on;
+  $('.ax-gear').setAttribute('aria-expanded', String(on));
 }
 
 function toggleList(on) {
@@ -587,9 +652,24 @@ export function act(el) {
       layout();
       break;
     case 'an-pick':
+      if (quiz) endQuiz();
       pick(a.id, true);
       if (!wide()) toggleList(false);
       break;
+    case 'an-set':  toggleSet($('#ax-set').hidden); break;
+    case 'an-look':
+      if (a.k === 'atlas') look.atlas = a.v; else look[a.k] = !look[a.k];
+      keep();
+      $('#ax-set').innerHTML = setHTML();
+      if (is3d) mv.setLook({ ...look, atlas: atlasMap() });
+      $('#an-list').innerHTML = listHTML();
+      light();
+      break;
+    case 'an-quiz':  startQuiz(a.k); break;
+    case 'an-qa':    answer(a.id); break;
+    case 'an-qnext': ask(); break;
+    case 'an-qend':  endQuiz(); break;
+    case 'an-air':   tapAir(); break;
     case 'an-2d':   pick(regionOfMapId(a.mid)); break;
     case 'an-step': {
       const rs = shown().length ? shown() : REGIONS, at = rs.findIndex(r => r.id === sel);
@@ -604,6 +684,105 @@ export function act(el) {
       else light();
       break;
   }
+}
+
+/* ── settings ── */
+function setHTML() {
+  const tog = (k, label, note) => `<div class="ax-set-row">
+      <span><b>${label}</b><small>${note}</small></span>
+      <button type="button" class="ax-tog" role="switch" data-act="an-look" data-k="${k}" aria-checked="${!!look[k]}" aria-label="${label}"><i></i></button>
+    </div>`;
+  const seen = POOL.filter(id => stats[id]?.[1]).length;
+  return `<div class="ax-set-k">Body</div>
+    ${tog('shorts', 'Shorts', 'Off shows the glutes, hips and inner thighs whole')}
+    <div class="ax-set-row col">
+      <span><b>Show every muscle</b><small>Each in its own colour, or coloured by body group</small></span>
+      <div class="ax-seg" role="group" aria-label="Show every muscle">${[['', 'Off'], ['muscle', 'Each'], ['group', 'Groups']].map(([v, n]) =>
+        `<button type="button" data-act="an-look" data-k="atlas" data-v="${v}" aria-pressed="${look.atlas === v}">${n}</button>`).join('')}</div>
+    </div>
+    ${tog('spin', 'Auto-spin', 'Turns slowly whenever you leave him alone')}
+    ${tog('holo', 'Hologram skin', 'See-through, with the muscles glowing inside')}
+    <div class="ax-set-k">Quiz yourself</div>
+    <div class="ax-qbtns">
+      <button type="button" class="ax-qb" data-act="an-quiz" data-k="name"><b>Name it</b><small>A muscle lights up; pick its name</small></button>
+      <button type="button" class="ax-qb" data-act="an-quiz" data-k="find"><b>Find it</b><small>You get a name; tap it on the body</small></button>
+    </div>
+    <p class="ax-qstat">${seen ? `You know ${known()} of ${POOL.length} · ${seen} tried` : `${POOL.length} muscles to learn`}</p>`;
+}
+
+/* ── the quiz ──
+   Over the muscles you can see (not the deep two). The next one is drawn
+   at random, weighted so the ones you get wrong, and the ones you have
+   not met, come up more; never the same one twice running. You "know" a
+   muscle once you have it right at least twice and three times in five. */
+const POOL = SURFACE.map(r => r.id);
+const known = () => POOL.filter(id => { const [r, n] = stats[id] || [0, 0]; return r >= 2 && r / n >= 0.6; }).length;
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+function draw1() {
+  const w = POOL.map(id => { const [r, n] = stats[id] || [0, 0]; return id === quiz?.id ? 0 : 1 + (n - r) * 2 + (n ? 0 : 2); });
+  let x = Math.random() * w.reduce((a, b) => a + b, 0), i = 0;
+  while (i < w.length - 1 && (x -= w[i]) > 0) i++;
+  return POOL[i];
+}
+/* four names: the right one, two from its own group where there are
+   any (the hard ones), the rest from anywhere */
+function options(id) {
+  const r = R(id), same = shuffle(SURFACE.filter(x => x.group === r.group && x.id !== id)).slice(0, 2);
+  const rest = shuffle(SURFACE.filter(x => x.id !== id && !same.includes(x))).slice(0, 3 - same.length);
+  return shuffle([r, ...same, ...rest]).map(x => x.id);
+}
+
+function startQuiz(kind) {
+  quiz = { kind, right: 0, total: 0, streak: 0 };
+  hudOn = true; $('#ax-hud').hidden = false;
+  toggleSet(false);
+  toggleList(false);
+  ask();
+}
+function ask() {
+  const id = draw1(), name = quiz.kind === 'name';
+  Object.assign(quiz, { id, lit: name ? id : null, opts: name ? options(id) : null, done: false, picked: null });
+  paint();
+  if (is3d) name ? mv.face(id) : mv.home();
+}
+/* `id` is the name picked, the muscle tapped, or '' for "show me" */
+function answer(id) {
+  if (!quiz || quiz.done) return;
+  const ok = id === quiz.id;
+  Object.assign(quiz, { done: true, picked: id, lit: quiz.id, total: quiz.total + 1, right: quiz.right + (ok ? 1 : 0), streak: ok ? quiz.streak + 1 : 0 });
+  if (id !== '') { const s = stats[quiz.id] || [0, 0]; stats[quiz.id] = [s[0] + (ok ? 1 : 0), s[1] + 1]; keep(); }
+  paint();
+  if (is3d && quiz.kind === 'find' && !ok) mv.face(quiz.id);
+}
+function endQuiz() {
+  quiz = null;
+  paint();
+  if (is3d) mv.face(sel);
+}
+
+function quizHTML() {
+  const q = quiz, r = R(q.id), name = q.kind === 'name', ok = q.picked === q.id;
+  const title = q.done ? r.name : name ? 'Name the lit muscle' : `Find the ${r.name}`;
+  const sub = q.done ? A[q.id].l : name ? 'Turn him round if you need a better look' : 'Tap it on the body; turn him round if it is on the back';
+  const verdict = !q.done ? '' : ok ? 'Correct.'
+    : q.picked === '' ? 'Here it is.'
+    : name ? `Not quite. You picked the ${R(q.picked).name}.`
+    : `That was the ${R(q.picked).name}. The ${r.name} is lit now.`;
+  return `<div class="ax-hud-h">
+      <div class="ax-hud-t">
+        <div class="ax-k2"><span>Quiz · ${name ? 'Name it' : 'Find it'}</span><b>${q.right}/${q.total}${q.streak > 1 ? ` · ${q.streak} in a row` : ''}</b></div>
+        <h2 class="ax-name">${title}</h2>
+        <div class="ax-latin">${sub}</div>
+      </div>
+      <div class="ax-hud-b"><button type="button" class="ax-sq" data-act="an-qend" aria-label="End the quiz" title="End the quiz">${I.close}</button></div>
+    </div>
+    <div class="ax-quiz">
+      ${name ? `<div class="ax-opts">${q.opts.map(id => `<button type="button" class="ax-opt${q.done && id === q.id ? ' right' : ''}${q.done && id === q.picked && !ok ? ' wrong' : ''}" data-act="an-qa" data-id="${id}"${q.done ? ' disabled' : ''}>${R(id).name}</button>`).join('')}</div>` : ''}
+      ${q.done
+        ? `<p class="ax-verdict ${ok ? 'ok' : 'no'}">${verdict}</p><p class="ax-does">${A[q.id].a}</p><button type="button" class="ax-next" data-act="an-qnext">Next muscle ${I.next}</button>`
+        : name ? '' : `<button type="button" class="ax-skip" data-act="an-qa" data-id="">Show me</button>`}
+    </div>`;
 }
 
 /* For the Anatomy tile in the extras tray. */

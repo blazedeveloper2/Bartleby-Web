@@ -66,8 +66,15 @@ Live apps:
   round to it, and a see-through readout tied to it by a line gives its
   anatomical name, what it does, its origin, insertion and nerve, a
   training note, and the exercises in your current program that work it,
-  each opening that exercise. The readout folds down to the name; the
-  back gesture, Escape or × closes it. The reference text was checked
+  each opening that exercise. The readout folds down to the name, and a
+  tap on empty space puts it (or the settings, or the list) away; the
+  back gesture, Escape or × closes Anatomy. The settings button dresses
+  the body: shorts on or off, every muscle in its own colour or its
+  group's, a slow auto-spin when left alone, and a see-through hologram
+  skin in the theme's accent. **Quiz yourself** runs in the readout: name
+  the muscle that lights up (four choices, two from its own group), or
+  find the one named by tapping it on the body. Muscles you miss come up
+  more often, and it keeps count of the ones you know. The reference text was checked
   against Kenhub, TeachMeAnatomy and Gray's-sourced pages. See
   `apps/workout/anatomy.js` and the orbit camera in
   `apps/workout/muscleview.js`.

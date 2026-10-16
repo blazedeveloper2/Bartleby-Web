@@ -28,8 +28,14 @@ let V = null;             // the one view: { T, regs, renderer, scene, body, …
 let building = null;
 
 /* The model's own materials, with a per-vertex tint laid over the skin
-   and a little glow, so a lit muscle reads in shadow as well. */
-function tintMaterial(src, uNeck) {
+   and a little glow, so a lit muscle reads in shadow as well.
+
+   `H` switches the Anatomy tab's hologram skin in (uHolo 0 → 1): the
+   body goes dark in the accent colour (uHoloCol), see-through except at
+   its edges, with a glow round its outline and fine scan lines up it
+   (uHoloK lines per unit of height), while the lit muscles glow solid
+   inside it. A uniform, so turning it on or off recompiles nothing. */
+function tintMaterial(src, uNeck, H) {
   const m = new THREE.MeshStandardMaterial({ map: src.map || null, normalMap: src.normalMap || null, color: src.color.clone(), roughness: src.roughness, metalness: 0, alphaTest: src.alphaTest, side: src.side });
   if (src.normalScale) m.normalScale = src.normalScale.clone();
   m.name = src.name; m.visible = src.visible;
@@ -37,17 +43,30 @@ function tintMaterial(src, uNeck) {
   m.onBeforeCompile = sh => {
     skinLook(sh, skin);
     sh.uniforms.uNeck = uNeck;
+    Object.assign(sh.uniforms, H);
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute vec4 aTint;\nattribute float aBlend;\nvarying vec4 vTint;\nvarying float vBlend;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTint = aTint;\nvBlend = aBlend;');
+      .replace('#include <common>', '#include <common>\nattribute vec4 aTint;\nattribute float aBlend;\nvarying vec4 vTint;\nvarying float vBlend;\nvarying float vHoloY;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTint = aTint;\nvBlend = aBlend;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\nvHoloY = (modelMatrix * vec4(transformed, 1.0)).y;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uNeck;\nvarying vec4 vTint;\nvarying float vBlend;')
-      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, uNeck, vBlend);\ndiffuseColor.rgb = mix(diffuseColor.rgb, vTint.rgb, vTint.a);')
-      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vTint.rgb * vTint.a * 0.3;');
+      .replace('#include <common>', '#include <common>\nuniform vec3 uNeck;\nuniform float uHolo;\nuniform vec3 uHoloCol;\nuniform float uHoloK;\nvarying vec4 vTint;\nvarying float vBlend;\nvarying float vHoloY;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, uNeck, vBlend);\ndiffuseColor.rgb = mix(diffuseColor.rgb, uHoloCol * 0.12, uHolo * 0.92);\ndiffuseColor.rgb = mix(diffuseColor.rgb, vTint.rgb, vTint.a);')
+      .replace('#include <emissivemap_fragment>', [
+        '#include <emissivemap_fragment>',
+        'float holoF = pow(1.0 - abs(dot(normal, normalize(vViewPosition))), 2.0);',
+        'float holoL = smoothstep(0.8, 1.0, abs(fract(vHoloY * uHoloK) * 2.0 - 1.0));',
+        'totalEmissiveRadiance += vTint.rgb * vTint.a * mix(0.3, 0.85, uHolo);',
+        'totalEmissiveRadiance += uHoloCol * uHolo * (holoF * 0.9 + holoL * 0.3) * (1.0 - vTint.a * 0.7);',
+      ].join('\n'))
+      .replace('#include <dithering_fragment>', '#include <dithering_fragment>\ngl_FragColor.a = mix(gl_FragColor.a, max(vTint.a, 0.22 + holoF * 0.75), uHolo);');
   };
   m.customProgramCacheKey = () => (skin ? 'mm-tint-skin' : 'mm-tint');
   return m;
 }
+
+/* How the Anatomy tab dresses the body; the exercise card always gets
+   the plain one (show() puts it back). */
+const PLAIN = { shorts: true, atlas: null, spin: false, holo: false };
 
 async function build() {
   const T = await loadTrainer(MODEL);
@@ -73,7 +92,8 @@ async function build() {
   const M = new THREE.Matrix4().makeScale(T.cm, T.cm, T.cm);
   for (const b of body.bones) { b.matrix.copy(M); b.matrixWorld.copy(M); }
   const old = body.mesh.material;
-  body.mesh.material = old.map(o => tintMaterial(o, body.uniforms.uNeck));
+  const H = { uHolo: { value: 0 }, uHoloCol: { value: new THREE.Color('#ff7a18') }, uHoloK: { value: 1 } };
+  body.mesh.material = old.map(o => tintMaterial(o, body.uniforms.uNeck, H));
   old.forEach(o => o.dispose());
   body.useEnv(studioEnv(renderer));
   const n = body.mesh.geometry.attributes.position.count;
@@ -95,7 +115,9 @@ async function build() {
 
   V = { T, regs, renderer, scene, body, pick, rest, centre, height, width: box.max.x - box.min.x, cams, key, rim, fill,
     yaw: 0, view: 'both', focusOn: null, near: true, lit: new Map(), box: null, raf: 0, ro: null, onTap: null, spots: new Map(),
-    orb: null, ins: { l: 0, r: 0, t: 0, b: 0 }, insGoal: { l: 0, r: 0, t: 0, b: 0 }, onFrame: null, anchors: new Map(), last: 0 };
+    orb: null, ins: { l: 0, r: 0, t: 0, b: 0 }, insGoal: { l: 0, r: 0, t: 0, b: 0 }, onFrame: null, anchors: new Map(), last: 0,
+    H, look: { ...PLAIN }, idle: 0, spinT: 0 };
+  H.uHoloK.value = 90 / height;
   wire();
   return V;
 }
@@ -174,16 +196,23 @@ function tint() {
   const css = n2 => getComputedStyle(V.box || document.documentElement).getPropertyValue(n2).trim();
   const col = [null, new THREE.Color(css('--map-p') || '#4cc3ff'), new THREE.Color(css('--map-s') || '#f5a524'), new THREE.Color(css('--map-t') || '#8a8f98')];
   const focus = V.focusOn ? new Set(V.focusOn) : null;
-  for (const [id, tier] of V.lit) {
-    const k = V.regs.ids.indexOf(id);
-    if (k < 0 || REGIONS[k].deep) continue;
-    const c = focus && focus.has(id) ? col[1] : col[tier];
-    const a = focus ? (focus.has(id) ? 0.95 : TIER_ALPHA[tier] * 0.3) : TIER_ALPHA[tier];
-    const w = V.regs.w[k];
+  const put = (w, c, a) => {
     for (let i = 0; i < n; i++) {
       const x = w[i] * a;
       if (x > out[i * 4 + 3] + 1e-3) { out[i * 4] = c.r; out[i * 4 + 1] = c.g; out[i * 4 + 2] = c.b; out[i * 4 + 3] = x; }
     }
+  };
+  /* every muscle in its own colour (the Anatomy tab's "show every
+     muscle"): the one in focus solid, the rest softer */
+  if (V.orb && V.look.atlas) for (const [id, c] of V.look.atlas) {
+    const k = V.regs.ids.indexOf(id);
+    if (k >= 0 && !REGIONS[k].deep) put(V.regs.w[k], c, focus ? (focus.has(id) ? 1 : 0.4) : 0.8);
+  }
+  for (const [id, tier] of V.lit) {
+    const k = V.regs.ids.indexOf(id);
+    if (k < 0 || REGIONS[k].deep) continue;
+    const c = focus && focus.has(id) ? col[1] : col[tier];
+    put(V.regs.w[k], c, focus ? (focus.has(id) ? 0.95 : TIER_ALPHA[tier] * 0.3) : TIER_ALPHA[tier]);
   }
   /* a focused muscle outside the exercise's list still shows, in the
      primary colour */
@@ -260,8 +289,14 @@ function aimOrbit(W, H) {
   V.panes = [{ cam, x: 0, w: W, yaw: a }];
 }
 
-/* One step of any flight and of the panels' space; true while either is
-   still moving. */
+/* One step of any flight, of the panels' space and of auto-spin; true
+   while any of them is still moving.
+
+   Auto-spin turns him about 12° a second once nothing has touched him
+   for SPIN_WAIT, so a touch stops it and it comes back on its own. While
+   it waits, a timer rather than the frame loop wakes it, so a still body
+   costs nothing. */
+const SPIN_WAIT = 5000;
 function ease(now) {
   const dt = V.last ? Math.min(64, now - V.last) : 16, k = 1 - Math.exp(-dt / 110);
   let moving = false;
@@ -278,6 +313,12 @@ function ease(now) {
       o.az += da * k; o.el += de * k; o.dist += dd * k; o.t.lerp(g.t, k);
       moving = true;
     }
+  }
+  clearTimeout(V.spinT);
+  if (V.look.spin && !o.goal && !orbit3.busy()) {
+    const wait = SPIN_WAIT - (Date.now() - V.idle);
+    if (wait <= 0) { o.az -= dt * 0.012; moving = true; }
+    else V.spinT = setTimeout(draw, wait + 20);
   }
   V.last = moving ? now : 0;
   return moving;
@@ -395,13 +436,13 @@ const orbit3 = (() => {
       try { V.renderer.domElement.setPointerCapture(e.pointerId); } catch {}
       if (!pts.size) moved = false;
       pts.set(e.pointerId, { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.shiftKey });
-      V.orb.goal = null; V.orb.fit = false;
+      V.orb.goal = null; V.orb.fit = false; V.idle = Date.now();
       base();
     },
     move(e) {
       const q = pts.get(e.pointerId);
       if (!q || !g) return;
-      q.x = e.clientX; q.y = e.clientY;
+      q.x = e.clientX; q.y = e.clientY; V.idle = Date.now();
       const p = [...pts.values()], o = V.orb;
       if (p.length === 1) {
         const dx = p[0].x - g.p[0].x, dy = p[0].y - g.p[0].y;
@@ -420,14 +461,17 @@ const orbit3 = (() => {
     up(e, cancel) {
       if (!pts.has(e.pointerId)) return;
       pts.delete(e.pointerId);
+      V.idle = Date.now();
       if (pts.size) { base(); return; }
       if (!moved && !cancel) tap(e);
       g = null;
+      draw();   /* wakes auto-spin's timer */
     },
+    busy: () => pts.size > 0,
     wheel(e) {
       e.preventDefault();
       const o = V.orb, d0 = o.dist, P = under(e.clientX, e.clientY);
-      o.goal = null; o.fit = false;
+      o.goal = null; o.fit = false; V.idle = Date.now();
       o.dist = clampDist(d0 * Math.exp(e.deltaY * 0.0015));
       slide(towards(P, o.t, o.dist / d0), 0, 0);
       draw();
@@ -444,7 +488,8 @@ function tap(e) {
   ndc.set(((x - p.x) / p.w) * 2 - 1, -(y / r.height) * 2 + 1);
   ray.setFromCamera(ndc, p.cam);
   const h = ray.intersectObject(V.pick, false)[0];
-  if (!h) { V.onTap(null); return; }
+  /* the second argument: the tap missed him altogether */
+  if (!h) { V.onTap(null, true); return; }
   let best = null, bw = 0.15;
   for (const vi of [h.face.a, h.face.b, h.face.c]) V.regs.w.forEach((w, k) => { if (!REGIONS[k].deep && w[vi] > bw) { bw = w[vi]; best = REGIONS[k]; } });
   V.onTap(best);
@@ -478,8 +523,27 @@ export async function show(box, mStr, { onTap } = {}) {
   V.lit = tiersOf(mStr);
   V.focusOn = null; V.near = true; V.view = 'both'; V.yaw = 0;
   V.orb = null; V.onFrame = null;
+  dress({ ...PLAIN });
   el.classList.remove('turned');
   tint();
+}
+
+/* Put the look on the body: shorts on or off (the athlete has the skin
+   modelled under them, `bareskin`), the hologram skin in the theme's
+   accent, and the atlas colours, which tint() lays down. */
+function dress(look) {
+  V.look = look;
+  const mats = V.body.mesh.material, bare = mats.some(m => m.name === 'bareskin');
+  for (const m of mats) {
+    if (m.name === 'shorts' || m.name === 'underskin') m.visible = !bare || look.shorts;
+    if (m.name === 'bareskin') m.visible = bare && !look.shorts;
+    m.transparent = look.holo;
+  }
+  V.H.uHolo.value = look.holo ? 1 : 0;
+  const accent = getComputedStyle(V.box || document.documentElement).getPropertyValue('--blue').trim();
+  if (accent) V.H.uHoloCol.value.set(accent);
+  clearTimeout(V.spinT);
+  V.idle = Date.now();
 }
 
 /* ── for the Anatomy tab ── */
@@ -487,9 +551,10 @@ export async function show(box, mStr, { onTap } = {}) {
 /* The body full screen in `box`, on the orbit camera, standing square to
    you and sized to the space `inset` leaves. `onFrame` runs after every
    frame drawn, for the label line. Rejects as show() does. */
-export async function orbit(box, { onTap, onFrame, inset } = {}) {
+export async function orbit(box, { onTap, onFrame, inset, look } = {}) {
   await show(box, '', { onTap });
   V.onFrame = onFrame || null;
+  if (look) setLook(look);
   if (inset) Object.assign(V.insGoal, inset);
   V.ins = { ...V.insGoal };
   /* `fit`: still the whole-body view, so it refits as the panels move */
@@ -517,7 +582,7 @@ export function face(id) {
   const fitH = Math.max(a.size * 3, V.height * 0.42);
   const az = V.orb.az + wrap180(Math.atan2(a.n.x, a.n.z) * 180 / Math.PI - V.orb.az);
   V.orb.goal = { az, el: clamp(Math.asin(clamp(a.n.y, -1, 1)) * 180 / Math.PI, -30, 40), dist: clampDist(fitH * H / (2 * FOV_TAN * h)), t: a.c.clone() };
-  V.orb.fit = false;
+  V.orb.fit = false; V.idle = Date.now();
   draw();
 }
 
@@ -525,8 +590,18 @@ export function face(id) {
 export function home() {
   if (!V?.orb) return;
   V.orb.goal = homeGoal();
-  V.orb.fit = true;
+  V.orb.fit = true; V.idle = Date.now();
   draw();
+}
+
+/* The Anatomy tab's settings: { shorts, atlas: Map(id → CSS colour) or
+   null, spin, holo }; any left out keep their value. */
+export function setLook(look) {
+  if (!V) return;
+  const next = { ...V.look, ...look };
+  if ('atlas' in look) next.atlas = look.atlas ? new Map([...look.atlas].map(([id, c]) => [id, new THREE.Color(c)])) : null;
+  dress(next);
+  tint();
 }
 
 /* How much of the screen the panels cover on each side, in CSS px. */
@@ -567,5 +642,6 @@ export function hide() {
   if (!V) return;
   V.ro?.disconnect(); V.ro = null;
   V.onTap = null; V.onFrame = null;
+  clearTimeout(V.spinT);
   V.renderer.domElement.remove();
 }
