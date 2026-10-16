@@ -509,6 +509,14 @@ export function tiersOf(mStr) {
 }
 export const regionsOfName = name => regionsOfMuscle(name, MMAP);
 
+/* Build the body ahead of time — the model, its muscle regions, the
+   renderer and its shaders — so the first exercise card or Anatomy opens
+   without a wait. index.js calls it once the app sits idle. */
+export async function warm() {
+  if (!V) { building ||= build(); await building; }
+  V.renderer.compile(V.scene, V.cams[0]);
+}
+
 /* Shows the body in `box` lit for the muscle list `mStr`. Resolves once it
    is drawn; rejects if there is no WebGL or no model. */
 export async function show(box, mStr, { onTap } = {}) {

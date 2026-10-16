@@ -9,8 +9,8 @@
 /* Three tabs and a grid button for the extras.
 
    The arithmetic: at 375px the bar has 359px once its 8px sides are
-   taken, and the grid button (icon and caret) about 57px of it, which
-   leaves 100px a tab. "PROGRAM" in the 12px uppercase style draws at
+   taken, and the grid button (icon and caret, 66px wide so it is an easy
+   target) 70px of it with its margin, which leaves 96px a tab. "PROGRAM" in the 12px uppercase style draws at
    64.4px, and with its 15px icon and gap comes to 86px — so on a phone
    the icon sits beside the label again, in a bar 44px tall instead of
    the 58px a stacked one needed. That height goes to whatever is under
@@ -36,7 +36,7 @@
 /* The grid button: set apart by a hairline so it reads as "the rest"
    rather than a fourth tab. On an extra it wears that extra's icon (and,
    where there is room, its name) and takes the active underline. */
-.wk .tab-more{flex:0 0 auto;position:relative;gap:5px;padding:13px 12px;margin-left:4px}
+.wk .tab-more{flex:0 0 auto;position:relative;gap:6px;min-width:92px;padding:13px 18px;margin-left:4px}
 .wk .tab-more::before{content:'';position:absolute;left:0;top:11px;bottom:13px;width:1px;background:var(--border)}
 .wk .tab-caret{display:flex;opacity:.6}
 .wk .tab-caret svg{width:11px;height:11px;display:block;transition:transform .2s}
@@ -46,7 +46,7 @@
 
 @media (max-width:560px){
   .wk .nav-inner{padding:0 8px}
-  .wk .tab-more{padding:13px 10px}
+  .wk .tab-more{min-width:66px;padding:13px 14px}
   .wk .tab-more .tab-lbl{display:none}
 }
 @media (max-width:380px){
@@ -55,7 +55,7 @@
 }
 @media (max-width:330px){
   .wk .tab{flex-direction:column;gap:4px;padding:8px 2px;font-size:10.5px;letter-spacing:0}
-  .wk .tab-more{flex-direction:row;padding:8px 6px}
+  .wk .tab-more{flex-direction:row;min-width:54px;padding:8px 8px}
 }
 
 /* ── the extras tray ──

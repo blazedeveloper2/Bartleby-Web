@@ -884,7 +884,23 @@ function openMM(ex) {
 let mv3 = null, mv3Load = null;
 /* The Anatomy tab borrows the same body (anatomy.js), so it loads it
    through here too. */
-const loadMV = () => (mv3Load ||= import('./muscleview.js?v=3d-oct16c').then(m => (mv3 = m)));
+const loadMV = () => (mv3Load ||= import('./muscleview.js?v=3d-oct16d').then(m => (mv3 = m)));
+/* Warm the 3D up while the app sits on its first tab, so nothing you open
+   makes you wait: the model (one download, shared by the exercise card,
+   the rep animation and Anatomy), the muscle view with its shaders
+   compiled, and the rep's stage. In idle time, once a session, and not
+   with the phone's data saver on. */
+let warmed = false;
+function warm3D() {
+  if (warmed || navigator.connection?.saveData) return;
+  warmed = true;
+  const go = () => {
+    loadMV().then(m => m.warm()).catch(() => {});
+    import('./stage.js?v=3d-oct14h').then(S => S.ready()).catch(() => {});
+  };
+  if ('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 2500 });
+  else setTimeout(go, 1200);
+}
 function show3D(ex) {
   const map = q('.mm-map'), box = q('.mm-3d');
   loadMV()
@@ -1982,7 +1998,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=3d-oct16c',
+  styles: 'apps/workout/workout.css?v=3d-oct16d',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
@@ -2007,6 +2023,7 @@ export default {
     });
     renderProg(); renderBW();
     switchTab(activeTab);
+    warm3D();
   },
   unmount() {
     if (root) {
