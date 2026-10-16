@@ -3,26 +3,21 @@
    Design tokens + reset + toast + base day-card live in tokens.css.
    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
-/* â”€â”€ Internal tab nav â”€â”€ */
+/* ── Internal tab nav ── */
 .wk .nav{position:sticky;top:var(--shell-bar-h,0);z-index:50;background:var(--bg);border-bottom:1px solid var(--border);padding-top:14px}
-.wk .nav-inner{display:flex;max-width:640px;margin:0 auto;padding:0 16px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
-.wk .nav-inner::-webkit-scrollbar{display:none}
-/* Five tabs in the width three used to have.
+.wk .nav-inner{display:flex;max-width:640px;margin:0 auto;padding:0 16px}
+/* Three tabs and a grid button for the extras.
 
-   The arithmetic that forced the two layouts below: at 375px the bar has
-   343px of usable width, so each tab gets 68.6px. The old style — 12px
-   uppercase at 0.8px letter-spacing — draws "PROGRAM" at 64.4px, leaving
-   2.1px of breathing room each side. That is the cramped, shrunk-to-fit
-   look, and the nav's overflow-x would start scrolling to hide it, which
-   is worse: a tab bar that scrolls is a tab nobody finds.
+   The arithmetic: at 375px the bar has 359px once its 8px sides are
+   taken, and the grid button (icon and caret) about 57px of it, which
+   leaves 100px a tab. "PROGRAM" in the 12px uppercase style draws at
+   64.4px, and with its 15px icon and gap comes to 86px — so on a phone
+   the icon sits beside the label again, in a bar 44px tall instead of
+   the 58px a stacked one needed. That height goes to whatever is under
+   it, the Anatomy tab's body most of all.
 
-   So the label does not shrink. Below 560px the icon moves ABOVE it and
-   the row becomes a proper mobile tab bar, which buys the horizontal room
-   back by spending vertical room there is plenty of. The tap target grows
-   in the process — about 58px tall against the old 44px — so the fix for
-   "too small" makes the buttons bigger rather than smaller.
-
-   Above 560px nothing is tight: 121px per tab against 86px of content. */
+   Below 380px the type comes down a step (11px, 74px a tab with its
+   icon), and only below 330px does the bar fall back to stacking. */
 .wk .tab{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:7px;
   padding:13px 4px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-3);
   font-family:var(--font);font-size:12px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;
@@ -38,19 +33,70 @@
 .wk .tab.active{color:var(--text);border-bottom-color:var(--blue)}
 .wk .tab.active .tab-ico{opacity:1;color:var(--blue)}
 
+/* The grid button: set apart by a hairline so it reads as "the rest"
+   rather than a fourth tab. On an extra it wears that extra's icon (and,
+   where there is room, its name) and takes the active underline. */
+.wk .tab-more{flex:0 0 auto;position:relative;gap:5px;padding:13px 12px;margin-left:4px}
+.wk .tab-more::before{content:'';position:absolute;left:0;top:11px;bottom:13px;width:1px;background:var(--border)}
+.wk .tab-caret{display:flex;opacity:.6}
+.wk .tab-caret svg{width:11px;height:11px;display:block;transition:transform .2s}
+.wk .tab-more.open{color:var(--text);background:var(--blue-d)}
+.wk .tab-more.open .tab-ico{opacity:1;color:var(--blue)}
+.wk .tab-more.open .tab-caret svg{transform:rotate(180deg)}
+
 @media (max-width:560px){
-  /* Stack, and claw back the bar's side padding — every pixel here is a
-     pixel the label does not have to give up. */
   .wk .nav-inner{padding:0 8px}
-  .wk .tab{flex-direction:column;gap:5px;padding:9px 2px;letter-spacing:.2px;font-size:11px}
-  .wk .tab-ico svg{width:20px;height:20px}
+  .wk .tab-more{padding:13px 10px}
+  .wk .tab-more .tab-lbl{display:none}
 }
-/* Narrow phones. "PROGRAM" at 11px is 54.6px and the slot is 63px here, so
-   the label still fits whole — only the icon gives ground. */
-@media (max-width:360px){
-  .wk .tab{font-size:10.5px;letter-spacing:0}
-  .wk .tab-ico svg{width:18px;height:18px}
+@media (max-width:380px){
+  .wk .tab{font-size:11px;letter-spacing:.3px;gap:5px}
+  .wk .tab-ico svg{width:14px;height:14px}
 }
+@media (max-width:330px){
+  .wk .tab{flex-direction:column;gap:4px;padding:8px 2px;font-size:10.5px;letter-spacing:0}
+  .wk .tab-more{flex-direction:row;padding:8px 6px}
+}
+
+/* ── the extras tray ──
+   Drops from under the bar over whatever tab is open; tapping outside it,
+   the grid button again or Escape puts it away. Each tile carries its
+   tab's headline number, so a look is often all the visit needed. */
+.wk .tray{position:absolute;left:0;right:0;top:100%;background:var(--bg);border-bottom:1px solid var(--border-lt);
+  box-shadow:0 22px 40px -14px #000b;animation:tray-in .2s cubic-bezier(.22,.68,0,1.1) both}
+.wk .tray[hidden],.wk .tray-scrim[hidden]{display:none}
+@keyframes tray-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.wk .tray-in{max-width:640px;margin:0 auto;padding:12px 16px 16px}
+.wk .tray-k{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-3);margin-bottom:10px}
+.wk .tray-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.wk .tray-tile{--n:10px;position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0;
+  padding:12px 12px 11px;background:var(--bg-card);border:none;border-radius:0;box-shadow:inset 0 0 0 1px var(--border);
+  clip-path:polygon(var(--n) 0,100% 0,100% calc(100% - var(--n)),calc(100% - var(--n)) 100%,0 100%,0 var(--n));
+  color:var(--text);font-family:var(--font);text-align:left;cursor:pointer;transition:background .15s,box-shadow .15s}
+.wk .tray-tile:hover{background:var(--bg-hover);box-shadow:inset 0 0 0 1px var(--border-lt)}
+.wk .tray-tile.on{box-shadow:inset 0 0 0 1px var(--blue)}
+.wk .tray-ico{display:flex;color:var(--blue);margin-bottom:4px}
+.wk .tray-ico svg{width:18px;height:18px;display:block}
+.wk .tray-n{font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--text-3)}
+.wk .tray-v{font-family:var(--mono);font-size:21px;font-weight:700;line-height:1.15;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+.wk .tray-v small{font-size:11px;font-weight:600;color:var(--text-2);margin-left:3px}
+.wk .tray-d{font-size:11px;line-height:1.35;color:var(--text-2)}
+.wk .tray-scrim{position:fixed;inset:0;z-index:49;background:var(--ol-bg);opacity:.7}
+@media (max-width:560px){
+  .wk .tray-in{padding:12px 12px 14px}
+  .wk .tray-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* Over each extra: which one this is, and the other three a tap away. */
+.wk .side-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:-4px 0 14px}
+.wk .side-t{display:flex;align-items:center;gap:7px;min-width:0;font-size:11px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;color:var(--text-3)}
+.wk .side-t i{font-style:normal;font-family:var(--mono);color:var(--border-lt)}
+.wk .side-t b{color:var(--text);font-weight:700}
+.wk .side-hop{display:flex;gap:2px;flex-shrink:0}
+.wk .side-hop-b{display:grid;place-items:center;width:34px;height:34px;padding:0;background:none;border:1px solid transparent;border-radius:var(--rs);color:var(--text-3);cursor:pointer;transition:color .15s,background .15s}
+.wk .side-hop-b svg{width:17px;height:17px;display:block}
+.wk .side-hop-b:hover{color:var(--text-2);background:var(--bg-card)}
+.wk .side-hop-b.on{color:var(--blue);background:var(--blue-d);border-color:var(--sel-bd)}
 
 /* Tape measurement due. Tinted rather than shouted: it is a reminder to do
    a two-minute thing, not a warning that something is wrong, so it reads at
@@ -1207,3 +1253,96 @@ html[data-theme] body.wk-resting .wk .mm-card{padding-bottom:calc(150px + env(sa
 .tm-tag.live{color:var(--ink-green);background:var(--green-d)}
 .tm-foot{font-size:10.5px;color:var(--text-3);line-height:1.5;margin:4px 2px 16px}
 @media (max-width:420px){ .tm-wk-v{display:none} }
+
+/* ── Anatomy tab ──
+   The body leads, the card for the selected muscle sits right under it
+   (a tap on the body answers where you are looking), and the search and
+   full list follow. */
+.wk .an-stage{padding:0;overflow:hidden;scroll-margin-top:calc(var(--shell-bar-h,0px) + 72px)}
+.wk .an-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border)}
+.wk .an-zoom{display:flex;align-items:center;gap:6px;min-height:34px;padding:7px 10px;background:none;border:1px solid var(--border);border-radius:6px;
+  color:var(--text-2);font-family:var(--font);font-size:12px;cursor:pointer;transition:all .15s}
+.wk .an-zoom svg{width:15px;height:15px;display:block}
+.wk .an-zoom:hover{color:var(--text);border-color:var(--border-lt)}
+.wk .an-zoom[aria-pressed="true"]{color:var(--blue);background:var(--blue-d);border-color:var(--sel-bd)}
+.wk .an-map{position:relative;display:flex;justify-content:center;align-items:center;gap:16px;height:clamp(300px,50dvh,440px);padding:12px;overflow:hidden;isolation:isolate;
+  background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:40px 40px;background-color:var(--bg);background-blend-mode:soft-light}
+.wk .an-side{margin:0;height:100%;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px}
+.wk .an-fig{height:calc(100% - 18px);width:auto;max-width:100%;overflow:hidden}
+.wk .an-map[data-view="front"] .an-side:last-of-type,.wk .an-map[data-view="back"] .an-side:first-of-type{display:none}
+.wk .an-region{fill:var(--map-region);stroke:var(--map-edge);stroke-width:.7;cursor:pointer;transition:fill .2s}
+.wk .an-region:hover{fill:var(--map-t)}
+.wk .an-region.lvl-3{fill:var(--map-t)}
+.wk .an-region.lvl-1{fill:var(--map-p);filter:drop-shadow(0 0 3px #ff8a3277)}
+.wk .an-3d{display:none}
+.wk .an-map.is-3d .an-side{display:none}
+.wk .an-map.is-3d .an-3d{display:block;position:absolute;inset:0}
+.wk .an-map.is-3d[data-view="both"] .an-3d::before,.wk .an-map.is-3d[data-view="both"] .an-3d::after{position:absolute;top:10px;width:50%;text-align:center;font-size:11px;color:var(--text-3);pointer-events:none}
+.wk .an-map.is-3d[data-view="both"] .an-3d::before{content:'Front';left:0}
+.wk .an-map.is-3d[data-view="both"] .an-3d::after{content:'Back';right:0}
+.wk .an-hint{padding:8px 12px;border-top:1px solid var(--border);font-size:11px;color:var(--text-3);text-align:center}
+
+.wk .an-card{padding:16px}
+.wk .an-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.wk .an-head-t{min-width:0}
+.wk .an-name{margin:3px 0 2px;font-size:20px;font-weight:700;line-height:1.2;color:var(--text);text-wrap:balance}
+.wk .an-latin{font-family:var(--mono);font-size:11.5px;line-height:1.45;color:var(--text-2)}
+.wk .an-steps{display:flex;gap:4px;flex-shrink:0}
+.wk .an-step{display:grid;place-items:center;width:34px;height:34px;padding:0;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text-2);cursor:pointer}
+.wk .an-step svg{width:16px;height:16px;display:block}
+.wk .an-step:hover{color:var(--text);border-color:var(--border-lt)}
+.wk .an-does{margin:0 0 14px;font-size:14px;line-height:1.55;color:var(--text)}
+.wk .an-facts{display:grid;grid-template-columns:84px minmax(0,1fr);gap:9px 12px;margin:0 0 14px;padding-top:12px;border-top:1px solid var(--border)}
+.wk .an-facts dt{padding-top:2px;font-size:9.5px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--text-3)}
+.wk .an-facts dd{margin:0;font-size:12.5px;line-height:1.5;color:var(--text-2)}
+.wk .an-tip{margin-bottom:10px;padding:9px 12px;background:var(--bg);border-left:2px solid var(--blue);font-size:12px;line-height:1.55;color:var(--text-2)}
+.wk .an-train{margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.wk .an-train .pg-card-title{margin-bottom:10px}
+.wk .an-tier{display:grid;grid-template-columns:84px minmax(0,1fr);gap:12px;align-items:start;margin-bottom:8px}
+.wk .an-tier-l{padding-top:8px;font-size:9.5px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--text-3)}
+.wk .an-tier-l.lvl-1{color:var(--blue)}
+.wk .an-tier-l.lvl-2{color:var(--text-2)}
+.wk .an-exs{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+.wk .an-ex{padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);
+  font-family:var(--font);font-size:12px;font-weight:500;text-align:left;cursor:pointer;transition:color .15s,border-color .15s}
+.wk .an-ex.lvl-1{border-left:3px solid var(--map-p)}
+.wk .an-ex.lvl-2{border-left:3px solid var(--map-s)}
+.wk .an-ex.lvl-3{border-left:3px solid var(--map-t)}
+.wk .an-ex:hover{color:var(--blue);border-top-color:var(--sel-bd);border-right-color:var(--sel-bd);border-bottom-color:var(--sel-bd)}
+.wk .an-none{margin:0;font-size:12.5px;color:var(--text-3)}
+@media (max-width:420px){
+  .wk .an-facts{grid-template-columns:minmax(0,1fr);gap:2px}
+  .wk .an-facts dd{margin-bottom:9px}
+  .wk .an-tier{grid-template-columns:minmax(0,1fr);gap:6px}
+  .wk .an-tier-l{padding-top:0}
+}
+
+.wk .an-find{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.wk .an-q{width:100%;padding:11px 13px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--rs);
+  color:var(--text);font-family:var(--font);font-size:14px;outline:none;transition:border-color .15s}
+.wk .an-q:focus{border-color:var(--blue)}
+.wk .an-q::placeholder{color:var(--text-3)}
+.wk .an-groups{display:flex;flex-wrap:wrap;gap:6px}
+.wk .an-chip{display:flex;align-items:center;gap:6px;min-height:32px;padding:6px 11px;background:var(--bg-card);border:1px solid var(--border);border-radius:20px;
+  color:var(--text-2);font-family:var(--font);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
+.wk .an-chip small{font-family:var(--mono);font-size:10px;color:var(--text-3)}
+.wk .an-chip:hover{color:var(--text);border-color:var(--border-lt)}
+.wk .an-chip[aria-pressed="true"]{color:var(--blue);background:var(--blue-d);border-color:var(--sel-bd)}
+.wk .an-chip[aria-pressed="true"] small{color:var(--blue)}
+
+.wk .an-list{padding:14px 0 6px}
+.wk .an-list .pg-card-head{padding:0 14px;margin-bottom:4px}
+.wk .an-list .pg-empty{padding:20px 14px}
+.wk .an-grp-h{padding:12px 14px 6px;font-size:9.5px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-3)}
+.wk .an-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:10px 14px;background:none;border:none;
+  border-top:1px solid var(--border);border-left:2px solid transparent;color:var(--text);font-family:var(--font);text-align:left;cursor:pointer;transition:background .15s}
+.wk .an-row:hover{background:var(--bg-hover)}
+.wk .an-row.on{background:var(--bg-alt);border-left-color:var(--blue)}
+.wk .an-row-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.wk .an-row-n{font-size:13.5px;font-weight:600}
+.wk .an-row.on .an-row-n{color:var(--blue)}
+.wk .an-row-n i{margin-left:7px;padding:1px 4px;border:1px solid var(--border-lt);border-radius:2px;font-style:normal;font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-3);vertical-align:2px}
+.wk .an-row-l{font-size:11.5px;line-height:1.35;color:var(--text-3)}
+.wk .an-row-c{flex-shrink:0;min-width:28px;padding:3px 6px;border-radius:2px;background:var(--bg);box-shadow:inset 0 0 0 1px var(--border);
+  font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text-2);text-align:center;font-variant-numeric:tabular-nums}
+.wk .an-row-c.none{color:var(--text-3);opacity:.6}

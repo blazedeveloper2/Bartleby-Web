@@ -112,6 +112,17 @@ export function avgFor(di) {
   return l.length ? l.reduce((a, s) => a + s.ms, 0) / l.length : null;
 }
 
+/* The two numbers the Time tab opens with, which its tile in the extras
+   tray shows too: the average finished session and this week's total. */
+export function headline(all = sessions()) {
+  const done = counted(all), wk = weekStart(new Date());
+  const thisWeek = all.filter(s => s.d >= wk);
+  return {
+    avg: done.length ? done.reduce((a, s) => a + s.ms, 0) / done.length : null,
+    thisWeek, wkMs: thisWeek.reduce((a, s) => a + s.ms, 0),
+  };
+}
+
 /* ── formatting ── */
 export function fmtDur(ms) {
   const m = Math.round(ms / 60000);
@@ -144,10 +155,7 @@ export function renderTime(root) {
   }
 
   /* headline tiles */
-  const avg = done.length ? done.reduce((a, s) => a + s.ms, 0) / done.length : null;
-  const wk = weekStart(new Date());
-  const thisWeek = all.filter(s => s.d >= wk);
-  const wkMs = thisWeek.reduce((a, s) => a + s.ms, 0);
+  const { avg, thisWeek, wkMs } = headline(all);
   const longest = done.reduce((b, s) => (!b || s.ms > b.ms ? s : b), null);
   const setsDone = done.reduce((a, s) => a + s.sets, 0), msDone = done.reduce((a, s) => a + s.ms, 0);
   const perSet = setsDone ? msDone / setsDone : null;

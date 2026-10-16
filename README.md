@@ -54,6 +54,18 @@ Live apps:
   already had work on it before timing saw it is marked partial and kept
   out of the averages. See `apps/workout/sessions.js`.
 
+  The bar holds three tabs — **Program**, **Body**, **Rank** — and a grid
+  button that drops a tray of the extras: **Streak**, **Time**, **Awards**
+  and **Anatomy**, each tile showing its headline number. While an extra
+  is open the grid button wears its icon, and the extra's header hops to
+  the other three. **Anatomy** is a study tool for all 32 muscle regions
+  the app maps: tap one on the 3D body (or the 2D map while the model
+  loads) or pick it from a searchable list grouped by body part, and a
+  card gives its anatomical name, what it does, its origin, insertion and
+  nerve, a training note, and the exercises in your current program that
+  work it, each opening that exercise. Front, back or both views, and a
+  zoom that closes in on the muscle. See `apps/workout/anatomy.js`.
+
   **Settings → Program** switches whose workout the app runs: **Edrin**
   (the default, the dumbbell-and-calisthenics program above) or **Andrew**
   (a seven-day gym program — heavy upper/lower, push/pull/legs, two Zone 2

@@ -43,7 +43,7 @@ import { load, save, remove, todayStr, dateStr } from './store.js?v=3d-oct14d';
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
 import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=3d-oct14d';
-import { TIME_RESET, timeCount } from './sessions.js?v=3d-oct14e';
+import { TIME_RESET, timeCount } from './sessions.js?v=3d-oct16a';
 import { gripOn, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_HOW } from './grip.js?v=3d-oct14d';
 
 /* ── storage ── */
@@ -458,6 +458,8 @@ const ICO = {
   crown:  '<path d="M3 7l4 4 5-7 5 7 4-4-2 12H5z"/>',
   scale:  '<path d="M12 4v16"/><path d="M5 8h14"/><circle cx="5" cy="8" r="2.5"/><circle cx="19" cy="8" r="2.5"/>',
   clock:  '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/>',
+  grid:   '<rect x="4" y="4" width="6.5" height="6.5" rx="1.2"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.2"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.2"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.2"/>',
+  body:   '<circle cx="12" cy="4.6" r="2.3"/><path d="M5 9.2l7-1.4 7 1.4"/><path d="M12 7.8v7.4"/><path d="M12 15.2l-3.4 6.3"/><path d="M12 15.2l3.4 6.3"/>',
 };
 const svg = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICO[k]}</svg>`;
 /* The tab bar draws from the same set, so a tab and the badges behind it
@@ -2051,4 +2053,12 @@ export function renderAwards(root) {
   p.innerHTML = badgesHTML(achievements(s, st));
   tickCounts(p);
   slideMarkers(p);
+}
+
+/* The numbers on the Streak and Awards tiles in the extras tray: the same
+   streak the Streak tab opens with, and badges earned out of all of them,
+   counted the way the Awards grid counts them. */
+export function trayStats() {
+  const s = stats();
+  return { streak: s.streak, best: s.best, awards: achievements(s, strength()).ids.size, badges: BADGES.length };
 }

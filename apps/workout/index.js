@@ -12,11 +12,11 @@ import { toast } from '../../assets/js/ui.js?v=3d-oct14d';
 import { pctColor, ord, LIFTS } from './standards.js?v=3d-oct14d';
 import {
   setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, addSession, isManual, toggleHmEdit, setReps, snapshot,
-  isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, icon,
+  isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, trayStats, icon,
   liftScores, standingOf, resEx, resKit, lvlOf, setLvl, resetTargets, applyReset,
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip,
-} from './rank.js?v=3d-oct14f';
+} from './rank.js?v=3d-oct16a';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
@@ -24,8 +24,9 @@ const LIFT_NAMES = new Set(Object.keys(LIFTS));
 import { MUSCLE_SVG } from './bodymap.js?v=3d-oct14d';
 import { restBand, BANDS, fmtRest } from './rest.js?v=3d-oct14d';
 import * as rest from './timer.js?v=3d-oct14d';
-import * as timing from './sessions.js?v=3d-oct14e';
+import * as timing from './sessions.js?v=3d-oct16a';
 import { HOWTO } from './howto.js?v=3d-oct14h';
+import * as anatomy from './anatomy.js?v=3d-oct16a';
 import { animHTML, playAnim } from './pose.js?v=3d-oct14h';
 import { standingsFor } from './anthro.js?v=3d-oct14d';
 import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=3d-oct14d';
@@ -52,19 +53,22 @@ const bwSv  = l => save('bp_bw', l);
    the three can never disagree about which tabs exist. `k` is both the
    data-tab value and the panel id suffix.
 
-   Labels are one word each on purpose. Five tabs share the width of three,
-   and a two-word label is what forces either a scrolling nav bar nobody
-   notices or type too small to read — see the .tab rules in workout.css,
-   which stack the icon over the label below 560px rather than shrinking
-   anything into the ground. */
+   Three tabs are the app — the program, your body, your rank — and get
+   the bar. The rest (`side`) are extras you visit rather than train in:
+   they sit behind the grid button at the end of the bar, in a tray whose
+   tiles carry each one's headline number, so a glance at the tray often
+   saves the visit. While one is open the grid button wears its icon, and
+   the panel's own header hops straight to the other three. */
 const TABS = [
   { k:'program', n:'Program', i:'cal',    r:() => renderProg() },
   { k:'bw',      n:'Body',    i:'scale',  r:() => renderBW() },
   { k:'rank',    n:'Rank',    i:'peak',   r:() => renderRank(root) },
-  { k:'streak',  n:'Streak',  i:'flame',  r:() => renderStreak(root) },
-  { k:'time',    n:'Time',    i:'clock',  r:() => timing.renderTime(root) },
-  { k:'awards',  n:'Awards',  i:'trophy', r:() => renderAwards(root) },
+  { k:'streak',  n:'Streak',  i:'flame',  r:() => renderStreak(root),       side:true },
+  { k:'time',    n:'Time',    i:'clock',  r:() => timing.renderTime(root),  side:true },
+  { k:'awards',  n:'Awards',  i:'trophy', r:() => renderAwards(root),       side:true },
+  { k:'anatomy', n:'Anatomy', i:'body',   r:() => anatomy.render(root),     side:true },
 ];
+const SIDE = TABS.filter(t => t.side);
 
 /* The three panels that used to be one. Everything that could change a
    letter, a streak or a badge repaints all of them, which is what the
@@ -876,9 +880,12 @@ function openMM(ex) {
    below); until then, and wherever WebGL or the model is missing, the 2D
    map stays. Tapping the body names the muscle under the finger. */
 let mv3 = null, mv3Load = null;
+/* The Anatomy tab borrows the same body (anatomy.js), so it loads it
+   through here too. */
+const loadMV = () => (mv3Load ||= import('./muscleview.js?v=3d-oct16a').then(m => (mv3 = m)));
 function show3D(ex) {
   const map = q('.mm-map'), box = q('.mm-3d');
-  (mv3Load ||= import('./muscleview.js?v=3d-oct14h').then(m => (mv3 = m)))
+  loadMV()
     .then(mv => mmEx === ex && mv.show(box, ex.m, { onTap: r => mmReadout(r ? r.name : 'No mapped muscle there') }))
     .then(shown => { if (shown !== false && mmEx === ex) map.classList.add('is-3d'); })
     .catch(() => map.classList.remove('is-3d'));
@@ -911,6 +918,8 @@ function closeMM() {
   q('#mm-howto').innerHTML = '';
   q('#mm-ol').classList.remove('on'); mmEx = null; mmSlot = null;
   mmReturnFocus?.focus({preventScroll:true});
+  /* opened from the Anatomy tab: the body goes back there */
+  if (activeTab === 'anatomy') anatomy.attach();
 }
 function mmView(view) {
   const map = q('.mm-map');
@@ -1712,14 +1721,50 @@ function grUnit(u) {
 
 /* ═══════════════════ TABS ═══════════════════ */
 function switchTab(tab) {
-  activeTab = tab;
-  root.querySelectorAll('.wk .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  root.querySelectorAll('.wk .panel').forEach(pl => pl.classList.remove('active'));
-  q('#p-' + tab).classList.add('active');
-  /* Program and Body render on mount and stay rendered; the three score
-     panels repaint on arrival so a tab you were not looking at cannot
-     show yesterday's numbers. */
-  if (tab !== 'program' && tab !== 'bw') TABS.find(t => t.k === tab)?.r();
+  const t = TABS.find(x => x.k === tab) || TABS[0];
+  if (activeTab === 'anatomy' && t.k !== 'anatomy') anatomy.leave();
+  activeTab = t.k;
+  closeTray();
+  root.querySelectorAll('.wk .tab[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === t.k));
+  /* On an extra, the grid button stands in for it in the bar. */
+  const more = q('.tab-more');
+  more.classList.toggle('active', !!t.side);
+  more.querySelector('.tab-ico').innerHTML = icon(t.side ? t.i : 'grid');
+  more.querySelector('.tab-lbl').textContent = t.side ? t.n : 'More';
+  root.querySelectorAll('.wk .panel').forEach(pl => pl.classList.toggle('active', pl.dataset.panel === t.k));
+  /* Program and Body render on mount and stay rendered; every other panel
+     repaints on arrival so a tab you were not looking at cannot show
+     yesterday's numbers. */
+  if (t.k !== 'program' && t.k !== 'bw') t.r();
+}
+
+/* ── the extras tray ── */
+function renderTray() {
+  const s = trayStats(), tm = timing.headline();
+  const put = (k, v, d) => {
+    q(`[data-tray="${k}"]`).innerHTML = v;
+    q(`[data-tray-d="${k}"]`).textContent = d;
+  };
+  put('streak', `${s.streak}<small>${s.streak === 1 ? 'day' : 'days'}</small>`, s.best ? `Best ${s.best}` : 'Starts with a session');
+  put('time', tm.avg ? `${timing.fmtDur(tm.avg)}<small>avg</small>` : '—', tm.wkMs ? `${timing.fmtDur(tm.wkMs)} this week` : 'Nothing timed this week');
+  put('awards', `${s.awards}<small>/${s.badges}</small>`, s.awards ? 'Earned' : 'None yet');
+  put('anatomy', `${anatomy.COUNT}<small>muscles</small>`, 'Study the body');
+  root.querySelectorAll('.tray-tile').forEach(b => b.classList.toggle('on', b.dataset.tab === activeTab));
+}
+const trayOpen = () => !q('#wk-tray').hidden;
+function openTray() {
+  renderTray();
+  q('#wk-tray').hidden = q('.tray-scrim').hidden = false;
+  const more = q('.tab-more');
+  more.classList.add('open');
+  more.setAttribute('aria-expanded', 'true');
+}
+function closeTray() {
+  if (!root || !trayOpen()) return;
+  q('#wk-tray').hidden = q('.tray-scrim').hidden = true;
+  const more = q('.tab-more');
+  more.classList.remove('open');
+  more.setAttribute('aria-expanded', 'false');
 }
 
 /* ═══════════════════ EVENT DELEGATION ═══════════════════ */
@@ -1735,6 +1780,8 @@ function onClick(e) {
   const a = el.dataset;
   switch (a.act) {
     case 'tab':       switchTab(a.tab); break;
+    case 'tray':      trayOpen() ? closeTray() : openTray(); break;
+    case 'tray-close': closeTray(); break;
     case 'row':
       mmSlot = [+a.di, +a.si, +a.ei];
       openMM(resEx(PROGRAM[+a.di].sections[+a.si].ex[+a.ei])); break;
@@ -1769,7 +1816,12 @@ function onClick(e) {
     case 'gr-del':    grDelete(a.d); break;
     case 'gr-unit':   grUnit(a.u); break;
     case 'bw-more':   bwToggleMore(); break;
+    default: if (a.act.startsWith('an-')) anatomy.act(el);
   }
+}
+/* The anatomy search filters its list as you type. */
+function onInput(e) {
+  if (e.target.id === 'an-q') anatomy.search(e.target.value);
 }
 function onChange(e) {
   if (e.target.id === 'mm-wt') setMMWeight(e.target);
@@ -1801,8 +1853,10 @@ function onExternalChange() {
   if (!root) return;
   renderProg(); renderBW();
   if (activeTab !== 'program' && activeTab !== 'bw') renderScore();
+  if (activeTab === 'anatomy') anatomy.render(root);
 }
 function onKeydown(e) {
+  if (e.key === 'Escape' && trayOpen()) { closeTray(); q('.tab-more').focus(); return; }
   if (q('#mm-ol').classList.contains('on')) {
     if (e.key === 'Escape') { e.preventDefault(); closeMM(); return; }
     if (e.key === 'Tab') {
@@ -1821,15 +1875,34 @@ function onKeydown(e) {
 
 /* ═══════════════════ STATIC MARKUP ═══════════════════ */
 
+/* Over each extra: which one this is, and the other three a tap away. */
+const sideHead = t => `<div class="side-head">
+  <span class="side-t"><span>Extras</span><i>//</i><b>${t.n}</b></span>
+  <span class="side-hop">${SIDE.map(s => `<button class="side-hop-b${s.k === t.k ? ' on' : ''}" data-act="tab" data-tab="${s.k}" aria-label="${s.n}" title="${s.n}"${s.k === t.k ? ' aria-current="page"' : ''}>${icon(s.i)}</button>`).join('')}</span>
+</div>`;
+
 function template() {
   return `<div class="wk">
     <nav class="nav"><div class="nav-inner">
-      ${TABS.map((t, i) => `<button class="tab${i ? '' : ' active'}" data-act="tab" data-tab="${t.k}">
+      ${TABS.filter(t => !t.side).map((t, i) => `<button class="tab${i ? '' : ' active'}" data-act="tab" data-tab="${t.k}">
         <span class="tab-ico">${icon(t.i)}</span><span class="tab-lbl">${t.n}</span>
       </button>`).join('')}
-    </div></nav>
+      <button class="tab tab-more" data-act="tray" aria-expanded="false" aria-controls="wk-tray" aria-label="More tabs: ${SIDE.map(t => t.n).join(', ')}">
+        <span class="tab-ico">${icon('grid')}</span><span class="tab-lbl">More</span><span class="tab-caret"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+      </button>
+    </div>
+    <div class="tray" id="wk-tray" hidden><div class="tray-in">
+      <div class="tray-k">Extras</div>
+      <div class="tray-grid">${SIDE.map(t => `<button class="tray-tile" data-act="tab" data-tab="${t.k}">
+        <span class="tray-ico">${icon(t.i)}</span><span class="tray-n">${t.n}</span>
+        <span class="tray-v" data-tray="${t.k}"></span><span class="tray-d" data-tray-d="${t.k}"></span>
+      </button>`).join('')}</div>
+    </div></div></nav>
+    <div class="tray-scrim" data-act="tray-close" hidden></div>
     <div class="app-wrap">
-      ${TABS.map((t, i) => `<div class="panel${i ? '' : ' active'}" id="p-${t.k}"></div>`).join('')}
+      ${TABS.map((t, i) => t.side
+        ? `<div class="panel" data-panel="${t.k}">${sideHead(t)}<div id="p-${t.k}"></div></div>`
+        : `<div class="panel${i ? '' : ' active'}" data-panel="${t.k}" id="p-${t.k}"></div>`).join('')}
     </div>
 
     <div class="mm-overlay" id="mm-ol">
@@ -1905,7 +1978,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=3d-oct14d',
+  styles: 'apps/workout/workout.css?v=3d-oct16a',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
@@ -1916,12 +1989,14 @@ export default {
     root.innerHTML = template();
     root.addEventListener('click', onClick);
     root.addEventListener('change', onChange);
+    root.addEventListener('input', onInput);
     root.addEventListener('keydown', onKeydown);
     root.addEventListener('pointerover', onOver);
     root.addEventListener('pointerout', onOut);
     window.addEventListener('bs:datachange', onExternalChange);
     rest.mount(q('#rest-bar'));
     clearInterval(clockTick); clockTick = setInterval(paintClocks, 1000);
+    anatomy.init({ loadMV, free: () => activeTab === 'anatomy' && !q('#mm-ol').classList.contains('on') });
     renderProg(); renderBW();
     switchTab(activeTab);
   },
@@ -1929,6 +2004,7 @@ export default {
     if (root) {
       root.removeEventListener('click', onClick);
       root.removeEventListener('change', onChange);
+      root.removeEventListener('input', onInput);
       root.removeEventListener('keydown', onKeydown);
       root.removeEventListener('pointerover', onOver);
       root.removeEventListener('pointerout', onOut);
@@ -1936,6 +2012,7 @@ export default {
     window.removeEventListener('bs:datachange', onExternalChange);
     rest.unmount();
     clearInterval(clockTick); clockTick = null;
+    if (activeTab === 'anatomy') anatomy.leave();
     root = null;
   },
 };

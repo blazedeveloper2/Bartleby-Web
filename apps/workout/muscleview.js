@@ -94,7 +94,7 @@ async function build() {
   const cams = [new THREE.PerspectiveCamera(30, 1, 1, 2000), new THREE.PerspectiveCamera(30, 1, 1, 2000)];
 
   V = { T, regs, renderer, scene, body, pick, rest, centre, height, cams, key, rim, fill,
-    yaw: 0, view: 'both', focusOn: null, lit: new Map(), box: null, raf: 0, ro: null, onTap: null, spots: new Map() };
+    yaw: 0, view: 'both', focusOn: null, near: true, lit: new Map(), box: null, raf: 0, ro: null, onTap: null, spots: new Map() };
   wire();
   return V;
 }
@@ -145,13 +145,15 @@ function tint() {
   draw();
 }
 
-/* Cameras: whole body front and back, or one side closed in on a muscle. */
+/* Cameras: whole body front and back, or one side closed in on a muscle.
+   A muscle in focus with `near` off (the anatomy tab, until you zoom) is
+   lit on the whole body instead, so you see where it sits. */
 function aim() {
   const { renderer, cams, centre, height } = V, el = renderer.domElement;
   const W = el.clientWidth || 1, H = el.clientHeight || 1;
-  const both = V.view === 'both' && !V.focusOn;
+  const s = V.near && V.focusOn && V.focusOn.map(spot).find(Boolean);
+  const both = V.view === 'both' && !s;
   const panes = both ? [[0, W / 2], [W / 2, W / 2]] : [[0, W]];
-  const s = V.focusOn && V.focusOn.map(spot).find(Boolean);
   const sides = both ? [0, 180] : [(V.view === 'back' || (s && !s.front)) ? 180 : 0];
   V.panes = panes.map(([x, w], k) => {
     const cam = cams[k], aspect = w / H;
@@ -200,12 +202,18 @@ function draw() {
 function wire() {
   const el = V.renderer.domElement, lock = axisLock();
   let drag = null;
-  el.addEventListener('pointerdown', e => { drag = { x: e.clientX, yaw: V.yaw }; lock.down(e); el.setPointerCapture(e.pointerId); });
+  el.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, yaw: V.yaw }; lock.down(e); el.setPointerCapture(e.pointerId); });
   el.addEventListener('pointermove', e => {
     if (!drag || lock.move(e) !== 'turn' || (e.pointerType === 'mouse' && !e.buttons)) return;
     V.yaw = drag.yaw + (e.clientX - drag.x) * 0.6; el.classList.add('turned'); draw();
   });
-  el.addEventListener('pointerup', e => { if (drag && lock.up() && Math.abs(e.clientX - drag.x) < 6) tap(e); drag = null; });
+  /* A touch is a tap when it never picked a direction; a mouse is always
+     turning (drag.js), so for it a tap is a click that barely moved. */
+  el.addEventListener('pointerup', e => {
+    const still = lock.up() || e.pointerType === 'mouse';
+    if (drag && still && Math.abs(e.clientX - drag.x) < 6 && Math.abs(e.clientY - drag.y) < 6) tap(e);
+    drag = null;
+  });
   el.addEventListener('pointercancel', () => { lock.up(); drag = null; });
 }
 
@@ -250,10 +258,24 @@ export async function show(box, mStr, { onTap } = {}) {
   V.ro = new ResizeObserver(() => draw());
   V.ro.observe(box);
   V.lit = tiersOf(mStr);
-  V.focusOn = null; V.view = 'both'; V.yaw = 0;
+  V.focusOn = null; V.near = true; V.view = 'both'; V.yaw = 0;
   el.classList.remove('turned');
   tint();
 }
+
+/* The anatomy tab: muscle `id` bright, the rest of `group` faint behind
+   it, on the whole body in `view` — or, with `near`, closed in on it. */
+export function study(id, { group = [], view = 'both', near = false } = {}) {
+  if (!V) return;
+  V.lit = new Map(group.map(g => [g, 3]));
+  V.focusOn = id ? [id] : null;
+  V.near = near; V.view = view; V.yaw = 0;
+  V.renderer.domElement.classList.remove('turned');
+  tint();
+}
+
+/* Which side of the body a muscle is seen from. */
+export const sideOf = id => (V && spot(id)?.front === false ? 'back' : 'front');
 
 /* 'both' | 'front' | 'back' */
 export function setView(view) {
@@ -266,7 +288,7 @@ export function setView(view) {
 export function focus(ids) {
   if (!V) return;
   V.focusOn = ids && ids.length ? ids : null;
-  V.yaw = 0;
+  V.near = true; V.yaw = 0;
   tint();
 }
 
