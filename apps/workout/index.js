@@ -26,7 +26,7 @@ import { restBand, BANDS, fmtRest } from './rest.js?v=3d-oct14d';
 import * as rest from './timer.js?v=3d-oct14d';
 import * as timing from './sessions.js?v=3d-oct16a';
 import { HOWTO } from './howto.js?v=3d-oct14h';
-import * as anatomy from './anatomy.js?v=3d-oct16a';
+import * as anatomy from './anatomy.js?v=3d-oct16b';
 import { animHTML, playAnim } from './pose.js?v=3d-oct14h';
 import { standingsFor } from './anthro.js?v=3d-oct14d';
 import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=3d-oct14d';
@@ -58,7 +58,9 @@ const bwSv  = l => save('bp_bw', l);
    they sit behind the grid button at the end of the bar, in a tray whose
    tiles carry each one's headline number, so a glance at the tray often
    saves the visit. While one is open the grid button wears its icon, and
-   the panel's own header hops straight to the other three. */
+   the panel's own header hops straight to the others. Anatomy (`app`) is
+   not a panel: it opens full screen over the whole app (anatomy.js) and
+   closes back to whichever tab you were on. */
 const TABS = [
   { k:'program', n:'Program', i:'cal',    r:() => renderProg() },
   { k:'bw',      n:'Body',    i:'scale',  r:() => renderBW() },
@@ -66,7 +68,7 @@ const TABS = [
   { k:'streak',  n:'Streak',  i:'flame',  r:() => renderStreak(root),       side:true },
   { k:'time',    n:'Time',    i:'clock',  r:() => timing.renderTime(root),  side:true },
   { k:'awards',  n:'Awards',  i:'trophy', r:() => renderAwards(root),       side:true },
-  { k:'anatomy', n:'Anatomy', i:'body',   r:() => anatomy.render(root),     side:true },
+  { k:'anatomy', n:'Anatomy', i:'body',   side:true, app:true },
 ];
 const SIDE = TABS.filter(t => t.side);
 
@@ -882,7 +884,7 @@ function openMM(ex) {
 let mv3 = null, mv3Load = null;
 /* The Anatomy tab borrows the same body (anatomy.js), so it loads it
    through here too. */
-const loadMV = () => (mv3Load ||= import('./muscleview.js?v=3d-oct16a').then(m => (mv3 = m)));
+const loadMV = () => (mv3Load ||= import('./muscleview.js?v=3d-oct16b').then(m => (mv3 = m)));
 function show3D(ex) {
   const map = q('.mm-map'), box = q('.mm-3d');
   loadMV()
@@ -918,8 +920,8 @@ function closeMM() {
   q('#mm-howto').innerHTML = '';
   q('#mm-ol').classList.remove('on'); mmEx = null; mmSlot = null;
   mmReturnFocus?.focus({preventScroll:true});
-  /* opened from the Anatomy tab: the body goes back there */
-  if (activeTab === 'anatomy') anatomy.attach();
+  /* opened from Anatomy: the body goes back there */
+  if (anatomy.isOpen()) anatomy.attach();
 }
 function mmView(view) {
   const map = q('.mm-map');
@@ -1722,7 +1724,7 @@ function grUnit(u) {
 /* ═══════════════════ TABS ═══════════════════ */
 function switchTab(tab) {
   const t = TABS.find(x => x.k === tab) || TABS[0];
-  if (activeTab === 'anatomy' && t.k !== 'anatomy') anatomy.leave();
+  if (t.app) { closeTray(); anatomy.open(); return; }
   activeTab = t.k;
   closeTray();
   root.querySelectorAll('.wk .tab[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === t.k));
@@ -1853,10 +1855,11 @@ function onExternalChange() {
   if (!root) return;
   renderProg(); renderBW();
   if (activeTab !== 'program' && activeTab !== 'bw') renderScore();
-  if (activeTab === 'anatomy') anatomy.render(root);
+  anatomy.refresh();
 }
 function onKeydown(e) {
   if (e.key === 'Escape' && trayOpen()) { closeTray(); q('.tab-more').focus(); return; }
+  if (e.key === 'Escape' && anatomy.isOpen() && !q('#mm-ol').classList.contains('on')) { e.preventDefault(); anatomy.escape(); return; }
   if (q('#mm-ol').classList.contains('on')) {
     if (e.key === 'Escape') { e.preventDefault(); closeMM(); return; }
     if (e.key === 'Tab') {
@@ -1900,10 +1903,11 @@ function template() {
     </div></div></nav>
     <div class="tray-scrim" data-act="tray-close" hidden></div>
     <div class="app-wrap">
-      ${TABS.map((t, i) => t.side
+      ${TABS.filter(t => !t.app).map((t, i) => t.side
         ? `<div class="panel" data-panel="${t.k}">${sideHead(t)}<div id="p-${t.k}"></div></div>`
         : `<div class="panel${i ? '' : ' active'}" data-panel="${t.k}" id="p-${t.k}"></div>`).join('')}
     </div>
+    <div class="ax" id="ax" role="dialog" aria-modal="true" aria-label="Anatomy" hidden></div>
 
     <div class="mm-overlay" id="mm-ol">
       <div class="mm-card" role="dialog" aria-modal="true" aria-labelledby="mm-name">
@@ -1978,7 +1982,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=3d-oct16a',
+  styles: 'apps/workout/workout.css?v=3d-oct16b',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
@@ -1996,7 +2000,11 @@ export default {
     window.addEventListener('bs:datachange', onExternalChange);
     rest.mount(q('#rest-bar'));
     clearInterval(clockTick); clockTick = setInterval(paintClocks, 1000);
-    anatomy.init({ loadMV, free: () => activeTab === 'anatomy' && !q('#mm-ol').classList.contains('on') });
+    anatomy.init({
+      loadMV, layer: () => q('#ax'),
+      free: () => !q('#mm-ol').classList.contains('on'),
+      closed: () => q('.tab-more')?.focus({ preventScroll: true }),
+    });
     renderProg(); renderBW();
     switchTab(activeTab);
   },
@@ -2012,7 +2020,7 @@ export default {
     window.removeEventListener('bs:datachange', onExternalChange);
     rest.unmount();
     clearInterval(clockTick); clockTick = null;
-    if (activeTab === 'anatomy') anatomy.leave();
+    anatomy.close(true);
     root = null;
   },
 };

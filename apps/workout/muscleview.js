@@ -93,8 +93,9 @@ async function build() {
   const box = pickGeo.boundingBox, centre = box.getCenter(new THREE.Vector3()), height = box.max.y - box.min.y;
   const cams = [new THREE.PerspectiveCamera(30, 1, 1, 2000), new THREE.PerspectiveCamera(30, 1, 1, 2000)];
 
-  V = { T, regs, renderer, scene, body, pick, rest, centre, height, cams, key, rim, fill,
-    yaw: 0, view: 'both', focusOn: null, near: true, lit: new Map(), box: null, raf: 0, ro: null, onTap: null, spots: new Map() };
+  V = { T, regs, renderer, scene, body, pick, rest, centre, height, width: box.max.x - box.min.x, cams, key, rim, fill,
+    yaw: 0, view: 'both', focusOn: null, near: true, lit: new Map(), box: null, raf: 0, ro: null, onTap: null, spots: new Map(),
+    orb: null, ins: { l: 0, r: 0, t: 0, b: 0 }, insGoal: { l: 0, r: 0, t: 0, b: 0 }, onFrame: null, anchors: new Map(), last: 0 };
   wire();
   return V;
 }
@@ -114,6 +115,55 @@ function spot(id) {
   const s = sw ? { c: new THREE.Vector3(x / sw, y / sw, z / sw), size: Math.max(y1 - y0, (x1 - x0) * 0.8), front: nz >= 0 } : null;
   V.spots.set(id, s);
   return s;
+}
+
+/* Where a label line meets a muscle: a point on its surface, the vertex
+   nearest the middle of it, with the way it faces and how big it is. A
+   muscle that comes in a pair gets one per side, and the line goes to
+   whichever faces you. Halves closer than a tenth of his height (the
+   abs, the erectors) are one muscle down the midline, one point. */
+function anchors(id) {
+  if (V.anchors.has(id)) return V.anchors.get(id);
+  const k = V.regs.ids.indexOf(id), w = k >= 0 ? V.regs.w[k] : null, R = V.rest, N = V.T.geo.attributes.normal, mid = V.centre.x;
+  const half = () => ({ s: 0, x: 0, y: 0, z: 0, y0: Infinity, y1: -Infinity, x0: Infinity, x1: -Infinity, at: [] });
+  let sides = [half(), half()];
+  if (w) for (let i = 0; i < w.length; i++) {
+    const a = w[i];
+    if (a < 0.5) continue;
+    const h = sides[R[3 * i] < mid ? 0 : 1], x = R[3 * i], y = R[3 * i + 1];
+    h.s += a; h.x += x * a; h.y += y * a; h.z += R[3 * i + 2] * a; h.at.push(i);
+    h.y0 = Math.min(h.y0, y); h.y1 = Math.max(h.y1, y); h.x0 = Math.min(h.x0, x); h.x1 = Math.max(h.x1, x);
+  }
+  const tot = sides[0].s + sides[1].s;
+  sides = sides.filter(h => h.s > tot * 0.15);
+  if (sides.length === 2 && Math.abs(sides[0].x / sides[0].s - sides[1].x / sides[1].s) < V.height * 0.1) {
+    const [a, b] = sides;
+    sides = [{ s: a.s + b.s, x: a.x + b.x, y: a.y + b.y, z: a.z + b.z, at: a.at.concat(b.at),
+      y0: Math.min(a.y0, b.y0), y1: Math.max(a.y1, b.y1), x0: Math.min(a.x0, b.x0), x1: Math.max(a.x1, b.x1) }];
+  }
+  const out = sides.map(h => {
+    const c = new THREE.Vector3(h.x / h.s, h.y / h.s, h.z / h.s);
+    let best = h.at[0], bd = Infinity;
+    for (const i of h.at) {
+      const d = (R[3 * i] - c.x) ** 2 + (R[3 * i + 1] - c.y) ** 2 + (R[3 * i + 2] - c.z) ** 2;
+      if (d < bd) { bd = d; best = i; }
+    }
+    return { c, p: new THREE.Vector3(R[3 * best], R[3 * best + 1], R[3 * best + 2]),
+      n: new THREE.Vector3(N.getX(best), N.getY(best), N.getZ(best)).normalize(),
+      size: Math.max(h.y1 - h.y0, (h.x1 - h.x0) * 0.8) };
+  });
+  V.anchors.set(id, out);
+  return out;
+}
+
+/* Of a muscle's anchors, the one turned most towards the camera. */
+function facing(id, cam) {
+  let best = null, bd = -Infinity;
+  for (const a of anchors(id)) {
+    const d = cam.position.clone().sub(a.p).normalize().dot(a.n);
+    if (d > bd) { bd = d; best = a; }
+  }
+  return best && { ...best, d: bd };
 }
 
 /* Paint the lit regions: tier colours, or with one muscle in focus, that
@@ -151,6 +201,8 @@ function tint() {
 function aim() {
   const { renderer, cams, centre, height } = V, el = renderer.domElement;
   const W = el.clientWidth || 1, H = el.clientHeight || 1;
+  if (V.orb) { aimOrbit(W, H); return; }
+  cams[0].clearViewOffset();
   const s = V.near && V.focusOn && V.focusOn.map(spot).find(Boolean);
   const both = V.view === 'both' && !s;
   const panes = both ? [[0, W / 2], [W / 2, W / 2]] : [[0, W]];
@@ -171,9 +223,69 @@ function aim() {
   });
 }
 
+/* ── the orbit camera (the Anatomy tab) ──
+
+   One camera on a sphere round a target: `az` round him (0 is the front),
+   `el` up and over, `dist` out. A flight (`goal`) eases the camera there a
+   frame at a time; touching him cancels it. `ins` is how much of the
+   screen the panels cover on each side: the picture's centre moves into
+   the space left over (a view offset, so a tap and the label line still
+   line up with what is drawn), and eases with the panels as they move. */
+const FOV_TAN = Math.tan(15 * Math.PI / 180);   // half of the cameras' 30°
+const wrap180 = d => ((d % 360) + 540) % 360 - 180;
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+
+function freeArea() {
+  const el = V.renderer.domElement, W = el.clientWidth || 1, H = el.clientHeight || 1, i = V.insGoal;
+  return { W, H, w: Math.max(80, W - i.l - i.r), h: Math.max(80, H - i.t - i.b) };
+}
+/* Far enough back that the whole body fits the space the panels leave. */
+function fitDist() {
+  const { W, H, w, h } = freeArea();
+  return Math.max(V.height * H / (2 * FOV_TAN * 0.88 * h), V.width * H / (2 * FOV_TAN * 0.9 * w));
+}
+const clampDist = d => clamp(d, V.height * 0.2, fitDist() * 1.7);
+
+function aimOrbit(W, H) {
+  const o = V.orb, cam = V.cams[0], i = V.ins;
+  const a = o.az * Math.PI / 180, e = o.el * Math.PI / 180;
+  cam.aspect = W / H;
+  cam.position.set(o.t.x + o.dist * Math.sin(a) * Math.cos(e), o.t.y + o.dist * Math.sin(e), o.t.z + o.dist * Math.cos(a) * Math.cos(e));
+  cam.up.set(0, 1, 0);
+  cam.lookAt(o.t);
+  cam.near = Math.max(1, o.dist - V.height * 1.5); cam.far = o.dist + V.height * 2;
+  cam.setViewOffset(W, H, (i.r - i.l) / 2, (i.b - i.t) / 2, W, H);
+  cam.updateProjectionMatrix();
+  cam.updateMatrixWorld();
+  V.panes = [{ cam, x: 0, w: W, yaw: a }];
+}
+
+/* One step of any flight and of the panels' space; true while either is
+   still moving. */
+function ease(now) {
+  const dt = V.last ? Math.min(64, now - V.last) : 16, k = 1 - Math.exp(-dt / 110);
+  let moving = false;
+  for (const s of ['l', 'r', 't', 'b']) {
+    const d = V.insGoal[s] - V.ins[s];
+    if (Math.abs(d) > 0.5) { V.ins[s] += d * k; moving = true; } else V.ins[s] = V.insGoal[s];
+  }
+  const o = V.orb, g = o.goal;
+  if (g) {
+    const da = wrap180(g.az - o.az), de = g.el - o.el, dd = g.dist - o.dist, dt3 = g.t.distanceTo(o.t);
+    if (Math.abs(da) < 0.1 && Math.abs(de) < 0.1 && Math.abs(dd) < 0.5 && dt3 < 0.2) {
+      o.az = g.az; o.el = g.el; o.dist = g.dist; o.t.copy(g.t); o.goal = null;
+    } else {
+      o.az += da * k; o.el += de * k; o.dist += dd * k; o.t.lerp(g.t, k);
+      moving = true;
+    }
+  }
+  V.last = moving ? now : 0;
+  return moving;
+}
+
 function draw() {
   if (!V || V.raf) return;
-  V.raf = requestAnimationFrame(() => {
+  V.raf = requestAnimationFrame(now => {
     V.raf = 0;
     const { renderer, scene } = V, el = renderer.domElement;
     if (!el.isConnected) return;
@@ -181,6 +293,7 @@ function draw() {
     if (!W || !H) return;
     const pr = renderer.getPixelRatio();
     if (el.width !== Math.round(W * pr) || el.height !== Math.round(H * pr)) renderer.setSize(W, H, false);
+    const moving = V.orb ? ease(now) : false;
     aim();
     renderer.setScissorTest(true);
     renderer.setClearColor(0x000000, 0);
@@ -194,28 +307,133 @@ function draw() {
       renderer.setScissor(p.x, 0, p.w, H); renderer.setViewport(p.x, 0, p.w, H);
       renderer.render(scene, p.cam);
     }
+    V.onFrame?.();
+    if (moving) draw();
   });
 }
 
-/* A sideways drag turns him, an up-and-down one scrolls the card
-   (drag.js); a tap names the muscle under it. */
+/* In the card: a sideways drag turns him, an up-and-down one scrolls the
+   card (drag.js); a tap names the muscle under it. In orbit (the Anatomy
+   tab) the gestures are orbit's, below. */
 function wire() {
   const el = V.renderer.domElement, lock = axisLock();
   let drag = null;
-  el.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, yaw: V.yaw }; lock.down(e); el.setPointerCapture(e.pointerId); });
+  el.addEventListener('pointerdown', e => {
+    if (V.orb) { orbit3.down(e); return; }
+    drag = { x: e.clientX, y: e.clientY, yaw: V.yaw }; lock.down(e); el.setPointerCapture(e.pointerId);
+  });
   el.addEventListener('pointermove', e => {
+    if (V.orb) { orbit3.move(e); return; }
     if (!drag || lock.move(e) !== 'turn' || (e.pointerType === 'mouse' && !e.buttons)) return;
     V.yaw = drag.yaw + (e.clientX - drag.x) * 0.6; el.classList.add('turned'); draw();
   });
   /* A touch is a tap when it never picked a direction; a mouse is always
      turning (drag.js), so for it a tap is a click that barely moved. */
   el.addEventListener('pointerup', e => {
+    if (V.orb) { orbit3.up(e); return; }
     const still = lock.up() || e.pointerType === 'mouse';
     if (drag && still && Math.abs(e.clientX - drag.x) < 6 && Math.abs(e.clientY - drag.y) < 6) tap(e);
     drag = null;
   });
-  el.addEventListener('pointercancel', () => { lock.up(); drag = null; });
+  el.addEventListener('pointercancel', e => {
+    if (V.orb) { orbit3.up(e, true); return; }
+    lock.up(); drag = null;
+  });
+  el.addEventListener('wheel', e => { if (V.orb) orbit3.wheel(e); }, { passive: false });
+  el.addEventListener('contextmenu', e => { if (V.orb) e.preventDefault(); });
 }
+
+/* Orbit gestures. One finger (or the mouse) turns him any way; two
+   fingers pinch to zoom and slide him about together; the right mouse
+   button, or Shift with the left, slides him; the wheel zooms. A zoom
+   closes in on the point between the fingers or under the cursor, which
+   stays where it is. A press that barely moved is a tap. Each gesture is
+   measured from where it started (base), and a finger lifting or landing
+   mid-gesture starts a new base, so nothing jumps. */
+const orbit3 = (() => {
+  const pts = new Map();
+  let g = null, moved = false;
+  const axes = () => {
+    const m = V.cams[0].matrixWorld;
+    return [new THREE.Vector3().setFromMatrixColumn(m, 0), new THREE.Vector3().setFromMatrixColumn(m, 1)];
+  };
+  /* the point under a screen point (client px): on his skin where there
+     is skin, so a zoom closes in on the surface rather than into him, or
+     else on the target's plane, square to the view */
+  const under = (x, y) => {
+    const cam = V.cams[0], r = V.renderer.domElement.getBoundingClientRect(), s = 2 * V.orb.dist * FOV_TAN / (r.height || 1);
+    ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, cam);
+    const hit = ray.intersectObject(V.pick, false)[0];
+    if (hit) return hit.point.clone();
+    const c = V.orb.t.clone().project(cam), [right, up] = axes();
+    return V.orb.t.clone()
+      .addScaledVector(right, (x - r.left - (c.x + 1) / 2 * r.width) * s)
+      .addScaledVector(up, -(y - r.top - (1 - c.y) / 2 * r.height) * s);
+  };
+  /* zoom by `k` (new distance over old) towards point `P` */
+  const towards = (P, from, k) => P.clone().add(from.clone().sub(P).multiplyScalar(k));
+  /* the target at `from`, slid across the screen by dx, dy */
+  const slide = (from, dx, dy) => {
+    const o = V.orb, s = 2 * o.dist * FOV_TAN / (V.renderer.domElement.clientHeight || 1), [right, up] = axes();
+    o.t.copy(from).addScaledVector(right, -dx * s).addScaledVector(up, dy * s);
+    /* never so far that he is lost off screen */
+    const off = o.t.clone().sub(V.centre), lim = V.height * 0.6;
+    if (off.length() > lim) o.t.copy(V.centre).addScaledVector(off.normalize(), lim);
+  };
+  const base = () => {
+    const o = V.orb, p = [...pts.values()].map(q => ({ ...q }));
+    g = { az: o.az, el: o.el, dist: o.dist, t: o.t.clone(), p };
+    if (p.length >= 2) {
+      g.span = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1;
+      g.mx = (p[0].x + p[1].x) / 2; g.my = (p[0].y + p[1].y) / 2;
+      g.P = under(g.mx, g.my);
+    }
+  };
+  return {
+    down(e) {
+      try { V.renderer.domElement.setPointerCapture(e.pointerId); } catch {}
+      if (!pts.size) moved = false;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.shiftKey });
+      V.orb.goal = null; V.orb.fit = false;
+      base();
+    },
+    move(e) {
+      const q = pts.get(e.pointerId);
+      if (!q || !g) return;
+      q.x = e.clientX; q.y = e.clientY;
+      const p = [...pts.values()], o = V.orb;
+      if (p.length === 1) {
+        const dx = p[0].x - g.p[0].x, dy = p[0].y - g.p[0].y;
+        if (!moved && Math.hypot(dx, dy) < 6) return;
+        moved = true;
+        if (p[0].pan) slide(g.t, dx, dy);
+        else { o.az = g.az - dx * 0.45; o.el = clamp(g.el + dy * 0.35, -85, 85); }
+      } else {
+        moved = true;
+        const span = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1;
+        o.dist = clampDist(g.dist * g.span / span);
+        slide(towards(g.P, g.t, o.dist / g.dist), (p[0].x + p[1].x) / 2 - g.mx, (p[0].y + p[1].y) / 2 - g.my);
+      }
+      draw();
+    },
+    up(e, cancel) {
+      if (!pts.has(e.pointerId)) return;
+      pts.delete(e.pointerId);
+      if (pts.size) { base(); return; }
+      if (!moved && !cancel) tap(e);
+      g = null;
+    },
+    wheel(e) {
+      e.preventDefault();
+      const o = V.orb, d0 = o.dist, P = under(e.clientX, e.clientY);
+      o.goal = null; o.fit = false;
+      o.dist = clampDist(d0 * Math.exp(e.deltaY * 0.0015));
+      slide(towards(P, o.t, o.dist / d0), 0, 0);
+      draw();
+    },
+  };
+})();
 
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
 function tap(e) {
@@ -259,23 +477,75 @@ export async function show(box, mStr, { onTap } = {}) {
   V.ro.observe(box);
   V.lit = tiersOf(mStr);
   V.focusOn = null; V.near = true; V.view = 'both'; V.yaw = 0;
+  V.orb = null; V.onFrame = null;
   el.classList.remove('turned');
   tint();
 }
 
-/* The anatomy tab: muscle `id` bright, the rest of `group` faint behind
-   it, on the whole body in `view` — or, with `near`, closed in on it. */
-export function study(id, { group = [], view = 'both', near = false } = {}) {
+/* ── for the Anatomy tab ── */
+
+/* The body full screen in `box`, on the orbit camera, standing square to
+   you and sized to the space `inset` leaves. `onFrame` runs after every
+   frame drawn, for the label line. Rejects as show() does. */
+export async function orbit(box, { onTap, onFrame, inset } = {}) {
+  await show(box, '', { onTap });
+  V.onFrame = onFrame || null;
+  if (inset) Object.assign(V.insGoal, inset);
+  V.ins = { ...V.insGoal };
+  /* `fit`: still the whole-body view, so it refits as the panels move */
+  V.orb = { az: 0, el: 4, dist: 1, t: V.centre.clone(), goal: null, fit: true };
+  V.orb.dist = fitDist();
+  draw();
+}
+const homeGoal = () => ({ az: Math.round(V.orb.az / 360) * 360, el: 4, dist: fitDist(), t: V.centre.clone() });
+
+/* Muscle `id` bright, the rest of `group` faint behind it. */
+export function study(id, group = []) {
   if (!V) return;
   V.lit = new Map(group.map(g => [g, 3]));
   V.focusOn = id ? [id] : null;
-  V.near = near; V.view = view; V.yaw = 0;
-  V.renderer.domElement.classList.remove('turned');
   tint();
 }
 
-/* Which side of the body a muscle is seen from. */
-export const sideOf = id => (V && spot(id)?.front === false ? 'back' : 'front');
+/* Fly round to face a muscle — the side of a pair nearer you — and in
+   close enough to see it with what is round it. */
+export function face(id) {
+  if (!V?.orb) return;
+  const a = facing(id, V.cams[0]);
+  if (!a) return;
+  const { H, h } = freeArea();
+  const fitH = Math.max(a.size * 3, V.height * 0.42);
+  const az = V.orb.az + wrap180(Math.atan2(a.n.x, a.n.z) * 180 / Math.PI - V.orb.az);
+  V.orb.goal = { az, el: clamp(Math.asin(clamp(a.n.y, -1, 1)) * 180 / Math.PI, -30, 40), dist: clampDist(fitH * H / (2 * FOV_TAN * h)), t: a.c.clone() };
+  V.orb.fit = false;
+  draw();
+}
+
+/* Back to the whole body, from the front. */
+export function home() {
+  if (!V?.orb) return;
+  V.orb.goal = homeGoal();
+  V.orb.fit = true;
+  draw();
+}
+
+/* How much of the screen the panels cover on each side, in CSS px. */
+export function setInset(ins) {
+  if (!V) return;
+  Object.assign(V.insGoal, ins);
+  if (V.orb?.fit) V.orb.goal = homeGoal();
+  draw();
+}
+
+/* Where the label line meets muscle `id` on screen (CSS px within the
+   canvas), and whether that point faces you; null off the orbit. */
+export function anchorOf(id) {
+  if (!V?.orb || !V.panes || !id) return null;
+  const cam = V.panes[0].cam, el = V.renderer.domElement, a = facing(id, cam);
+  if (!a) return null;
+  const s = a.p.clone().project(cam);
+  return { x: (s.x + 1) / 2 * el.clientWidth, y: (1 - s.y) / 2 * el.clientHeight, front: a.d > 0.05, on: s.z < 1 };
+}
 
 /* 'both' | 'front' | 'back' */
 export function setView(view) {
@@ -296,6 +566,6 @@ export function focus(ids) {
 export function hide() {
   if (!V) return;
   V.ro?.disconnect(); V.ro = null;
-  V.onTap = null;
+  V.onTap = null; V.onFrame = null;
   V.renderer.domElement.remove();
 }

@@ -58,13 +58,19 @@ Live apps:
   button that drops a tray of the extras: **Streak**, **Time**, **Awards**
   and **Anatomy**, each tile showing its headline number. While an extra
   is open the grid button wears its icon, and the extra's header hops to
-  the other three. **Anatomy** is a study tool for all 32 muscle regions
-  the app maps: tap one on the 3D body (or the 2D map while the model
-  loads) or pick it from a searchable list grouped by body part, and a
-  card gives its anatomical name, what it does, its origin, insertion and
-  nerve, a training note, and the exercises in your current program that
-  work it, each opening that exercise. Front, back or both views, and a
-  zoom that closes in on the muscle. See `apps/workout/anatomy.js`.
+  the others. **Anatomy** opens full screen over the whole app as a study
+  tool for all 32 muscle regions the app maps: one 3D body you turn any
+  way, pinch (or scroll) to zoom on the point under your fingers, and
+  slide with two fingers (or right-drag). Tap a muscle, or pick it from a
+  searchable list grouped by body part, and it lights up, the camera comes
+  round to it, and a see-through readout tied to it by a line gives its
+  anatomical name, what it does, its origin, insertion and nerve, a
+  training note, and the exercises in your current program that work it,
+  each opening that exercise. The readout folds down to the name; the
+  back gesture, Escape or × closes it. The reference text was checked
+  against Kenhub, TeachMeAnatomy and Gray's-sourced pages. See
+  `apps/workout/anatomy.js` and the orbit camera in
+  `apps/workout/muscleview.js`.
 
   **Settings → Program** switches whose workout the app runs: **Edrin**
   (the default, the dumbbell-and-calisthenics program above) or **Andrew**
