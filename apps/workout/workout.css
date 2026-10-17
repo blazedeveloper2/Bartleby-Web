@@ -1265,7 +1265,10 @@ html[data-theme] body.wk-resting .wk .mm-card{padding-bottom:calc(150px + env(sa
    which opens over it. */
 html.wk-ax,html.wk-ax body{overflow:hidden}
 html.wk-ax .rest-bar{visibility:hidden}
-.wk .ax{position:fixed;inset:0;z-index:190;overflow:hidden;background:var(--bg);color:var(--text);
+/* height: the screen you can see. A phone browser counts the space under
+   its own toolbars as screen for `inset:0`, which pushed the bottom of
+   the panels out of sight. */
+.wk .ax{position:fixed;inset:0;height:100vh;height:100dvh;z-index:190;overflow:hidden;background:var(--bg);color:var(--text);
   touch-action:none;user-select:none;-webkit-user-select:none;
   --holo:color-mix(in srgb,var(--blue) 55%,transparent);
   --holo-faint:color-mix(in srgb,var(--blue) 18%,transparent);
@@ -1390,11 +1393,6 @@ html.wk-ax .rest-bar{visibility:hidden}
 .wk .ax-legend span{display:flex;align-items:center;gap:5px}
 .wk .ax-legend i{width:10px;height:10px;border-radius:2px}
 
-/* an organ's facts, in the readout */
-.wk .ax-facts{margin:0 0 12px;padding:0 0 0 16px;display:flex;flex-direction:column;gap:5px}
-.wk .ax-facts li{font-size:12.5px;line-height:1.5;color:var(--text-2)}
-.wk .ax-facts li::marker{color:var(--blue)}
-
 /* the quiz, in the readout */
 .wk .ax-quiz{margin-top:12px}
 .wk .ax-opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:10px}
@@ -1417,14 +1415,24 @@ html.wk-ax .rest-bar{visibility:hidden}
 .wk .ax-skip:hover{color:var(--text-2);border-color:var(--holo)}
 
 /* the settings */
-.wk .ax-set{--n:12px;position:absolute;z-index:5;right:max(14px,env(safe-area-inset-right,0px));top:calc(env(safe-area-inset-top,0px) + 62px);
-  width:min(320px,calc(100% - 28px));max-height:calc(100% - 80px);overflow:auto;overscroll-behavior:contain;touch-action:pan-y;padding:12px 14px 14px;
-  clip-path:polygon(var(--n) 0,100% 0,100% calc(100% - var(--n)),calc(100% - var(--n)) 100%,0 100%,0 var(--n));
-  background:color-mix(in srgb,var(--bg-card) 88%,transparent);box-shadow:inset 0 0 0 1px var(--holo),inset 0 0 30px var(--holo-faint);
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);animation:ax-hud-in .2s ease both}
+/* On a phone a sheet from the bottom, like the list, up to most of the
+   screen; its header (title, Reset, close) stays put and only the
+   settings under it scroll. On a wide screen a panel under the bar. */
+.wk .ax-set{position:absolute;z-index:5;left:0;right:0;bottom:0;max-height:min(82%,680px);display:flex;flex-direction:column;
+  padding:0 0 env(safe-area-inset-bottom,0px);background:color-mix(in srgb,var(--bg) 93%,transparent);
+  box-shadow:inset 0 1px 0 var(--holo),0 -20px 40px -10px #0009;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  touch-action:pan-y;user-select:none;animation:ax-up .22s cubic-bezier(.22,.68,0,1.1) both}
 .wk .ax-set[hidden]{display:none}
-.wk .ax-set-k{margin:4px 0 4px;font-size:9.5px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--blue)}
-.wk .ax-set-k:not(:first-child){margin-top:14px}
+.wk .ax-set-h{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:12px max(14px,env(safe-area-inset-right,0px)) 10px max(14px,env(safe-area-inset-left,0px));
+  border-bottom:1px solid var(--holo-faint)}
+.wk .ax-set-h>b{flex:1;font-size:12px;font-weight:700;letter-spacing:2.2px;text-transform:uppercase;color:var(--text)}
+.wk .ax-reset{display:flex;align-items:center;gap:6px;height:34px;padding:0 12px;background:var(--blue-d);border:1px solid var(--sel-bd);border-radius:var(--rs);
+  color:var(--blue);font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer}
+.wk .ax-reset svg{width:15px;height:15px;display:block}
+.wk .ax-reset:hover{background:var(--blue);color:var(--on-accent)}
+.wk .ax-set-b{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:6px max(14px,env(safe-area-inset-right,0px)) 16px max(14px,env(safe-area-inset-left,0px))}
+.wk .ax-set-k{margin:10px 0 4px;font-size:9.5px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--blue)}
+.wk .ax-set-k:not(:first-child){margin-top:16px}
 .wk .ax-set-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--holo-faint)}
 .wk .ax-set-row.col{flex-direction:column;align-items:stretch;gap:8px}
 .wk .ax-set-row>span{display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -1490,6 +1498,11 @@ html.wk-ax .rest-bar{visibility:hidden}
    the list down the left (anatomy.js's WIDE is the same query). */
 @media (min-width:900px),(min-aspect-ratio:4/3) and (min-width:600px){
   .wk .ax-hud{left:auto;right:max(20px,env(safe-area-inset-right,0px));top:calc(env(safe-area-inset-top,0px) + 84px);bottom:auto;width:min(360px,42vw);max-height:calc(100% - 104px)}
+  .wk .ax-set{--n:12px;left:auto;bottom:auto;right:max(14px,env(safe-area-inset-right,0px));top:calc(env(safe-area-inset-top,0px) + 62px);
+    width:min(340px,calc(100% - 28px));max-height:calc(100% - 80px);padding:0;
+    clip-path:polygon(var(--n) 0,100% 0,100% calc(100% - var(--n)),calc(100% - var(--n)) 100%,0 100%,0 var(--n));
+    background:color-mix(in srgb,var(--bg-card) 90%,transparent);box-shadow:inset 0 0 0 1px var(--holo),inset 0 0 30px var(--holo-faint);
+    animation:ax-hud-in .2s ease both}
   .wk .ax-drawer{right:auto;top:0;width:min(320px,36vw);height:auto;padding-top:calc(env(safe-area-inset-top,0px) + 84px);
     box-shadow:inset -1px 0 0 var(--holo),20px 0 40px -10px #0008;animation-name:ax-side}
   @keyframes ax-side{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}

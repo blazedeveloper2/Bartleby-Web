@@ -22,14 +22,6 @@ bench (tools/anatomy/).
   to the same design (ribbed waistband, mesh side panel with piping, the
   diagonal accent and mark, hem stitching). No outside licence.
 
-- **Internal organs and torso skeleton** (organs.json, organs.bin):
-  BodyParts3D, © The Database Center for Life Science licensed under CC
-  Attribution 4.0 International
-  (https://creativecommons.org/licenses/by/4.0/). Changed here: parts
-  combined from their element meshes, simplified, the lungs rebuilt as the
-  shell round their airway trees, and fitted into this body by
-  tools/organs/build_organs.py.
-
 How it is built is in tools/howto/README.md.
 
 ---
