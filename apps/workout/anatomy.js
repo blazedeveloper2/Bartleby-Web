@@ -491,10 +491,11 @@ const groupIds = () => REGIONS.filter(r => r.group === (grp || R(sel).group) && 
 
 /* What is lit: the selected muscle, or in a quiz the one asked about
    (none while you are looking for it); the faint group round it only
-   when the colours and the quiz are not doing that job. */
+   when something is lit, and the colours and the quiz are not doing
+   that job. Nothing selected, nothing tinted. */
 const litId = () => (quiz ? quiz.lit : hudOn ? sel : null);
 function light() {
-  const id = litId(), g = new Set(quiz || look.atlas ? [] : groupIds());
+  const id = litId(), g = new Set(!id || quiz || look.atlas ? [] : groupIds());
   if (is3d) mv.study(id, [...g]);
   X.querySelectorAll('.an-region').forEach(el => {
     const rid = regionOfMapId(el.dataset.mid), sw = look.atlas && rid !== id && swatch(rid, look.atlas);

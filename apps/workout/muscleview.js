@@ -572,10 +572,13 @@ export async function orbit(box, { onTap, onFrame, inset, look } = {}) {
 }
 const homeGoal = () => ({ az: Math.round(V.orb.az / 360) * 360, el: 4, dist: fitDist(), t: V.centre.clone() });
 
-/* Muscle `id` bright, the rest of `group` faint behind it. */
+/* Muscle `id` bright, the rest of `group` a soft glow of the same
+   colour behind it (as primaries, which tint() fades to under a third
+   beside the one in focus), never the darker tier colours, which read
+   as shadow on skin. */
 export function study(id, group = []) {
   if (!V) return;
-  V.lit = new Map(group.map(g => [g, 3]));
+  V.lit = new Map(id ? group.map(g => [g, 1]) : []);
   V.focusOn = id ? [id] : null;
   tint();
 }
