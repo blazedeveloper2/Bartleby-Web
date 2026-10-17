@@ -1,4 +1,4 @@
-// node tools/howto/trainer/build_athlete.mjs <body.json> assets/models/trainer assets/models/athlete
+// node tools/howto/trainer/build_athlete.mjs <body.json> <trainer dir> assets/models/athlete
 //   body.json: the sculpt reduced by reduce.mjs. Set HEAT_WEIGHTS to Blender's
 //   weights (blender_weights.py) to use them, and AO to the ambient occlusion
 //   blender_ao.py baked on this build; see tools/howto/README.md.
@@ -468,9 +468,9 @@ writeFileSync(outDir + '/athlete.json', JSON.stringify({
   units: 'sculpt (about 1 cm)', rigPerUnit: 47.1 / 51, posScale: 1 / PS, vertices: V, layout, ranges,
   materials: {
     skin: { color: '#be8c70', neck: '#be8c70', roughness: 0.6, paint: true, ...(process.env.BODY_UV ? { normalMap: 'body_n.jpg', normalScale: 1 } : {}) },
-    head: { map: '../trainer/head.jpg', normalMap: '../trainer/head_n.jpg', normalScale: 0.18, roughness: 0.64, paint: true },
+    head: { map: 'head.jpg', normalMap: 'head_n.jpg', normalScale: 0.18, roughness: 0.64, paint: true },
     hair: { map: 'hair.png', alphaTest: 0.5, roughness: 0.85 },
-    hands: { map: '../trainer/body.jpg', roughness: 0.64, paint: true },
+    hands: { map: 'hands.jpg', roughness: 0.64, paint: true },
     bareskin: { color: '#be8c70', roughness: 0.6, paint: true, hidden: true, ...(process.env.BODY_UV ? { normalMap: 'body_n.jpg', normalScale: 1 } : {}) },
     underskin: { color: '#be8c70', roughness: 0.6, paint: true, ...(process.env.BODY_UV ? { normalMap: 'body_n.jpg', normalScale: 1 } : {}) },
     /* fit 'legs': avatar.js smooths the shorts and fits their UVs on load

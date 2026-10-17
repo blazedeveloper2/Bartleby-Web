@@ -1390,6 +1390,11 @@ html.wk-ax .rest-bar{visibility:hidden}
 .wk .ax-legend span{display:flex;align-items:center;gap:5px}
 .wk .ax-legend i{width:10px;height:10px;border-radius:2px}
 
+/* an organ's facts, in the readout */
+.wk .ax-facts{margin:0 0 12px;padding:0 0 0 16px;display:flex;flex-direction:column;gap:5px}
+.wk .ax-facts li{font-size:12.5px;line-height:1.5;color:var(--text-2)}
+.wk .ax-facts li::marker{color:var(--blue)}
+
 /* the quiz, in the readout */
 .wk .ax-quiz{margin-top:12px}
 .wk .ax-opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:10px}

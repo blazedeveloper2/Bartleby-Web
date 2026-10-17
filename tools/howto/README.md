@@ -201,11 +201,14 @@ or more needs a look). `joints.mjs` flags a few on purpose: the frog
 stands fold the hips that far, and a handstand push-up's elbows read
 backward for a moment as they flare.
 
-## The trainer
+## The trainer (build input only)
 
-The figure is a real human model, Male_Adult_01 from Microsoft's
-[Rocketbox](https://github.com/microsoft/Microsoft-Rocketbox) library (MIT;
-the license is in `assets/models/trainer/`).
+The athlete's head and hands come from a real human model, Male_Adult_01
+from Microsoft's [Rocketbox](https://github.com/microsoft/Microsoft-Rocketbox)
+library (MIT; the licence is in `assets/models/athlete/LICENSE.md`). The
+converted scan itself is no longer shipped: it is only an input to
+building the athlete, so convert it into a scratch folder (`<trainer>`
+below) when you rebuild.
 [`avatar.js`](../../apps/workout/avatar.js) loads it once and dresses the
 rig with it: every bone sits on the rig's joint, so nothing about a pose
 changes, and the checks above hold for the trainer as they do for the rig.
@@ -217,8 +220,10 @@ mannequin in stage.js stands in.
 To rebuild it (another Rocketbox avatar, other kit colours):
 
 ```bash
-node tools/howto/trainer/convert.mjs Male_Adult_01.fbx assets/models/trainer <three r160 examples/jsm>
-python tools/howto/trainer/textures.py <the avatar's Textures folder> assets/models/trainer
+node tools/howto/trainer/convert.mjs Male_Adult_01.fbx <trainer> <three r160 examples/jsm>
+python tools/howto/trainer/textures.py <the avatar's Textures folder> <trainer>
+# the athlete uses the scan's head and hand textures: copy head.jpg, head_n.jpg
+# and body.jpg (as hands.jpg) from <trainer> into assets/models/athlete/
 ```
 
 `convert.mjs` bakes the mesh into its A-pose, folds the face bones into
@@ -235,21 +240,20 @@ app draws: the how-to rep (`stage.ready()` loads it, falling back to the
 trainer if it cannot) and the 3D muscle map in each exercise card
 ([`muscleview.js`](../../apps/workout/muscleview.js)), both lit from the
 same muscle regions ([`muscles3d.js`](../../apps/workout/muscles3d.js)) the
-anatomy bench (`tools/anatomy/`) shows. `?model=trainer` in the gallery
-shows the old figure. To rebuild it:
+anatomy bench (`tools/anatomy/`) shows. To rebuild it:
 
 ```bash
 # 1. reduce the sculpt (Sketchfab "Male body", glTF download) to ~300k triangles,
 #    keeping the sculpt's own smooth normals (needs: npm install meshoptimizer@0.22.0)
 node tools/howto/trainer/reduce.mjs <scene.gltf> body.json 300000
 # 2. dump the body and bones, let Blender work out the skin weights
-DUMP_FOR_BLENDER=for_blender.json node tools/howto/trainer/build_athlete.mjs body.json assets/models/trainer x
+DUMP_FOR_BLENDER=for_blender.json node tools/howto/trainer/build_athlete.mjs body.json <trainer> x
 blender --background --factory-startup --python tools/howto/trainer/blender_weights.py -- for_blender.json heat_weights.json
 # 3. build
-HEAT_WEIGHTS=heat_weights.json node tools/howto/trainer/build_athlete.mjs body.json assets/models/trainer assets/models/athlete
+HEAT_WEIGHTS=heat_weights.json node tools/howto/trainer/build_athlete.mjs body.json <trainer> assets/models/athlete
 # 4. bake the ambient occlusion on that build (4 cm reach, 384 samples), then build again with it
 blender --background --factory-startup --python tools/howto/trainer/blender_ao.py -- assets/models/athlete/athlete.json ao.json 4 384
-AO=ao.json HEAT_WEIGHTS=heat_weights.json node tools/howto/trainer/build_athlete.mjs body.json assets/models/trainer assets/models/athlete
+AO=ao.json HEAT_WEIGHTS=heat_weights.json node tools/howto/trainer/build_athlete.mjs body.json <trainer> assets/models/athlete
 ```
 
 The build is repeatable (the same inputs give the same bytes), so the

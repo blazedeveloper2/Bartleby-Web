@@ -86,7 +86,15 @@ Live apps:
   works, primary, supporting and stabilizing. The rig maps 38 muscle
   regions, including the rotator cuff (supraspinatus, infraspinatus and
   teres minor), gluteus medius, TFL, tibialis anterior and the
-  sternocleidomastoid. **Quiz yourself** runs in the readout: name
+  sternocleidomastoid. **Inside the body**: an Organs layer and a Skeleton
+  layer turn the skin to glass round 22 parts from BodyParts3D (CC BY 4.0)
+  fitted into the athlete — brain, heart, aorta, inferior vena cava,
+  trachea, both lungs, diaphragm, esophagus, stomach, liver, gallbladder,
+  pancreas, small and large intestine, both kidneys, bladder, and the
+  skull, spine, rib cage and pelvis — each tappable for its own readout
+  (what it does, where it sits, its size, blood and nerve supply, facts).
+  They ride on the body's own bones, so they follow every pose. Built by
+  `tools/organs/build_organs.py`; see `apps/workout/organs.js`. **Quiz yourself** runs in the readout: name
   the muscle that lights up (four choices, two from its own group), or
   find the one named by tapping it on the body. Muscles you miss come up
   more often, and it keeps count of the ones you know. The reference text was checked

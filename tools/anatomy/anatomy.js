@@ -1,8 +1,8 @@
 /* The anatomy bench (see index.html). Uses the app's own modules, so the
    body, its posing and its muscle regions are exactly what the app draws. */
 import * as THREE from '../../assets/vendor/three/three.module.min.js';
-import * as STAGE from '../../apps/workout/stage.js?v=3d-oct16g';
-import { Trainer, studioEnv, skinLook, isSkin } from '../../apps/workout/avatar.js?v=3d-oct16g';
+import * as STAGE from '../../apps/workout/stage.js?v=3d-oct16h';
+import { Trainer, studioEnv, skinLook, isSkin } from '../../apps/workout/avatar.js?v=3d-oct16h';
 import { MOTION } from '../../apps/workout/moves.js?v=3d-oct16g';
 import { skeleton } from '../../apps/workout/rig.js?v=3d-oct14h';
 import { MMAP, PROGRAM } from '../../apps/workout/data.js?v=3d-oct14d';

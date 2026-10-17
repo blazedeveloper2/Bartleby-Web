@@ -1,9 +1,9 @@
 /* ═══════════════════════════════════════════════════════════
-   WORKOUT — THE TRAINER: A REAL BODY ON THE RIG
+   WORKOUT — THE ATHLETE: A REAL BODY ON THE RIG
 
-   The figure in the 3D rep is a scanned-quality human, Male_Adult_01 from
-   Microsoft's Rocketbox library (MIT; assets/models/trainer/LICENSE.md),
-   skinned to 52 bones: spine, neck, head, clavicles, arms, every finger
+   The figure in the 3D rep is a sculpted anatomical body with the head
+   and hands of Male_Adult_01 from Microsoft's Rocketbox library (MIT;
+   assets/models/athlete/LICENSE.md), skinned to 52 bones: spine, neck, head, clavicles, arms, every finger
    joint, legs and feet. rig.js still decides where everything is; this
    file only dresses that skeleton. Each frame every bone is placed on the
    rig's joint and turned so its bind-pose frame (the way it points, and
@@ -25,15 +25,15 @@
 import * as THREE from '../../assets/vendor/three/three.module.min.js';
 import { SEG, v3, rot } from './rig.js?v=3d-oct14h';
 
-/* Each model lives in assets/models/<name>/ as <name>.json + <name>.bin:
-   'trainer' (the Rocketbox scan in a tee and shorts) and 'athlete' (a
-   sculpted anatomical body in shorts with the scan's head and hands, built
-   by tools/howto/trainer/). A model's json may list its own materials. */
+/* A model lives in assets/models/<name>/ as <name>.json + <name>.bin. The
+   one in use is 'athlete', a sculpted anatomical body in shorts with the
+   Rocketbox scan's head and hands, built by tools/howto/trainer/. A
+   model's json lists its own materials. */
 const MODELS = new URL('../../assets/models/', import.meta.url);
 
 const LOADING = new Map();
 /* Loads a model's mesh and textures once; resolves to the shared data. */
-export function loadTrainer(name = 'trainer') {
+export function loadTrainer(name = 'athlete') {
   if (LOADING.has(name)) return LOADING.get(name);
   const DIR = new URL(`${name}/`, MODELS);
   const job = (async () => {

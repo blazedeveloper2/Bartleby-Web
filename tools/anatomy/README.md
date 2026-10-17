@@ -17,7 +17,7 @@ Keyboard: Space play/pause, ← → step, 1–4 front/side/back/top, R reset the
 view, S shorts, D pick debug readout, ? help.
 
 Links: `?tab=exercise&ex=Pull-Ups&t=0.5&src=diff&az=90&el=10&zoom=2`,
-`?solo=lat,glute`, `?model=trainer`, `?shorts=0`.
+`?solo=lat,glute`, `?shorts=0`.
 
 ## Collision and snap scans
 

@@ -1,4 +1,4 @@
-// Shared loader for the packed Rocketbox trainer (assets/models/trainer).
+// Shared loader for the packed Rocketbox trainer (a <trainer> folder made by convert.mjs; a build input, not shipped).
 import { readFileSync } from 'node:fs';
 export function loadRB(dir) {
   const meta = JSON.parse(readFileSync(dir + '/trainer.json', 'utf8'));

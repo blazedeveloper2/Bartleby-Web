@@ -22,11 +22,12 @@
    ═══════════════════════════════════════════════════════════ */
 
 import * as THREE from '../../assets/vendor/three/three.module.min.js';
-import { loadTrainer, Trainer, skinLook, isSkin, studioEnv } from './avatar.js?v=3d-oct16g';
+import { loadTrainer, Trainer, skinLook, isSkin, studioEnv } from './avatar.js?v=3d-oct16h';
 import { skeleton } from './rig.js?v=3d-oct14h';
 import { REGIONS, regionsOf, regionsOfMuscle } from './muscles3d.js?v=3d-oct16g';
 import { MMAP } from './data.js?v=3d-oct14d';
 import { axisLock } from './drag.js?v=3d-oct14d';
+import { loadOrgans, follow, pick as pickInside, spotOf, mark } from './organs.js?v=3d-oct16h';
 
 const MODEL = 'athlete';
 const TIER_ALPHA = [0, 0.9, 0.8, 0.55];   // by tier: primary, supporting, stabilizing
@@ -74,7 +75,7 @@ function tintMaterial(src, uNeck, H, F) {
       .replace('#include <skinning_vertex>', '#include <skinning_vertex>\ntransformed += normalize(objectNormal) * (aFlex * uFlex);')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvHoloY = (modelMatrix * vec4(transformed, 1.0)).y;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uNeck;\nuniform float uHolo;\nuniform vec3 uHoloCol;\nuniform float uHoloK;\nvarying vec4 vTint;\nvarying float vTintW;\nvarying float vBlend;\nvarying float vHoloY;')
+      .replace('#include <common>', '#include <common>\nuniform vec3 uNeck;\nuniform float uHolo;\nuniform float uSee;\nuniform vec3 uHoloCol;\nuniform float uHoloK;\nvarying vec4 vTint;\nvarying float vTintW;\nvarying float vBlend;\nvarying float vHoloY;')
       .replace('#include <color_fragment>', [
         '#include <color_fragment>',
         'diffuseColor.rgb = mix(diffuseColor.rgb, uNeck, vBlend);',
@@ -92,7 +93,7 @@ function tintMaterial(src, uNeck, H, F) {
         `totalEmissiveRadiance += vTint.rgb * tA * mix(${cloth ? '0.0' : '0.3'}, 0.85, uHolo);`,
         'totalEmissiveRadiance += uHoloCol * uHolo * (holoF * 0.9 + holoL * 0.3) * (1.0 - tA * 0.7);',
       ].join('\n'))
-      .replace('#include <dithering_fragment>', '#include <dithering_fragment>\ngl_FragColor.a = mix(gl_FragColor.a, max(tA, 0.22 + holoF * 0.75), uHolo);');
+      .replace('#include <dithering_fragment>', '#include <dithering_fragment>\ngl_FragColor.a = mix(gl_FragColor.a, max(tA, 0.22 + holoF * 0.75), uHolo);\ngl_FragColor.a = mix(gl_FragColor.a, max(tA * 0.7, 0.08 + holoF * 0.45), uSee);');
   };
   m.customProgramCacheKey = () => (skin ? 'mm-tint-skin' : cloth ? 'mm-tint-cloth' : 'mm-tint');
   return m;
@@ -100,7 +101,7 @@ function tintMaterial(src, uNeck, H, F) {
 
 /* How the Anatomy tab dresses the body; the exercise card always gets
    the plain one (show() puts it back). */
-const PLAIN = { shorts: true, atlas: null, spin: false, holo: false, deep: false, flex: false, idle: false, bend: false };
+const PLAIN = { shorts: true, atlas: null, spin: false, holo: false, deep: false, flex: false, idle: false, bend: false, organs: false, bones: false };
 
 async function build() {
   const T = await loadTrainer(MODEL);
@@ -126,7 +127,7 @@ async function build() {
   const M = new THREE.Matrix4().makeScale(T.cm, T.cm, T.cm);
   for (const b of body.bones) { b.matrix.copy(M); b.matrixWorld.copy(M); }
   const old = body.mesh.material;
-  const H = { uHolo: { value: 0 }, uHoloCol: { value: new THREE.Color('#ff7a18') }, uHoloK: { value: 1 } };
+  const H = { uHolo: { value: 0 }, uSee: { value: 0 }, uHoloCol: { value: new THREE.Color('#ff7a18') }, uHoloK: { value: 1 } };
   const F = { uFlex: { value: 0 } };
   body.mesh.material = old.map(o => tintMaterial(o, body.uniforms.uNeck, H, F));
   old.forEach(o => o.dispose());
@@ -483,6 +484,7 @@ function frame(now) {
   if (renderer.getPixelRatio() !== pr) renderer.setPixelRatio(pr);
   if (el.width !== Math.round(W * pr) || el.height !== Math.round(H * pr)) renderer.setSize(W, H, false);
   aim();
+  if (V.inside) { scene.updateMatrixWorld(); follow(V.inside, V.body, { organs: !!(V.orb && V.look.organs), bones: !!(V.orb && V.look.bones) }); }
   renderer.setScissorTest(true);
   renderer.setClearColor(0x000000, 0);
   renderer.setScissor(0, 0, W, H); renderer.setViewport(0, 0, W, H); renderer.clear();
@@ -658,6 +660,10 @@ function tap(e) {
   if (!p) return;
   ndc.set(((x - p.x) / p.w) * 2 - 1, -(y / r.height) * 2 + 1);
   ray.setFromCamera(ndc, p.cam);
+  /* with the inside showing through, an organ or bone under the finger
+     wins over the skin in front of it */
+  const o = V.orb && pickInside(V.inside, ray);
+  if (o) { V.onTap({ id: o.id, organ: true }); return; }
   const h = ray.intersectObject(V.pick, false)[0];
   /* the second argument: the tap missed him altogether */
   if (!h) { V.onTap(null, true); return; }
@@ -1186,9 +1192,14 @@ function dress(look) {
   for (const m of mats) {
     if (m.name === 'shorts' || m.name === 'underskin') m.visible = !bare || look.shorts;
     if (m.name === 'bareskin') m.visible = bare && !look.shorts;
-    m.transparent = look.holo;
+    m.transparent = look.holo || look.organs || look.bones;
   }
   V.H.uHolo.value = look.holo ? 1 : 0;
+  /* the organs and skeleton layers: the skin turns to glass round them */
+  V.H.uSee.value = (look.organs || look.bones) && !look.holo ? 1 : 0;
+  if ((look.organs || look.bones) && !V.inside && !V.insideLoading) {
+    V.insideLoading = loadOrgans(V.T).then(O => { V.inside = O; V.scene.add(O.group); draw(); }).catch(() => {});
+  }
   const accent = getComputedStyle(V.box || document.documentElement).getPropertyValue('--blue').trim();
   if (accent) V.H.uHoloCol.value.set(accent);
   clearTimeout(V.spinT);
@@ -1230,6 +1241,14 @@ export function study(id, group = []) {
    close enough to see it with what is round it. */
 export function face(id) {
   if (!V?.orb) return;
+  const o = spotOf(V.inside, id);
+  if (o) {
+    const { H, h } = freeArea();
+    V.orb.goal = { az: Math.round(V.orb.az / 360) * 360, el: 4, dist: clampDist(Math.max(o.size * 2.6, V.height * 0.3) * H / (2 * FOV_TAN * h)), t: o.c };
+    V.orb.fit = false; V.idle = Date.now();
+    draw();
+    return;
+  }
   const a = facing(id, V.cams[0]);
   if (!a) return;
   const { H, h } = freeArea();
@@ -1239,6 +1258,15 @@ export function face(id) {
   V.orb.fit = false; V.idle = Date.now();
   draw();
 }
+
+/* Light one organ or bone (the selected one), or none. */
+export function studyInside(id) {
+  if (!V?.inside) return;
+  mark(V.inside, id, getComputedStyle(V.box || document.documentElement).getPropertyValue('--blue').trim() || '#ff7a18');
+  draw();
+}
+/* The parts the inside layers have, once loaded: [{ id, system }]. */
+export const insideParts = () => (V?.inside ? [...V.inside.parts].map(([id, p]) => ({ id, system: p.system })) : []);
 
 /* Back to the whole body, from the front. */
 export function home() {
@@ -1258,6 +1286,8 @@ export function home() {
      flex    the muscle in focus swells and relaxes (study())
      idle    he breathes and shifts his weight
      bend    a drag on an arm or leg bends it (see bendMove)
+     organs  the internal organs (organs.js), the skin turned to glass
+     bones   the torso's skeleton and the skull, likewise
    Cheap to call with nothing changed: the tint is only redone when what
    it shows has. */
 export function setLook(look) {
@@ -1286,7 +1316,15 @@ export function setInset(ins) {
 const _s = new THREE.Vector3(), ANCHOR = { x: 0, y: 0, front: false, on: false };
 export function anchorOf(id) {
   if (!V?.orb || !V.panes || !id) return null;
-  const cam = V.panes[0].cam, el = V.renderer.domElement, a = facing(id, cam);
+  const cam = V.panes[0].cam, el = V.renderer.domElement;
+  const o = V.inside?.group.visible && spotOf(V.inside, id);
+  if (o) {
+    _s.copy(o.c).project(cam);
+    ANCHOR.x = (_s.x + 1) / 2 * el.clientWidth; ANCHOR.y = (1 - _s.y) / 2 * el.clientHeight;
+    ANCHOR.front = true; ANCHOR.on = _s.z < 1;
+    return ANCHOR;
+  }
+  const a = facing(id, cam);
   if (!a) return null;
   _s.copy(a.p).project(cam);
   ANCHOR.x = (_s.x + 1) / 2 * el.clientWidth; ANCHOR.y = (1 - _s.y) / 2 * el.clientHeight;

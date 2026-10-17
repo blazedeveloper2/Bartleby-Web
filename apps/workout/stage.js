@@ -21,7 +21,7 @@ import * as THREE from '../../assets/vendor/three/three.module.min.js';
 import { MOTION } from './moves.js?v=3d-oct16g';
 import { timeline } from './timeline.js?v=3d-oct14d';
 import { skeleton, holds, points, normalize, SEG, BODY, v3, W } from './rig.js?v=3d-oct14h';
-import { loadTrainer, Trainer, studioEnv } from './avatar.js?v=3d-oct16g';
+import { loadTrainer, Trainer, studioEnv } from './avatar.js?v=3d-oct16h';
 import { axisLock } from './drag.js?v=3d-oct14d';
 import { regionPaint } from './muscles3d.js?v=3d-oct16g';
 import { MMAP } from './data.js?v=3d-oct14d';
@@ -748,7 +748,7 @@ let RENDERER = null, BUSY = false;
 /* The trainer (avatar.js) loads once; until it has, or if it cannot, the
    drawn mannequin stands in. Await ready() before the first Stage. */
 let TRAINER = null;
-export const ready = (model = 'athlete') => loadTrainer(model).catch(() => loadTrainer('trainer')).then(t => (TRAINER = t)).catch(() => null);
+export const ready = (model = 'athlete') => loadTrainer(model).then(t => (TRAINER = t)).catch(() => null);
 function renderer(own = false) {
   if (RENDERER && !own) return RENDERER;
   const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power', preserveDrawingBuffer: false });
