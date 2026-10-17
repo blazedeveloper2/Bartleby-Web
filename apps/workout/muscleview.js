@@ -160,14 +160,6 @@ async function build() {
     for (let i = 0, j = 0; i < n; i++) if (w[i] > 0.004) { idx[j] = i; val[j++] = w[i]; }
     return { idx, val };
   });
-  /* each point's main bone, for which limb a drag takes hold of */
-  const SI = g.attributes.skinIndex.array, SW = g.attributes.skinWeight.array, boneOf = new Uint8Array(n);
-  for (let i = 0; i < n; i++) {
-    let b = 0, bw = -1;
-    for (let j = 0; j < 4; j++) if (SW[4 * i + j] > bw) { bw = SW[4 * i + j]; b = SI[4 * i + j]; }
-    boneOf[i] = b;
-  }
-
   const box = pickGeo.boundingBox, centre = box.getCenter(new THREE.Vector3()), height = box.max.y - box.min.y;
   const cams = [new THREE.PerspectiveCamera(30, 1, 1, 2000), new THREE.PerspectiveCamera(30, 1, 1, 2000)];
   const pane = k => ({ cam: cams[k], x: 0, w: 1, yaw: 0 });
@@ -176,7 +168,7 @@ async function build() {
     yaw: 0, view: 'both', focusOn: null, near: true, lit: new Map(), box: null, raf: 0, tick: 0, ro: null, onTap: null, spots: new Map(),
     orb: null, ins: { l: 0, r: 0, t: 0, b: 0 }, insGoal: { l: 0, r: 0, t: 0, b: 0 }, onFrame: null, onBend: null, anchors: new Map(), last: 0,
     H, F, look: { ...PLAIN }, idle: 0, spinT: 0,
-    sparse, kOf: new Map(regs.ids.map((id, k) => [id, k])), boneOf,
+    sparse, kOf: new Map(regs.ids.map((id, k) => [id, k])), held: null, hover: null,
     /* the tint's working lists (paint()) */
     wa: new Float32Array(n), ww: new Float32Array(n), wc: new Uint8Array(n), pal: [], tintKey: '', dirty: false, sealed: false,
     cols: [null, new THREE.Color(), new THREE.Color(), new THREE.Color(), new THREE.Color()],
@@ -539,6 +531,7 @@ function wire() {
   });
   el.addEventListener('wheel', e => { if (V.orb) orbit3.wheel(e); }, { passive: false });
   el.addEventListener('contextmenu', e => { if (V.orb) e.preventDefault(); });
+  el.addEventListener('pointerleave', () => { if (V.hover) { V.hover = null; el.style.cursor = ''; V.onFrame?.(); } });
 }
 
 /* Orbit gestures. One finger (or the mouse) turns him any way; two
@@ -548,7 +541,7 @@ function wire() {
    stays where it is. A press that barely moved is a tap. Each gesture is
    measured from where it started (base), and a finger lifting or landing
    mid-gesture starts a new base, so nothing jumps. With `bend` on, one
-   finger that starts on an arm or a leg bends it instead (bendStart). */
+   finger that starts on a handle (grips()) bends that joint instead. */
 const orbit3 = (() => {
   const pts = new Map(), right = new THREE.Vector3(), up = new THREE.Vector3(), off = new THREE.Vector3();
   let g = null, moved = false, grab = null;
@@ -607,8 +600,8 @@ const orbit3 = (() => {
     },
     move(e) {
       const q = pts.get(e.pointerId);
-      if (!q || !g) return;
-      const sx = e.clientX - q.x, sy = e.clientY - q.y;   // since the last move
+      if (!q) { if (e.pointerType === 'mouse' && !pts.size) hoverGrip(e); return; }
+      if (!g) return;
       q.x = e.clientX; q.y = e.clientY; V.idle = Date.now();
       const o = V.orb;
       let p0 = null, p1 = null;
@@ -616,7 +609,7 @@ const orbit3 = (() => {
       if (!p1) {
         const dx = p0.x - g.p[0].x, dy = p0.y - g.p[0].y;
         if (!moved && Math.hypot(dx, dy) < 6) return;
-        if (grab) { bendMove(grab, moved ? sx : dx, moved ? sy : dy); moved = true; draw(); return; }
+        if (grab) { bendMove(grab, e.clientX, e.clientY); moved = true; draw(); return; }
         moved = true;
         if (p0.pan) slide(g.t, dx, dy);
         else { o.az = g.az - dx * 0.45; o.el = clamp(g.el + dy * 0.35, -85, 85); }
@@ -750,8 +743,8 @@ function poseState(F) {
 }
 
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _qi = new THREE.Quaternion(), _m = new THREE.Matrix4();
-const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _w = new THREE.Vector3(), _ax = new THREE.Vector3(), _t = new THREE.Vector3();
-const _d0 = new THREE.Vector3(), _d1 = new THREE.Vector3(), _d2 = new THREE.Vector3(), _r = new THREE.Vector3(), _u = new THREE.Vector3(), _b = new THREE.Vector3();
+const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _ax = new THREE.Vector3();
+const _d0 = new THREE.Vector3(), _d1 = new THREE.Vector3(), _d2 = new THREE.Vector3();
 const X_AX = new THREE.Vector3(1, 0, 0), Z_AX = new THREE.Vector3(0, 0, 1);
 
 /* Each arm and leg bone's turn from rest, relative to the chest (arms)
@@ -1026,13 +1019,19 @@ function animate(now) {
 
 /* ── bending a limb by hand (the Anatomy tab, look.bend) ──
 
-   A drag that starts on an arm or a leg moves that limb's joint: on the
-   upper arm the shoulder, the forearm or hand the elbow, the thigh the
-   hip, the shin or foot the knee. The end of the segment held (the elbow
-   for the shoulder, the wrist for the elbow…) follows the finger across
-   the screen, from any side: a ball joint (shoulder, hip) swings the
-   shortest way after it, a hinge (elbow, knee) turns about its own axis
-   by as much as the finger moved along the way it can go. Each stays in
+   Each arm and leg has two handles, drawn as dots by anatomy.js: the
+   elbow's swings the upper arm at the shoulder, the wrist's bends the
+   elbow, the knee's swings the thigh at the hip, the ankle's bends the
+   knee. A drag that starts on one moves its joint so that the handle
+   stays under the finger as nearly as the joint allows, from any side.
+   A ball joint (shoulder, hip) points its segment where the finger's ray
+   meets the sphere the handle can reach: of the two points there, the
+   one on the side of the screen's plane the handle is on, or in front of
+   him while it is near that plane (so pulling a hanging arm's elbow up on
+   screen raises the arm forward); past the sphere's edge, at the finger
+   in the plane of the screen. A hinge (elbow, knee) takes the angle whose handle lands
+   nearest the finger, the one nearer the angle it has where two are as
+   near. Each stays in
    a joint's range: the elbow 0–145°, the knee 0–140°; a shoulder up to
    180° forward or out to the side but 50° back; a hip 120° forward, 45°
    out, 20° back. Ranges are by `e`, how far the segment is raised from
@@ -1052,40 +1051,119 @@ function limitBall(d, sg, tab) {
   d.set(sg * Math.sin(mx * DEG) * Math.cos(p * DEG), -Math.cos(mx * DEG), Math.sin(mx * DEG) * Math.sin(p * DEG));
   return true;
 }
-const JOINT = { UpperArm: 'shoulder', ShoulderHelper: 'shoulder', Forearm: 'elbow', Hand: 'elbow', Finger: 'elbow', Thigh: 'hip', Calf: 'knee', Foot: 'knee', Toe: 'knee' };
-function bendStart(e) {
-  const r = V.renderer.domElement.getBoundingClientRect();
-  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-  ray.setFromCamera(ndc, V.cams[0]);
-  const h = ray.intersectObject(V.pick, false)[0];
-  const m = h && /^([RL])_(UpperArm|ShoulderHelper|Forearm|Hand|Finger|Thigh|Calf|Foot|Toe)/.exec(V.T.bones[V.boneOf[h.face.a]].name);
-  if (!m) return null;
-  seal();
-  return { joint: JOINT[m[2]], side: m[1], act: null, moved: false };
+/* the handles: the joint each moves, the bone whose joint it sits on,
+   and the bone it turns about */
+const GRIPS = [['shoulder', 'fa', 'ua'], ['elbow', 'hand', 'fa'], ['hip', 'calf', 'th'], ['knee', 'foot', 'calf']];
+const GRIP_OUT = [];
+/* Where the handles are on screen while bending is on (CSS px in the
+   canvas), each with the point it turns about (px, py) and its depth `z`
+   (world units from the camera). `far`: hidden behind his trunk (the far
+   arm, seen from the side), so shown faint and not to be taken; `on`: in
+   front of the camera; `held` while dragged; `hover` under the mouse. The
+   same objects come back each call. */
+const _sc = { x: 0, y: 0, z: 0 };
+function toScreen(b) {
+  const cam = V.cams[0], el = V.renderer.domElement;
+  _v.copy(V.fk.J[b]).multiplyScalar(V.T.cm);
+  _sc.z = -_v2.copy(_v).applyMatrix4(cam.matrixWorldInverse).z;
+  _v.project(cam);
+  _sc.x = (_v.x + 1) / 2 * el.clientWidth; _sc.y = (1 - _v.y) / 2 * el.clientHeight; _sc.on = _v.z < 1;
+  return _sc;
 }
-function bendMove(gb, dx, dy) {
-  const F = V.fk, Z = V.pz, S = F.S[gb.side], B = Z.bend[gb.side], cm = V.T.cm, cam = V.cams[0];
+export function grips() {
+  if (!V?.orb || !V.look.bend || !V.panes) return null;
+  const F = V.fk, el = V.renderer.domElement;
+  /* the trunk on screen: the line from the pelvis to the neck, as wide as
+     the shoulders (or, side on, as deep as the chest) */
+  const pel = { ...toScreen(F.pel) }, nk = { ...toScreen(F.neck) }, shR = { ...toScreen(F.S.R.ua) }, shL = toScreen(F.S.L.ua);
+  const px = el.clientHeight / (2 * pel.z * FOV_TAN), wide = Math.max(Math.hypot(shR.x - shL.x, shR.y - shL.y) / 2, 0.07 * V.height * px) * 1.1;
+  const trunk = (x, y) => {
+    const dx = nk.x - pel.x, dy = nk.y - pel.y, t = clamp(((x - pel.x) * dx + (y - pel.y) * dy) / (dx * dx + dy * dy || 1), 0, 1);
+    return Math.hypot(x - pel.x - t * dx, y - pel.y - t * dy) < wide;
+  };
+  const back = 0.09 * V.height;
+  let i = 0;
+  for (const s of ['R', 'L']) for (const [joint, at, piv] of GRIPS) {
+    const S = F.S[s], g = GRIP_OUT[i++] ||= {};
+    g.key = `${s}-${joint}`; g.side = s; g.joint = joint;
+    const p = toScreen(S[piv]);
+    g.px = p.x; g.py = p.y;
+    const a = toScreen(S[at]);
+    g.x = a.x; g.y = a.y; g.z = a.z; g.on = a.on;
+    g.far = a.z - pel.z > back && trunk(a.x, a.y);
+    g.held = V.held === g.key; g.hover = V.hover === g.key;
+  }
+  return GRIP_OUT;
+}
+/* The handle under a pointer: the nearest within a fingertip (a little
+   less for a mouse), never a faint one; where the same joint's pair is
+   about as near (side on, one over the other), the one nearer you. */
+function gripAt(e) {
+  const gs = grips();
+  if (!gs) return null;
+  const r = V.renderer.domElement.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  const reach = e.pointerType === 'mouse' ? 20 : 28;
+  const near = gs.filter(g => g.on && !g.far).map(g => [g, Math.hypot(g.x - x, g.y - y)]).filter(([, d]) => d < reach);
+  if (!near.length) return null;
+  near.sort((a, b) => a[1] - b[1]);
+  const [g0, d0] = near[0], twin = near.find(([g, d]) => g.joint === g0.joint && g !== g0 && d < d0 + 12);
+  return twin && twin[0].z < g0.z ? twin[0] : g0;
+}
+function hoverGrip(e) {
+  const k = V.orb && V.look.bend ? gripAt(e)?.key || null : null;
+  if (k === V.hover) return;
+  V.hover = k;
+  V.renderer.domElement.style.cursor = k ? 'move' : '';
+  V.onFrame?.();
+}
+function bendStart(e) {
+  const g = gripAt(e);
+  if (!g) return null;
+  seal();
+  V.held = g.key;
+  const r = V.renderer.domElement.getBoundingClientRect();
+  V.renderer.domElement.style.cursor = 'grabbing';
+  try { navigator.vibrate?.(8); } catch {}
+  /* ox, oy: from the finger to the handle's centre, kept as it moves */
+  return { joint: g.joint, side: g.side, act: null, moved: false, ox: g.x - (e.clientX - r.left), oy: g.y - (e.clientY - r.top) };
+}
+const _p = new THREE.Vector3(), _e = new THREE.Vector3(), _oc = new THREE.Vector3(), _h1 = new THREE.Vector3(), _h2 = new THREE.Vector3(), _sg = new THREE.Vector3();
+/* the drag at client point (cx, cy) */
+function bendMove(gb, cx, cy) {
+  const F = V.fk, Z = V.pz, S = F.S[gb.side], B = Z.bend[gb.side], cm = V.T.cm, cam = V.cams[0], el = V.renderer.domElement;
   const arm = gb.joint === 'shoulder' || gb.joint === 'elbow', ball = gb.joint === 'shoulder' || gb.joint === 'hip';
   const pv = gb.joint === 'shoulder' ? S.ua : gb.joint === 'elbow' ? S.fa : gb.joint === 'hip' ? S.th : S.calf;
   const hd = gb.joint === 'shoulder' ? S.fa : gb.joint === 'elbow' ? S.hand : gb.joint === 'hip' ? S.calf : S.foot;
-  /* the finger's move, as a move of the held end in the chest's (or
-     pelvis's) own frame, in model units */
-  const e = cam.matrixWorld.elements;
-  _v.copy(F.J[hd]).multiplyScalar(cm).sub(cam.position);
-  const depth = -(_v.x * e[8] + _v.y * e[9] + _v.z * e[10]);
-  const k = 2 * depth * FOV_TAN / (V.renderer.domElement.clientHeight || 1) / cm;
-  _w.set((e[0] * dx - e[4] * dy) * k, (e[1] * dx - e[5] * dy) * k, (e[2] * dx - e[6] * dy) * k);
-  _qi.copy(F.qW[arm ? F.sp2 : F.pel]).invert();
-  _w.applyQuaternion(_qi);
-  _v.subVectors(F.J[hd], F.J[pv]).applyQuaternion(_qi);
+  /* where the handle should be (CSS px in the canvas), and the pivot and
+     the handle now, in the world */
+  const r = el.getBoundingClientRect(), W = el.clientWidth || 1, H = el.clientHeight || 1;
+  const tx = cx - r.left + gb.ox, ty = cy - r.top + gb.oy;
+  const qB = F.qW[arm ? F.sp2 : F.pel];
+  _qi.copy(qB).invert();
+  const P = _p.copy(F.J[pv]).multiplyScalar(cm), E = _e.copy(F.J[hd]).multiplyScalar(cm);
   let act = null;
   if (ball) {
-    const top = arm ? S.ua : S.th, d = arm ? S.dUa : S.dTh, key = arm ? 'shDir' : 'hipDir';
+    const top = arm ? S.ua : S.th, d = arm ? S.dUa : S.dTh, key = arm ? 'shDir' : 'hipDir', L = P.distanceTo(E);
+    /* (compose() works in _v2 and _q: before anything is kept in them) */
     compose();
     _d0.copy(d).applyQuaternion(Z.rel[top]);
-    /* the segment swung after the held end's move, then kept in range */
-    _v2.copy(_v).add(_w);
-    _q.setFromUnitVectors(_v.normalize(), _v2.normalize());
+    ndc.set(tx / W * 2 - 1, -(ty / H) * 2 + 1);
+    ray.setFromCamera(ndc, cam);
+    const o = ray.ray.origin, rd = ray.ray.direction;
+    _oc.subVectors(o, P);
+    const b = rd.dot(_oc), disc = b * b - (_oc.lengthSq() - L * L);
+    if (disc >= 0) {
+      const sq = Math.sqrt(disc);
+      _h1.copy(o).addScaledVector(rd, -b - sq).sub(P); _h2.copy(o).addScaledVector(rd, -b + sq).sub(P);
+      /* the side of the screen's plane (through the pivot) the handle is
+         on now, where it is clearly on one; else the side in front of him */
+      const side = _v.subVectors(E, P).dot(rd) / L;
+      _v2.copy(side < -0.25 ? _h1 : side > 0.25 ? _h2 : _sg.copy(_h1).applyQuaternion(_qi).z >= _v.copy(_h2).applyQuaternion(_qi).z ? _h1 : _h2);
+    } else _v2.copy(o).addScaledVector(rd, Math.max(0, -b)).sub(P);
+    /* the swing, in the chest's (or pelvis's) own frame */
+    _v2.applyQuaternion(_qi).normalize();
+    _v.subVectors(E, P).applyQuaternion(_qi).normalize();
+    _q.setFromUnitVectors(_v, _v2);
     _d1.copy(_d0).applyQuaternion(_q);
     limitBall(_d1, S.sg, arm ? SH_MAX : HIP_MAX);
     B[key] = (B[key] || new THREE.Vector3()).copy(_d1);
@@ -1100,24 +1178,24 @@ function bendMove(gb, dx, dy) {
         : Math.abs(f) >= Math.abs(a) ? (f > 0 ? 'flexion' : 'extension') : (a > 0 ? 'abduction' : 'adduction');
     }
   } else {
-    const top = arm ? S.ua : S.th, lo = arm ? S.fa : S.calf;
+    const top = arm ? S.ua : S.th, lo = arm ? S.fa : S.calf, max = (arm ? 145 : 140) * DEG;
     compose();
     _ax.copy(arm ? S.elbow : X_AX).applyQuaternion(Z.rel[top]);
-    _t.crossVectors(_ax, _v);
-    /* The way the held end goes as the joint bends, on screen. Where it
-       goes mostly towards or away from you (a hanging forearm seen from
-       the front) that says little, so the drag reads more and more as
-       "up bends it", and the rate never falls below that of a segment
-       60% as long, square to you. */
-    _r.set(e[0], e[1], e[2]).applyQuaternion(_qi); _u.set(e[4], e[5], e[6]).applyQuaternion(_qi); _b.set(e[8], e[9], e[10]).applyQuaternion(_qi);
-    const tl = _t.length() || 1, tb = _t.dot(_b), tp = Math.sqrt(Math.max(0, tl * tl - tb * tb)), fore = 1 - tp / tl;
-    const sx = (_t.dot(_r) / (tp || 1)) * (1 - fore), sy = (-_t.dot(_u) / (tp || 1)) * (1 - fore) - fore;
-    const sl = Math.hypot(sx, sy) || 1;
-    let da = ((dx * sx + dy * sy) / sl) * k / Math.max(tp, 0.6 * tl);
     _d0.copy(arm ? S.dUa : S.dTh).applyQuaternion(Z.rel[top]);
     _d1.copy(arm ? S.dFa : S.dSh).applyQuaternion(Z.rel[lo]);
     const now = Math.atan2(_d2.crossVectors(_d0, _d1).dot(_ax), _d0.dot(_d1));
-    da = clamp(now + da, 0, (arm ? 145 : 140) * DEG) - now;
+    /* each angle in 2° steps: how far its handle lands from the finger
+       (px), plus 3 px a radian away from where it is, to settle ties */
+    _ax.applyQuaternion(qB);
+    _sg.subVectors(E, P);
+    let best = now, bc = Infinity;
+    for (let a = 0; a <= max + 1e-6; a += 2 * DEG) {
+      _q.setFromAxisAngle(_ax, a - now);
+      _v.copy(_sg).applyQuaternion(_q).add(P).project(cam);
+      const c = Math.hypot((_v.x + 1) / 2 * W - tx, (1 - _v.y) / 2 * H - ty) + 3 * Math.abs(a - now);
+      if (c < bc) { bc = c; best = a; }
+    }
+    const da = clamp(best, 0, max) - now;
     if (arm) B.el += da; else B.kn += da;
     if (Math.abs(da) > 1e-4) act = da > 0 ? 'flexion' : 'extension';
   }
@@ -1126,9 +1204,14 @@ function bendMove(gb, dx, dy) {
   if (act && act !== gb.act) { gb.act = act; V.onBend?.({ action: `${gb.joint} ${act}`, side: gb.side }); }
 }
 function bendEnd(gb) {
-  if (gb.moved) { pose(false); skinCPU(); pose(); draw(); }
-  if (gb.act) V.onBend?.(null);
+  V.held = null;
+  V.renderer.domElement.style.cursor = V.hover ? 'move' : '';
+  if (gb.moved) { pose(false); skinCPU(); pose(); }
+  if (gb.act || gb.moved) V.onBend?.(null);
+  draw();
 }
+/* Whether any limb is bent by hand. */
+export const isBent = () => !!V && bent();
 
 /* ── for the card ── */
 
@@ -1165,7 +1248,8 @@ export async function show(box, mStr, { onTap } = {}) {
   V.ro.observe(box);
   V.lit = tiersOf(mStr);
   V.focusOn = null; V.near = true; V.view = 'both'; V.yaw = 0;
-  V.orb = null; V.onFrame = null; V.onBend = null;
+  V.orb = null; V.onFrame = null; V.onBend = null; V.held = V.hover = null;
+  el.style.cursor = '';
   dress({ ...PLAIN });
   /* standing at rest, still */
   const Z = V.pz;
@@ -1257,7 +1341,7 @@ export function home() {
              supraspinatus): in their atlas colours, else a faint wash
      flex    the muscle in focus swells and relaxes (study())
      idle    he breathes and shifts his weight
-     bend    a drag on an arm or leg bends it (see bendMove)
+     bend    a drag from a handle (grips()) bends that joint (bendMove)
    Cheap to call with nothing changed: the tint is only redone when what
    it shows has. */
 export function setLook(look) {

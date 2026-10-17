@@ -7,7 +7,7 @@
    To add a new app: import it and drop it into the APPS array.
    ═══════════════════════════════════════════════════════════ */
 
-import workout from '../../apps/workout/index.js?v=3d-oct16i';
+import workout from '../../apps/workout/index.js?v=3d-oct16n';
 import finance from '../../apps/finance/index.js?v=3d-oct14d';
 import { toast } from './ui.js?v=3d-oct14d';
 import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=3d-oct14d';

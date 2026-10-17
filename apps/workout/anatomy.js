@@ -574,6 +574,7 @@ export function refresh() {
 function layerHTML() {
   return `<div class="ax-stage"><div class="ax-2d" data-act="an-air">${MAP_2D}</div><div class="ax-3d"></div></div>
     <svg class="ax-wire" aria-hidden="true"><path class="ax-lead"/><path class="ax-tick"/><circle class="ax-ring" r="12"/><circle class="ax-dot" r="3.5"/></svg>
+    <svg class="ax-grips" aria-hidden="true"></svg>
     <header class="ax-top">
       <div class="ax-title"><div class="ax-k">Anatomy</div></div>
       <div class="ax-tools">
@@ -584,6 +585,14 @@ function layerHTML() {
       </div>
     </header>
     <div class="ax-load" id="ax-load">Loading the 3D body…</div>
+    <div class="ax-bend" id="ax-bend" hidden>
+      <div class="ax-bend-p">
+        <span class="ax-bend-i" aria-hidden="true"></span>
+        <span class="ax-bend-t" id="ax-bend-t" aria-live="polite"></span>
+        <button type="button" class="ax-bend-b" data-act="an-straight" title="Every limb back to the pose">${I.reset}<span>Straighten</span></button>
+        <button type="button" class="ax-bend-x" data-act="an-look" data-k="bend" aria-label="Stop bending" title="Stop bending">${I.close}</button>
+      </div>
+    </div>
     <div class="ax-legend" id="ax-legend" hidden></div>
     <div class="ax-set" id="ax-set" hidden></div>
     <section class="ax-hud" id="ax-hud" aria-live="polite"></section>
@@ -711,7 +720,9 @@ function light() {
     el.style.fill = sw || '';
   });
   legend();
+  bendUI();
   lead();
+  drawGrips();
 }
 
 /* The key to the colours, under the bar: the training map's bands, or
@@ -721,7 +732,7 @@ function legend() {
   const el = $('#ax-legend');
   if (bending) {
     el.hidden = false;
-    el.innerHTML = `<b>${esc(bending.action)}</b>` + doers(bending.action).map(r => `<span><i style="background:${css('--blue')}"></i>${r.name}</span>`).join('');
+    el.innerHTML = `<b>Working</b>` + doers(bending.action).map(r => `<span><i style="background:${css('--blue')}"></i>${r.name}</span>`).join('');
     return;
   }
   const key = exv ? [[TIER[1], colourOf([...exv.tiers].find(([, t]) => t === 1)?.[0]) || css('--blue')], [TIER[2], css('--amber')], [TIER[3], 'hsl(210, 30%, 72%)']]
@@ -739,8 +750,8 @@ function legend() {
    list cover, so the body centres in what is left. */
 function insets() {
   const xr = X.getBoundingClientRect(), h = $('#ax-hud').getBoundingClientRect(), top = $('.ax-top').getBoundingClientRect();
-  const d = $('#ax-drawer'), dr = !d.hidden && wide() ? d.getBoundingClientRect() : null;
-  const ins = { t: top.bottom - xr.top, l: dr ? dr.right - xr.left : 0, r: 0, b: 0 };
+  const d = $('#ax-drawer'), dr = !d.hidden && wide() ? d.getBoundingClientRect() : null, bar = $('#ax-bend');
+  const ins = { t: (bar.hidden ? top.bottom : bar.getBoundingClientRect().bottom + 4) - xr.top, l: dr ? dr.right - xr.left : 0, r: 0, b: 0 };
   if ($('#ax-hud').hidden) return ins;
   if (wide()) ins.r = xr.right - h.left + 12; else ins.b = xr.bottom - h.top + 10;
   return ins;
@@ -755,6 +766,9 @@ function layout() {
   last = '';
   const ins = insets();
   if (is3d) mv.setInset(ins);
+  /* the bending bar centres over the body, clear of the list and readout */
+  const bs = $('#ax-bend').style;
+  bs.left = ins.l + 'px'; bs.right = ins.r + 'px';
   const s = $('.ax-2d').style;
   s.paddingTop = ins.t + 'px'; s.paddingLeft = ins.l + 'px'; s.paddingRight = ins.r + 'px'; s.paddingBottom = ins.b + 'px';
   lead();
@@ -806,7 +820,57 @@ function onBend(info) {
   const was = bending?.action;
   bending = info;
   if (info && info.action !== was) mv.study(null, doers(info.action).map(r => r.id));
-  if (!info) light(); else legend();
+  if (!info) light(); else { legend(); bendUI(); }
+}
+
+/* The bar while bending is on: what to do, or, while a limb moves, which
+   joint and what it is doing; Straighten once anything is bent; and the
+   way out. */
+function bendUI() {
+  const bar = $('#ax-bend'), on = is3d && look.bend;
+  X.classList.toggle('bend-on', on);
+  if (bar.hidden === on) { bar.hidden = !on; layout(); }
+  if (!on) return;
+  const [joint, act] = bending ? bending.action.split(' ') : [];
+  $('#ax-bend-t').innerHTML = bending ? `<b>${bending.side === 'L' ? 'Left' : 'Right'} ${joint}</b> · ${act}` : 'Drag a dot to bend a limb';
+  bar.querySelector('.ax-bend-b').disabled = !mv.isBent?.();
+}
+
+/* The handles (muscleview's grips()): a dot on each elbow, wrist, knee and
+   ankle, kept on the body every frame it is drawn. Built once, then only
+   moved, so their pulse runs on undisturbed. Held or under the mouse, a
+   dashed line runs to the joint the dot turns about. */
+let gripKey = '';
+function drawGrips() {
+  const svg = $('.ax-grips');
+  if (!svg) return;
+  const gs = is3d && look.bend ? mv.grips?.() : null;
+  if (!gs) { if (gripKey) { svg.innerHTML = ''; gripKey = ''; } return; }
+  let key = '';
+  for (const g of gs) key += `${g.x | 0},${g.y | 0},${+g.far}${+g.held}${+g.hover}${+g.on};`;
+  if (key === gripKey && svg.childElementCount === gs.length) return;
+  gripKey = key;
+  if (svg.childElementCount !== gs.length) svg.innerHTML = gs.map(() =>
+    `<g class="ax-grip"><line class="ax-grip-arm"/><circle class="ax-grip-piv" r="3.5"/><circle class="ax-grip-ping" r="11"/><circle class="ax-grip-ring" r="11"/><circle class="ax-grip-dot" r="3.5"/></g>`).join('');
+  svg.classList.toggle('dragging', gs.some(g => g.held));
+  gs.forEach((g, i) => {
+    const el = svg.children[i], arm = el.children[0], piv = el.children[1], dx = (g.px - g.x).toFixed(1), dy = (g.py - g.y).toFixed(1);
+    el.setAttribute('transform', `translate(${g.x.toFixed(1)} ${g.y.toFixed(1)})`);
+    el.classList.toggle('far', g.far); el.classList.toggle('held', g.held); el.classList.toggle('hover', g.hover);
+    el.style.display = g.on ? '' : 'none';
+    arm.setAttribute('x1', dx); arm.setAttribute('y1', dy); arm.setAttribute('x2', 0); arm.setAttribute('y2', 0);
+    piv.setAttribute('cx', dx); piv.setAttribute('cy', dy);
+  });
+}
+/* The dots pulse a few times when bending comes on, so they are found. */
+let introT = 0;
+function introGrips() {
+  const svg = $('.ax-grips');
+  svg.classList.remove('intro');
+  void svg.getBoundingClientRect();
+  svg.classList.add('intro');
+  clearTimeout(introT);
+  introT = setTimeout(() => svg.classList.remove('intro'), 3400);
 }
 
 /* Put the 3D body in the layer — on opening, and again when the exercise
@@ -819,7 +883,7 @@ export function attach() {
     .then(m => {
       mv = m;
       if (!box.isConnected || !ctx.free()) return false;
-      return m.orbit(box, { onTap: (r, air) => r ? pick(r.id, true) : air && tapAir(), onFrame: lead, onBend, inset: insets(), look: { ...look, atlas: atlasMap() } });
+      return m.orbit(box, { onTap: (r, air) => r ? pick(r.id, true) : air && tapAir(), onFrame: () => { lead(); drawGrips(); }, onBend, inset: insets(), look: { ...look, atlas: atlasMap() } });
     })
     .then(ok => {
       if (ok === false || !box.isConnected) return;
@@ -828,6 +892,7 @@ export function attach() {
       if (look.pose !== 'rest') mv.setPose?.(look.pose);
       layout();
       light();
+      if (look.bend && !back) introGrips();
       if (back && litId()) mv.face(litId());
     })
     .catch(() => { is3d = false; X?.classList.add('no-3d'); layout(); });
@@ -937,7 +1002,11 @@ export function act(el) {
     case 'an-reset': resetAll(); break;
     case 'an-look':
       if (a.k === 'atlas') look.atlas = a.v; else look[a.k] = !look[a.k];
-      if (a.k === 'bend' && !look.bend && is3d) mv.resetBend?.();
+      if (a.k === 'bend' && is3d) {
+        if (!look.bend) mv.resetBend?.();
+        /* on a phone the settings cover his legs: put them away to bend */
+        else { if (!wide()) toggleSet(false); introGrips(); }
+      }
       keep();
       paintSet();
       $('#an-list').innerHTML = listHTML();
@@ -947,6 +1016,11 @@ export function act(el) {
       look.pose = a.v; keep();
       paintSet();
       if (is3d) mv.setPose?.(a.v);
+      bendUI();
+      break;
+    case 'an-straight':
+      if (is3d) mv.resetBend?.();
+      bendUI();
       break;
     case 'an-exv':
       if (quiz) quiz = null;
@@ -1009,7 +1083,7 @@ function setHTML() {
     ${tog('shorts', 'Shorts', 'Off shows the glutes, hips and inner thighs whole')}
     ${tog('deep', 'Deep muscles', 'Show the ones under the surface: rhomboids, transversus, supraspinatus')}
     ${tog('flex', 'Flex on select', 'The selected muscle swells and pulses as if contracting')}
-    ${tog('bend', 'Bend it yourself', 'Drag an arm or leg to bend it; the muscles doing the movement light up. Pick the pose again to straighten up')}
+    ${tog('bend', 'Bend it yourself', 'Dots come up on his elbows, wrists, knees and ankles: drag one and the limb follows, and the muscles doing the movement light up')}
     ${tog('idle', 'Idle life', 'Breathes and shifts its weight a little')}
     ${tog('spin', 'Auto-spin', 'Turns slowly whenever you leave him alone')}
     ${tog('holo', 'Hologram skin', 'See-through, with the muscles glowing inside')}

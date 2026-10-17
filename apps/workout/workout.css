@@ -1324,6 +1324,48 @@ html.wk-ax .rest-bar{visibility:hidden}
 .wk .ax-wire.back .ax-ring{display:none}
 @keyframes ax-ping{from{transform:scale(.45);opacity:.9}to{transform:scale(1.6);opacity:0}}
 
+/* bending a limb by hand: a dot on each elbow, wrist, knee and ankle to
+   drag. Faint where it sits behind him (it cannot be taken there); held
+   or under the mouse, it swells and a dashed line runs to the joint it
+   turns about; while one is held the others fade. */
+.wk .ax-grips{position:absolute;z-index:2;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.wk .ax-grip{transition:opacity .15s}
+.wk .ax-grip-ring{fill:color-mix(in srgb,var(--blue) 20%,transparent);stroke:var(--blue);stroke-width:1.6;filter:drop-shadow(0 0 4px var(--blue));
+  transform-box:fill-box;transform-origin:center;transition:transform .15s}
+.wk .ax-grip-dot{fill:var(--blue)}
+.wk .ax-grip-ping{fill:none;stroke:var(--blue);stroke-width:1.5;opacity:0;transform-box:fill-box;transform-origin:center}
+.wk .ax-grip-arm{stroke:var(--blue);stroke-width:1.5;stroke-dasharray:3 3;opacity:0;transition:opacity .15s}
+.wk .ax-grip-piv{fill:var(--bg);stroke:var(--blue);stroke-width:1.5;opacity:0;transition:opacity .15s}
+.wk .ax-grip.hover .ax-grip-ring{transform:scale(1.25)}
+.wk .ax-grip.held .ax-grip-ring{transform:scale(1.55);fill:color-mix(in srgb,var(--blue) 32%,transparent)}
+.wk .ax-grip:is(.hover,.held) :is(.ax-grip-arm,.ax-grip-piv){opacity:.9}
+.wk .ax-grip.far{opacity:.35}
+.wk .ax-grip.far .ax-grip-ring{transform:scale(.55);fill:none}
+.wk .ax-grips.dragging .ax-grip:not(.held){opacity:.2}
+.wk .ax-grips.intro .ax-grip:not(.far) .ax-grip-ping{animation:ax-ping 1.1s ease-out 3}
+
+/* the bar under the top one while bending is on */
+.wk .ax-bend{position:absolute;z-index:4;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 60px);display:flex;justify-content:center;
+  padding:0 max(12px,env(safe-area-inset-right,0px)) 0 max(12px,env(safe-area-inset-left,0px));pointer-events:none}
+.wk .ax-bend[hidden]{display:none}
+.wk .ax-bend-p{--n:8px;display:flex;align-items:center;gap:8px;min-width:0;max-width:100%;padding:4px 4px 4px 12px;pointer-events:auto;
+  clip-path:polygon(var(--n) 0,100% 0,100% calc(100% - var(--n)),calc(100% - var(--n)) 100%,0 100%,0 var(--n));
+  background:var(--glass);box-shadow:inset 0 0 0 1px var(--holo),inset 0 0 20px var(--holo-faint);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);animation:ax-hud-in .25s ease both}
+.wk .ax-bend-i{flex-shrink:0;width:8px;height:8px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 3px var(--blue-d),0 0 8px var(--blue)}
+.wk .ax-bend-t{min-width:0;font-size:12.5px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wk .ax-bend-t b{font-weight:700;color:var(--text)}
+.wk .ax-bend-b{flex-shrink:0;display:flex;align-items:center;gap:5px;height:32px;padding:0 10px;background:var(--blue-d);border:1px solid var(--sel-bd);
+  border-radius:var(--rs);color:var(--blue);font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;transition:opacity .15s,background .15s,color .15s}
+.wk .ax-bend-b svg{width:14px;height:14px;display:block}
+.wk .ax-bend-b:hover:not(:disabled){background:var(--blue);color:var(--on-accent)}
+.wk .ax-bend-b:disabled{opacity:.35;cursor:default}
+.wk .ax-bend-x{flex-shrink:0;display:grid;place-items:center;width:32px;height:32px;padding:0;background:none;border:0;border-radius:var(--rs);
+  color:var(--text-3);cursor:pointer}
+.wk .ax-bend-x svg{width:15px;height:15px;display:block}
+.wk .ax-bend-x:hover{color:var(--text)}
+.wk .ax.bend-on .ax-legend{top:calc(env(safe-area-inset-top,0px) + 110px)}
+
 /* the readout */
 .wk .ax-hud{--n:12px;position:absolute;z-index:3;left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));
   bottom:calc(env(safe-area-inset-bottom,0px) + 10px);max-height:min(42%,420px);overflow:auto;overscroll-behavior:contain;
@@ -1508,5 +1550,5 @@ html.wk-ax .rest-bar{visibility:hidden}
   @keyframes ax-side{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
 }
 @media (prefers-reduced-motion:reduce){
-  .wk .ax,.wk .ax-hud,.wk .ax-drawer,.wk .ax-ring,.wk .ax-load{animation:none}
+  .wk .ax,.wk .ax-hud,.wk .ax-drawer,.wk .ax-ring,.wk .ax-load,.wk .ax-bend-p,.wk .ax-grips.intro .ax-grip-ping{animation:none}
 }
