@@ -292,7 +292,7 @@ const TAGS = {
   'delt-a':   ['shoulder flexion', 'shoulder internal rotation', 'horizontal adduction'],
   'delt-s':   ['shoulder abduction', 'horizontal abduction'],
   'rdelt':    ['horizontal abduction', 'shoulder extension', 'shoulder external rotation'],
-  'trap':     ['scapular elevation', 'scapular upward rotation', 'neck extension'],
+  'trap':     ['scapular elevation', 'scapular upward rotation', 'neck extension', 'neck lateral flexion'],
   'trap-m':   ['scapular retraction'],
   'rhom':     ['scapular retraction', 'scapular elevation', 'scapular downward rotation'],
   'lat':      ['shoulder extension', 'shoulder adduction', 'shoulder internal rotation'],
@@ -479,7 +479,7 @@ let week = new Map();    // weekSets()
 let rested = new Map();  // lastWorked()
 let exs = new Map();     // exercises()
 let exv = null;          // the exercise being viewed: { n, ex, slot, tiers: Map(region → tier) }
-let bending = null;      // { action, side } while a limb is being bent by hand
+let bending = null;      // { action, side, joint, act } while a limb, the spine or the neck is bent by hand
 let X = null;            // the full-screen layer, #ax
 let idx = new Map();     // trainers()
 let ctx = null;          // { loadMV, free, layer } from index.js
@@ -825,19 +825,20 @@ function onBend(info) {
 
 /* The bar while bending is on: what to do, or, while a limb moves, which
    joint and what it is doing; Straighten once anything is bent; and the
-   way out. */
+   way out. `bending`: { action (as TAGS has it), side ('L', 'R', or none
+   for the spine and neck), joint, act }. */
 function bendUI() {
   const bar = $('#ax-bend'), on = is3d && look.bend;
   X.classList.toggle('bend-on', on);
   if (bar.hidden === on) { bar.hidden = !on; layout(); }
   if (!on) return;
-  const [joint, act] = bending ? bending.action.split(' ') : [];
-  $('#ax-bend-t').innerHTML = bending ? `<b>${bending.side === 'L' ? 'Left' : 'Right'} ${joint}</b> · ${act}` : 'Drag a dot to bend a limb';
+  const who = !bending ? '' : bending.side ? `${bending.side === 'L' ? 'Left' : 'Right'} ${bending.joint}` : bending.joint[0].toUpperCase() + bending.joint.slice(1);
+  $('#ax-bend-t').innerHTML = bending ? `<b>${who}</b> · ${bending.act}` : 'Drag a dot to bend him';
   bar.querySelector('.ax-bend-b').disabled = !mv.isBent?.();
 }
 
 /* The handles (muscleview's grips()): a dot on each elbow, wrist, knee and
-   ankle, kept on the body every frame it is drawn. Built once, then only
+   ankle, the chest (the spine) and the head (the neck), kept on the body every frame it is drawn. Built once, then only
    moved, so their pulse runs on undisturbed. Held or under the mouse, a
    dashed line runs to the joint the dot turns about. */
 let gripKey = '';
@@ -1083,7 +1084,7 @@ function setHTML() {
     ${tog('shorts', 'Shorts', 'Off shows the glutes, hips and inner thighs whole')}
     ${tog('deep', 'Deep muscles', 'Show the ones under the surface: rhomboids, transversus, supraspinatus')}
     ${tog('flex', 'Flex on select', 'The selected muscle swells and pulses as if contracting')}
-    ${tog('bend', 'Bend it yourself', 'Dots come up on his elbows, wrists, knees and ankles: drag one and the limb follows, and the muscles doing the movement light up')}
+    ${tog('bend', 'Bend it yourself', 'Dots come up on his chest, head, elbows, wrists, knees and ankles: drag one to bend his spine, neck or a limb, and the muscles doing the movement light up')}
     ${tog('idle', 'Idle life', 'Breathes and shifts its weight a little')}
     ${tog('spin', 'Auto-spin', 'Turns slowly whenever you leave him alone')}
     ${tog('holo', 'Hologram skin', 'See-through, with the muscles glowing inside')}

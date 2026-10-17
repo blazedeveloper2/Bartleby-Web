@@ -729,7 +729,30 @@ function fkOf(T) {
       arm: all.filter(i => kind[i] === 'arm' && side[i] === s), leg: all.filter(i => kind[i] === 'leg' && side[i] === s),
     };
   }
-  return { nb, order, parent, side, kind, P, S, pel: byName.Pelvis, sp1: byName.Spine1, sp2: byName.Spine2, neck: byName.Neck,
+  /* The spine and the neck, bent by hand (axialMove): each turn Q spread
+     over its bones (`fr`, so the spine curves rather than folding at one
+     joint, most of it low, where the lumbar spine moves most); the handle
+     on the chest (Spine2) or the middle of the head (`tip`, from the Head
+     joint), about the bottom of the spine or of the neck; `up`, the frame
+     the turn is in (the pelvis's, the chest's); `segs`, the pivot-to-handle
+     chain at rest with the share of Q each piece turns by; `rest`, that
+     chain's direction; and the range, in degrees from rest by the plane it
+     bends in (as limitBall: 0 to the side, 90 forward, -90 back): the
+     spine about 80° forward, 30° back and 35° to each side, the neck 50°
+     forward, 60° back and 45° to each side. */
+  const sp0 = byName.Spine, sp1 = byName.Spine1, sp2 = byName.Spine2, neck = byName.Neck, head = byName.Head;
+  const A = {};
+  if ([sp0, sp1, sp2, neck, head].every(b => b !== undefined)) {
+    const d = (a, b) => P[b].clone().sub(P[a]), tip = new THREE.Vector3(0, 8, 2.5);
+    A.spine = { bones: [sp0, sp1, sp2], fr: [0.4, 0.35, 0.25], up: 'pel', piv: sp0, at: sp2, tip: null,
+      segs: [[d(sp0, sp1), 0.4], [d(sp1, sp2), 0.75]], tab: [[-180, 35], [-90, 30], [0, 35], [90, 80], [180, 35]],
+      say: a => (a === 'lateral flexion' ? a : `spinal ${a}`) };
+    A.neck = { bones: [neck, head], fr: [0.6, 0.4], up: 'sp2', piv: neck, at: head, tip,
+      segs: [[d(neck, head), 0.6], [tip, 1]], tab: [[-180, 45], [-90, 60], [0, 45], [90, 50], [180, 45]],
+      say: a => `neck ${a}` };
+    for (const k in A) A[k].rest = A[k].segs.reduce((v, [g]) => v.add(g), new THREE.Vector3()).normalize();
+  }
+  return { nb, order, parent, side, kind, P, S, A, pel: byName.Pelvis, sp0, sp1, sp2, neck, head,
     pivot: P[S.R.foot].clone().add(P[S.L.foot]).multiplyScalar(0.5),   // between the ankles: what he sways over
     posed: all.filter(i => kind[i] === 'arm' || kind[i] === 'leg'),
     qW: bones.map(() => new THREE.Quaternion()), J: bones.map(() => new THREE.Vector3()) };
@@ -739,13 +762,16 @@ function poseState(F) {
   const limb = () => ({ sh: new THREE.Quaternion(), shDir: null, el: 0, hip: new THREE.Quaternion(), hipDir: null, kn: 0 });
   return { id: 'rest', base: qs(), from: qs(), to: qs(), rel: qs(), local: qs(), anim: null, dirty: false,
     shrug: { R: 0, L: 0 }, s0: { R: 0, L: 0 }, s1: { R: 0, L: 0 }, bend: { R: limb(), L: limb() },
+    /* the spine's and neck's turns by hand, each trunk bone's share of
+       them (tb), whether either is bent, and where a pose's ease began them */
+    axial: { spine: new THREE.Quaternion(), neck: new THREE.Quaternion() }, tb: qs(), axBent: false, ax0: null,
     root: new THREE.Quaternion(), lift: 0, idleK: 0, last: 0 };
 }
 
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _qi = new THREE.Quaternion(), _m = new THREE.Matrix4();
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _ax = new THREE.Vector3();
 const _d0 = new THREE.Vector3(), _d1 = new THREE.Vector3(), _d2 = new THREE.Vector3();
-const X_AX = new THREE.Vector3(1, 0, 0), Z_AX = new THREE.Vector3(0, 0, 1);
+const X_AX = new THREE.Vector3(1, 0, 0), Z_AX = new THREE.Vector3(0, 0, 1), _qI = new THREE.Quaternion();
 
 /* Each arm and leg bone's turn from rest, relative to the chest (arms)
    or the pelvis (legs): the pose's, with the hand's bends on top.
@@ -775,6 +801,7 @@ function compose() {
     _q.setFromAxisAngle(_ax, B.kn);
     for (const b of S.leg) { const r = Z.rel[b].copy(B.hip); if (b !== S.th) r.multiply(_q); r.multiply(Z.base[b]); }
   }
+  for (const k in F.A) { const A = F.A[k]; A.bones.forEach((b, i) => Z.tb[b].identity().slerp(Z.axial[k], A.fr[i])); }
 }
 
 /* Every bone placed and its matrix set, with the idle motion (breathing,
@@ -790,7 +817,7 @@ function place(idle = true) {
       continue;
     }
     J[b].copy(P[b]).sub(P[p]).applyQuaternion(qW[p]).add(J[p]);
-    if (kd === 'trunk') { qW[b].copy(qW[p]); if (live) qW[b].multiply(Z.local[b]); }
+    if (kd === 'trunk') { qW[b].copy(qW[p]).multiply(Z.tb[b]); if (live) qW[b].multiply(Z.local[b]); }
     else if (kd === 'clav') {
       const S = F.S[F.side[b]];
       const a = Math.asin(clamp(Z.shrug[F.side[b]] / cm / S.clavLen, -0.9, 0.9)) + (live ? Z.lift : 0);
@@ -926,7 +953,7 @@ function seal() {
   g.attributes.skinIndex.needsUpdate = true; g.attributes.skinWeight.needsUpdate = true;
 }
 
-const bent = () => ['R', 'L'].some(s => { const B = V.pz.bend[s]; return B.el || B.kn || B.shDir || B.hipDir; });
+const bent = () => V.pz.axBent || ['R', 'L'].some(s => { const B = V.pz.bend[s]; return B.el || B.kn || B.shDir || B.hipDir; });
 
 /* Stand him in pose `id` (POSES), easing there over about 0.4 s from
    wherever he is, any bends included (which it clears). Taps, labels and
@@ -942,6 +969,8 @@ export function setPose(id, { snap = false } = {}) {
   for (const b of F.posed) Z.from[b].copy(Z.rel[b]);
   Z.s0.R = Z.shrug.R; Z.s0.L = Z.shrug.L;
   for (const s of ['R', 'L']) { const B = Z.bend[s]; B.shDir = B.hipDir = null; B.el = B.kn = 0; }
+  const ax0 = { spine: Z.axial.spine.clone(), neck: Z.axial.neck.clone() };
+  Z.axial.spine.identity(); Z.axial.neck.identity(); Z.axBent = false;
   rigTurns(POSE[id], Z.to);
   Z.s1.R = Z.s1.L = POSE[id]?.shrug || 0;
   Z.id = id;
@@ -950,10 +979,11 @@ export function setPose(id, { snap = false } = {}) {
   Z.shrug.R = Z.s1.R; Z.shrug.L = Z.s1.L;
   pose(false);
   skinCPU();
-  if (snap) Z.anim = null;
+  if (snap) { Z.anim = null; Z.ax0 = null; }
   else {
     for (const b of F.posed) Z.base[b].copy(Z.from[b]);
     Z.shrug.R = Z.s0.R; Z.shrug.L = Z.s0.L;
+    Z.axial.spine.copy(ax0.spine); Z.axial.neck.copy(ax0.neck); Z.ax0 = ax0;
     Z.anim = { t0: performance.now(), dur: 420 };
   }
   pose();
@@ -972,7 +1002,8 @@ function posing(now) {
   const t = clamp((now - a.t0) / a.dur, 0, 1), k = t * t * (3 - 2 * t);
   for (const b of V.fk.posed) Z.base[b].slerpQuaternions(Z.from[b], Z.to[b], k);
   Z.shrug.R = Z.s0.R + (Z.s1.R - Z.s0.R) * k; Z.shrug.L = Z.s0.L + (Z.s1.L - Z.s0.L) * k;
-  if (t >= 1) Z.anim = null;
+  if (Z.ax0) for (const n in Z.axial) Z.axial[n].copy(Z.ax0[n]).slerp(_qI, k);
+  if (t >= 1) { Z.anim = null; Z.ax0 = null; }
   Z.dirty = true;
   return !!Z.anim;
 }
@@ -1022,7 +1053,8 @@ function animate(now) {
    Each arm and leg has two handles, drawn as dots by anatomy.js: the
    elbow's swings the upper arm at the shoulder, the wrist's bends the
    elbow, the knee's swings the thigh at the hip, the ankle's bends the
-   knee. A drag that starts on one moves its joint so that the handle
+   knee. One on the chest bends the spine and one on the head the neck
+   (axialMove). A drag that starts on one moves its joint so that the handle
    stays under the finger as nearly as the joint allows, from any side.
    A ball joint (shoulder, hip) points its segment where the finger's ray
    meets the sphere the handle can reach: of the two points there, the
@@ -1062,9 +1094,11 @@ const GRIP_OUT = [];
    front of the camera; `held` while dragged; `hover` under the mouse. The
    same objects come back each call. */
 const _sc = { x: 0, y: 0, z: 0 };
-function toScreen(b) {
-  const cam = V.cams[0], el = V.renderer.domElement;
-  _v.copy(V.fk.J[b]).multiplyScalar(V.T.cm);
+/* bone b's joint on screen, or the point `tip` from it, turned with it */
+function toScreen(b, tip = null) {
+  const cam = V.cams[0], el = V.renderer.domElement, F = V.fk;
+  if (tip) _v.copy(tip).applyQuaternion(F.qW[b]).add(F.J[b]); else _v.copy(F.J[b]);
+  _v.multiplyScalar(V.T.cm);
   _sc.z = -_v2.copy(_v).applyMatrix4(cam.matrixWorldInverse).z;
   _v.project(cam);
   _sc.x = (_v.x + 1) / 2 * el.clientWidth; _sc.y = (1 - _v.y) / 2 * el.clientHeight; _sc.on = _v.z < 1;
@@ -1093,6 +1127,17 @@ export function grips() {
     g.far = a.z - pel.z > back && trunk(a.x, a.y);
     g.held = V.held === g.key; g.hover = V.hover === g.key;
   }
+  /* the spine's, on the chest, and the neck's, on the head: never faint */
+  for (const k in F.A) {
+    const A = F.A[k], g = GRIP_OUT[i++] ||= {};
+    g.key = k; g.side = null; g.joint = k;
+    const p = toScreen(A.piv);
+    g.px = p.x; g.py = p.y;
+    const a = toScreen(A.at, A.tip);
+    g.x = a.x; g.y = a.y; g.z = a.z; g.on = a.on; g.far = false;
+    g.held = V.held === g.key; g.hover = V.hover === g.key;
+  }
+  GRIP_OUT.length = i;
   return GRIP_OUT;
 }
 /* The handle under a pointer: the nearest within a fingertip (a little
@@ -1130,6 +1175,7 @@ function bendStart(e) {
 const _p = new THREE.Vector3(), _e = new THREE.Vector3(), _oc = new THREE.Vector3(), _h1 = new THREE.Vector3(), _h2 = new THREE.Vector3(), _sg = new THREE.Vector3();
 /* the drag at client point (cx, cy) */
 function bendMove(gb, cx, cy) {
+  if (!gb.side) return axialMove(gb, cx, cy);
   const F = V.fk, Z = V.pz, S = F.S[gb.side], B = Z.bend[gb.side], cm = V.T.cm, cam = V.cams[0], el = V.renderer.domElement;
   const arm = gb.joint === 'shoulder' || gb.joint === 'elbow', ball = gb.joint === 'shoulder' || gb.joint === 'hip';
   const pv = gb.joint === 'shoulder' ? S.ua : gb.joint === 'elbow' ? S.fa : gb.joint === 'hip' ? S.th : S.calf;
@@ -1147,19 +1193,7 @@ function bendMove(gb, cx, cy) {
     /* (compose() works in _v2 and _q: before anything is kept in them) */
     compose();
     _d0.copy(d).applyQuaternion(Z.rel[top]);
-    ndc.set(tx / W * 2 - 1, -(ty / H) * 2 + 1);
-    ray.setFromCamera(ndc, cam);
-    const o = ray.ray.origin, rd = ray.ray.direction;
-    _oc.subVectors(o, P);
-    const b = rd.dot(_oc), disc = b * b - (_oc.lengthSq() - L * L);
-    if (disc >= 0) {
-      const sq = Math.sqrt(disc);
-      _h1.copy(o).addScaledVector(rd, -b - sq).sub(P); _h2.copy(o).addScaledVector(rd, -b + sq).sub(P);
-      /* the side of the screen's plane (through the pivot) the handle is
-         on now, where it is clearly on one; else the side in front of him */
-      const side = _v.subVectors(E, P).dot(rd) / L;
-      _v2.copy(side < -0.25 ? _h1 : side > 0.25 ? _h2 : _sg.copy(_h1).applyQuaternion(_qi).z >= _v.copy(_h2).applyQuaternion(_qi).z ? _h1 : _h2);
-    } else _v2.copy(o).addScaledVector(rd, Math.max(0, -b)).sub(P);
+    reachFor(tx, ty, P, E, L, _qi, _v2);
     /* the swing, in the chest's (or pelvis's) own frame */
     _v2.applyQuaternion(_qi).normalize();
     _v.subVectors(E, P).applyQuaternion(_qi).normalize();
@@ -1201,7 +1235,86 @@ function bendMove(gb, cx, cy) {
   }
   pose();
   gb.moved = true;
-  if (act && act !== gb.act) { gb.act = act; V.onBend?.({ action: `${gb.joint} ${act}`, side: gb.side }); }
+  if (act && act !== gb.act) { gb.act = act; V.onBend?.({ action: `${gb.joint} ${act}`, side: gb.side, joint: gb.joint, act }); }
+}
+
+/* The finger's ray against the sphere of radius L round P (world): where
+   the handle at E should go, from P, into `out`. Of the ray's two points
+   on the sphere, the one on the side of the screen's plane (through P)
+   the handle is on now, where it is clearly on one; else the one in front
+   of him (+z in the frame qi turns into); past the sphere's edge, the
+   point on the ray nearest P. */
+function reachFor(tx, ty, P, E, L, qi, out) {
+  const el = V.renderer.domElement;
+  ndc.set(tx / (el.clientWidth || 1) * 2 - 1, -(ty / (el.clientHeight || 1)) * 2 + 1);
+  ray.setFromCamera(ndc, V.cams[0]);
+  const o = ray.ray.origin, rd = ray.ray.direction;
+  _oc.subVectors(o, P);
+  const b = rd.dot(_oc), disc = b * b - (_oc.lengthSq() - L * L);
+  if (disc < 0) return out.copy(o).addScaledVector(rd, Math.max(0, -b)).sub(P);
+  const sq = Math.sqrt(disc);
+  _h1.copy(o).addScaledVector(rd, -b - sq).sub(P); _h2.copy(o).addScaledVector(rd, -b + sq).sub(P);
+  const side = _v.subVectors(E, P).dot(rd) / L;
+  return out.copy(side < -0.25 ? _h1 : side > 0.25 ? _h2 : _sg.copy(_h1).applyQuaternion(qi).z >= _v.copy(_h2).applyQuaternion(qi).z ? _h1 : _h2);
+}
+
+/* Keep n (a direction in the bend's frame) within `tab` of `rest`. */
+const _w2 = new THREE.Vector3();
+function limitCone(n, rest, tab) {
+  const c = clamp(n.dot(rest), -1, 1), e = Math.acos(c) / DEG;
+  _w2.copy(n).addScaledVector(rest, -c);
+  if (_w2.lengthSq() < 1e-12) return;
+  _w2.normalize();
+  const p = Math.atan2(_w2.z, _w2.x) / DEG;
+  let i = 1;
+  while (i < tab.length - 1 && p > tab[i][0]) i++;
+  const a = tab[i - 1], b = tab[i], mx = a[1] + (b[1] - a[1]) * (p - a[0]) / (b[0] - a[0]);
+  if (e > mx) n.copy(rest).multiplyScalar(Math.cos(mx * DEG)).addScaledVector(_w2, Math.sin(mx * DEG));
+}
+/* q raised to the power g: the same turn, g times as far */
+function powQ(q, g) {
+  const w = clamp(q.w, -1, 1), s = Math.sqrt(1 - w * w);
+  if (s < 1e-7) return q;
+  _ax.set(q.x / s, q.y / s, q.z / s);
+  return q.setFromAxisAngle(_ax, 2 * Math.acos(w) * g);
+}
+/* where the handle sits from the pivot, in the bend's frame, with the
+   spine or neck turned Q */
+function axialTip(A, Q, out) {
+  out.set(0, 0, 0);
+  for (const [g, f] of A.segs) out.add(_v.copy(g).applyQuaternion(_q2.identity().slerp(Q, f)));
+  return out;
+}
+/* The spine or neck bent by its handle. The handle turns less than Q
+   does (Q is spread down the bones), so Q is found in a few steps, each
+   turning it 1.4 times the handle's miss, kept in range. */
+function axialMove(gb, cx, cy) {
+  const F = V.fk, Z = V.pz, A = F.A[gb.joint], Q = Z.axial[gb.joint], cm = V.T.cm, el = V.renderer.domElement;
+  const r = el.getBoundingClientRect(), tx = cx - r.left + gb.ox, ty = cy - r.top + gb.oy;
+  _qi.copy(F.qW[F[A.up]]).invert();
+  const P = _p.copy(F.J[A.piv]).multiplyScalar(cm);
+  if (A.tip) _e.copy(A.tip).applyQuaternion(F.qW[A.at]).add(F.J[A.at]); else _e.copy(F.J[A.at]);
+  const E = _e.multiplyScalar(cm);
+  const t = reachFor(tx, ty, P, E, P.distanceTo(E), _qi, _v2).applyQuaternion(_qi).normalize();
+  _d0.copy(A.rest).applyQuaternion(Q);
+  for (let k = 0; k < 6; k++) {
+    axialTip(A, Q, _d2).normalize();
+    if (_d2.dot(t) > 0.99999) break;
+    powQ(_q.setFromUnitVectors(_d2, t), 1.4);
+    _d1.copy(A.rest).applyQuaternion(Q).applyQuaternion(_q);
+    limitCone(_d1, A.rest, A.tab);
+    Q.setFromUnitVectors(A.rest, _d1);
+  }
+  Z.axBent = true;
+  /* what it did, by how far it went forward or back (flexion, extension)
+     against to the side, in the plane square to it; a move of under a
+     fifth of a degree (pressing on the edge of the range) says nothing */
+  _d1.copy(A.rest).applyQuaternion(Q).sub(_d0);
+  const df = _d1.z, ds = _d1.x;
+  const act = Math.hypot(df, ds) < 0.0035 ? null : Math.abs(ds) > Math.abs(df) ? 'lateral flexion' : df > 0 ? 'flexion' : 'extension';
+  pose();
+  gb.moved = true;
+  if (act && act !== gb.act) { gb.act = act; V.onBend?.({ action: A.say(act), side: null, joint: gb.joint, act }); }
 }
 function bendEnd(gb) {
   V.held = null;
@@ -1210,7 +1323,7 @@ function bendEnd(gb) {
   if (gb.act || gb.moved) V.onBend?.(null);
   draw();
 }
-/* Whether any limb is bent by hand. */
+/* Whether any limb, the spine or the neck is bent by hand. */
 export const isBent = () => !!V && bent();
 
 /* ── for the card ── */
