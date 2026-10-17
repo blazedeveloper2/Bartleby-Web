@@ -1364,7 +1364,43 @@ html.wk-ax .rest-bar{visibility:hidden}
   color:var(--text-3);cursor:pointer}
 .wk .ax-bend-x svg{width:15px;height:15px;display:block}
 .wk .ax-bend-x:hover{color:var(--text)}
-.wk .ax.bend-on .ax-legend{top:calc(env(safe-area-inset-top,0px) + 110px)}
+.wk .ax.edit-on .ax-legend{top:calc(env(safe-area-inset-top,0px) + 110px)}
+.wk .ax-bend-x:disabled{opacity:.3;cursor:default}
+.wk .ax-bend-d{flex-shrink:0;height:32px;padding:0 13px;background:var(--blue);border:0;border-radius:var(--rs);color:var(--on-accent);
+  font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer}
+.wk .ax-btn[aria-pressed="true"]{color:var(--blue);background:var(--blue-d);border-color:var(--holo)}
+.wk .ax:not(.is-3d) .ax-edit{display:none}
+.wk .ax-set-go{flex-shrink:0;height:32px;padding:0 14px;background:var(--blue-d);border:1px solid var(--sel-bd);border-radius:var(--rs);color:var(--blue);
+  font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer}
+.wk .ax-set-go:hover{background:var(--blue);color:var(--on-accent)}
+
+/* Edit Mode's panel, in the readout's place: three tabs over the tools */
+.wk .ax-hud.edit{padding-top:10px}
+.wk .ax-ed-tabs{display:flex;gap:3px;margin-bottom:12px;padding:3px;border-radius:8px;background:color-mix(in srgb,var(--bg) 60%,transparent)}
+.wk .ax-ed-tabs button{flex:1;min-height:34px;background:none;border:1px solid transparent;border-radius:6px;color:var(--text-3);
+  font-family:var(--font);font-size:12.5px;font-weight:700;letter-spacing:.3px;cursor:pointer;transition:color .15s}
+.wk .ax-ed-tabs button:hover{color:var(--text)}
+.wk .ax-ed-tabs button[aria-selected="true"]{color:var(--blue);background:var(--blue-d);border-color:var(--sel-bd)}
+.wk .ax-ed-hint{margin:0 0 10px;font-size:12.5px;line-height:1.5;color:var(--text-2)}
+.wk .ax-ed-k{margin:14px 0 7px;font-size:9.5px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--blue)}
+.wk .ax-ed-b>.ax-ed-k:first-child{margin-top:0}
+.wk .ax-ed-b .ax-seg{margin-bottom:6px}
+.wk .ax-ed-b .ax-set-row:last-of-type{border-bottom:0}
+.wk .ax-ed-mh{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:6px}
+.wk .ax-ed-mh .ax-name{font-size:20px}
+.wk .ax-ed-sz{display:flex;align-items:center;gap:8px;margin:4px 0 6px}
+.wk .ax-ed-sz input{flex:1;min-width:0;height:30px;margin:0;accent-color:var(--blue);cursor:pointer}
+.wk .ax-ed-v{min-width:56px;text-align:right;font-family:var(--mono);font-size:12px;color:var(--text);font-variant-numeric:tabular-nums}
+.wk .ax-ed-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:38px;margin-top:8px;
+  background:color-mix(in srgb,var(--bg) 55%,transparent);border:1px solid var(--holo-faint);border-radius:var(--rs);color:var(--text-2);
+  font-family:var(--font);font-size:12.5px;font-weight:600;cursor:pointer;transition:color .15s,border-color .15s}
+.wk .ax-ed-btn svg{width:14px;height:14px;display:block}
+.wk .ax-ed-btn:hover:not(:disabled){color:var(--blue);border-color:var(--holo)}
+.wk .ax-ed-btn:disabled{opacity:.4;cursor:default}
+.wk .ax-tones{display:flex;flex-wrap:wrap;gap:10px}
+.wk .ax-tone{width:36px;height:36px;padding:0;border-radius:50%;background:var(--c);border:2px solid transparent;box-shadow:0 0 0 1px var(--holo-faint);
+  cursor:pointer;transition:box-shadow .15s}
+.wk .ax-tone[aria-pressed="true"]{border-color:var(--bg);box-shadow:0 0 0 2px var(--blue)}
 
 /* the readout */
 .wk .ax-hud{--n:12px;position:absolute;z-index:3;left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));

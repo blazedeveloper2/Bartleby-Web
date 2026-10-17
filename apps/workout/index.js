@@ -26,7 +26,7 @@ import { restBand, BANDS, fmtRest } from './rest.js?v=3d-oct14d';
 import * as rest from './timer.js?v=3d-oct14d';
 import * as timing from './sessions.js?v=3d-oct16g';
 import { HOWTO } from './howto.js?v=3d-oct14h';
-import * as anatomy from './anatomy.js?v=3d-oct16p';
+import * as anatomy from './anatomy.js?v=3d-oct16u';
 import { animHTML, playAnim } from './pose.js?v=3d-oct16h';
 import { standingsFor } from './anthro.js?v=3d-oct14d';
 import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=3d-oct14d';
@@ -884,7 +884,7 @@ function openMM(ex) {
 let mv3 = null, mv3Load = null;
 /* The Anatomy tab borrows the same body (anatomy.js), so it loads it
    through here too. */
-const loadMV = () => (mv3Load ||= import('./muscleview.js?v=3d-oct16p').then(m => (mv3 = m)));
+const loadMV = () => (mv3Load ||= import('./muscleview.js?v=3d-oct16u').then(m => (mv3 = m)));
 /* Warm the 3D up while the app sits on its first tab, so nothing you open
    makes you wait: the model (one download, shared by the exercise card,
    the rep animation and Anatomy), the muscle view with its shaders
@@ -1840,9 +1840,11 @@ function onClick(e) {
 /* The anatomy search filters its list as you type. */
 function onInput(e) {
   if (e.target.id === 'an-q') anatomy.search(e.target.value);
+  else if (e.target.classList?.contains('an-range')) anatomy.range(e.target, false);
 }
 function onChange(e) {
-  if (e.target.id === 'mm-wt') setMMWeight(e.target);
+  if (e.target.classList?.contains('an-range')) anatomy.range(e.target, true);
+  else if (e.target.id === 'mm-wt') setMMWeight(e.target);
   else if (e.target.classList?.contains('mm-set-in')) setMMReps(e.target);
   /* Height and activity save on change rather than behind a button: they are
      set once and then never touched, and a Save you have to remember is a
@@ -1998,7 +2000,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=3d-oct16n',
+  styles: 'apps/workout/workout.css?v=3d-oct16u',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {

@@ -13,9 +13,11 @@
    on or off, the deep layer, colour by muscle, group or this week's
    training (the training map) or by recovery (time since each muscle
    last worked), a pulse on the selected muscle, idle life (breathing, a
-   small weight shift), bending a limb yourself — the muscles doing that
-   movement light up while you do — a slow auto-spin, and a hologram
-   skin.
+   small weight shift), a slow auto-spin, and a hologram skin.
+   Edit Mode is a place to play with the body: bend his limbs, spine and
+   neck by dots on the joints (the muscles doing each movement light up as
+   you go), make any muscle far bigger or smaller, change his skin tone,
+   with undo and a reset. Nothing of it is saved.
    Search finds muscles by name or by what they do ("elbow flexion"),
    and exercises too: pick one and the body lights what it works.
    The quiz runs in the readout: name the muscle that lights up, or find
@@ -345,6 +347,11 @@ const I = {
   home:  ico('<path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/><circle cx="12" cy="12" r="2.5"/>'),
   close: ico('<path d="M6 6l12 12"/><path d="M18 6L6 18"/>'),
   reset: ico('<path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 9 8 9"/>'),
+  edit:  ico('<path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M14 6l4 4"/>'),
+  undo:  ico('<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>'),
+  redo:  ico('<path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/>'),
+  minus: ico('<path d="M5 12h14"/>'),
+  plus:  ico('<path d="M12 5v14"/><path d="M5 12h14"/>'),
   set:   ico('<path d="M4 6h9"/><path d="M17 6h3"/><path d="M4 12h3"/><path d="M11 12h9"/><path d="M4 18h11"/><path d="M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>'),
 };
 
@@ -462,7 +469,7 @@ let sel = R(pref.sel) ? pref.sel : 'pec';
 let min = !!pref.min;    // the readout folded down to its name
 /* the settings; atlas is how the body is coloured: '' (not at all),
    'muscle', 'group', 'week' (the training map) or 'rest' (recovery) */
-const DEFAULT_LOOK = { shorts: true, atlas: '', spin: false, holo: false, deep: false, flex: true, idle: true, bend: false, pose: 'rest' };
+const DEFAULT_LOOK = { shorts: true, atlas: '', spin: false, holo: false, deep: false, flex: true, idle: true };
 /* a look saved before idle life and flex became the defaults (LOOK_V 2)
    starts again from the defaults, once; keys no longer used (the old
    organs and skeleton layers) are left behind */
@@ -480,6 +487,24 @@ let rested = new Map();  // lastWorked()
 let exs = new Map();     // exercises()
 let exv = null;          // the exercise being viewed: { n, ex, slot, tiers: Map(region → tier) }
 let bending = null;      // { action, side, joint, act } while a limb, the spine or the neck is bent by hand
+/* Edit Mode, to play with: nothing of it is saved. The edit lasts while
+   Anatomy is open (the exercise card borrowing the body hands it back as
+   it was); Reset, or closing, puts him back. `rig` is the edit: the pose
+   he starts from (POSES), the bends made by hand (muscleview's
+   getJoints), each muscle's size by side ({ id: [left, right] }), every
+   muscle's (`all`), and the skin tone (TONES). */
+const RIG0 = () => ({ pose: 'rest', joints: null, sizes: {}, all: 0, tone: '' });
+let rig = RIG0();
+let editing = false;
+let etab = 'pose';       // the edit panel's tab: 'pose', 'muscles' or 'body'
+let eside = 'R';         // with Mirror off, the side a muscle's size changes on
+let mirror = true;       // a bend or a size on one side goes to both
+let undos = [], redos = [], sliding = false;
+/* sizes from -100% (about a third thinner) to +300% (several times the
+   bulk): muscleview's SIZE_LO and SIZE_HI */
+const SZ_LO = -1, SZ_HI = 3;
+const TONES = [['', 'As modelled', '#be8c70'], ['fair', 'Fair', '#efc8ac'], ['light', 'Light', '#d8a585'], ['tan', 'Tan', '#a77050'], ['brown', 'Brown', '#7e5038'], ['deep', 'Deep', '#563423']];
+const toneHex = k => (k && TONES.find(t => t[0] === k)?.[2]) || null;
 let X = null;            // the full-screen layer, #ax
 let idx = new Map();     // trainers()
 let ctx = null;          // { loadMV, free, layer } from index.js
@@ -546,17 +571,19 @@ export function close(fromPop) {
   X.hidden = true;
   X.innerHTML = '';
   is3d = false; quiz = null; exv = null;
+  editing = false; bending = null; rig = RIG0(); undos = []; redos = [];
   document.documentElement.classList.remove('wk-ax');
   if (!fromPop && history.state?.ax) history.back();
   ctx.closed?.();
 }
 const onPop = () => close(true);
 
-/* Escape puts away the settings, then the list, then the quiz, then
-   closes. */
+/* Escape puts away the settings, then the list, then Edit Mode, then the
+   quiz, then closes. */
 export function escape() {
   if (!$('#ax-set').hidden) toggleSet(false);
   else if (!$('#ax-drawer').hidden) toggleList(false);
+  else if (editing) setEditing(false);
   else if (quiz) endQuiz();
   else if (exv) leaveExercise();
   else close();
@@ -579,6 +606,7 @@ function layerHTML() {
       <div class="ax-title"><div class="ax-k">Anatomy</div></div>
       <div class="ax-tools">
         <button type="button" class="ax-btn ax-find" data-act="an-list" aria-expanded="false" aria-controls="ax-drawer">${I.find}<span>Muscles</span></button>
+        <button type="button" class="ax-btn ax-edit" data-act="an-edit" aria-pressed="false" aria-label="Edit mode" title="Edit mode">${I.edit}</button>
         <button type="button" class="ax-btn ax-gear" data-act="an-set" aria-expanded="false" aria-controls="ax-set" aria-label="Settings and quiz" title="Settings and quiz">${I.set}</button>
         <button type="button" class="ax-btn" data-act="an-home" aria-label="Whole body" title="Whole body">${I.home}</button>
         <button type="button" class="ax-btn ax-close" data-act="an-close" aria-label="Close anatomy" title="Close">${I.close}</button>
@@ -589,8 +617,10 @@ function layerHTML() {
       <div class="ax-bend-p">
         <span class="ax-bend-i" aria-hidden="true"></span>
         <span class="ax-bend-t" id="ax-bend-t" aria-live="polite"></span>
-        <button type="button" class="ax-bend-b" data-act="an-straight" title="Every limb back to the pose">${I.reset}<span>Straighten</span></button>
-        <button type="button" class="ax-bend-x" data-act="an-look" data-k="bend" aria-label="Stop bending" title="Stop bending">${I.close}</button>
+        <button type="button" class="ax-bend-x" data-act="an-undo" aria-label="Undo" title="Undo">${I.undo}</button>
+        <button type="button" class="ax-bend-x" data-act="an-redo" aria-label="Redo" title="Redo">${I.redo}</button>
+        <button type="button" class="ax-bend-b" data-act="an-rigreset" title="Back to the body as it came">${I.reset}<span>Reset</span></button>
+        <button type="button" class="ax-bend-d" data-act="an-edit">Done</button>
       </div>
     </div>
     <div class="ax-legend" id="ax-legend" hidden></div>
@@ -681,9 +711,10 @@ function listHTML() {
 
 function paint() {
   const hud = $('#ax-hud');
-  hud.innerHTML = quiz ? quizHTML() : exv ? exHTML() : hudHTML();
-  hud.classList.toggle('min', min && !quiz);
+  hud.innerHTML = editing ? editHTML() : quiz ? quizHTML() : exv ? exHTML() : hudHTML();
+  hud.classList.toggle('min', min && !quiz && !editing);
   hud.classList.toggle('quiz', !!quiz);
+  hud.classList.toggle('edit', editing);
   paintSet();
   $('#an-groups').innerHTML = groupsHTML();
   $('#an-list').innerHTML = listHTML();
@@ -700,17 +731,21 @@ const groupIds = () => REGIONS.filter(r => r.group === (grp || R(sel).group) && 
 /* What is lit: the selected muscle, or in a quiz the one asked about
    (none while you are looking for it); the faint group round it only
    when something is lit, and the colours and the quiz are not doing
-   that job. Nothing selected, nothing tinted. */
-const litId = () => (quiz ? quiz.lit : exv ? null : hudOn ? sel : null);
+   that job. Nothing selected, nothing tinted. In Edit Mode, the muscle
+   being resized, on its own (and nothing while posing). */
+const litId = () => (quiz ? quiz.lit : editing ? (etab === 'muscles' ? sel : null) : exv ? null : hudOn ? sel : null);
 /* the muscle the label line runs to: the lit one, or an exercise's first
    primary muscle */
 const lineId = () => (exv ? [...exv.tiers].find(([, t]) => t === 1)?.[0] || null : litId());
 let dressed = '';        // the look last handed to the body, so an unchanged one is not re-applied
 function light() {
-  const id = litId(), g = new Set(!id || quiz || look.atlas ? [] : groupIds());
+  const id = litId(), g = new Set(!id || quiz || editing || look.atlas ? [] : groupIds());
   if (is3d) {
-    const atlas = atlasMap(), key = JSON.stringify([look.shorts, look.holo, look.deep, look.spin, look.flex, look.idle, look.bend, atlas && [...atlas]]);
-    if (key !== dressed) { dressed = key; mv.setLook({ ...look, atlas }); }
+    /* Edit Mode brings the dots (bend) and Mirror, and stills the flex,
+       which would muddle a size being judged */
+    const atlas = atlasMap(), dress = { ...look, atlas, bend: editing, mirror: editing && mirror, flex: look.flex && !editing };
+    const key = JSON.stringify([look.shorts, look.holo, look.deep, look.spin, dress.flex, look.idle, editing, dress.mirror, atlas && [...atlas]]);
+    if (key !== dressed) { dressed = key; mv.setLook(dress); }
     if (!bending) mv.study(id, [...g]);
   }
   X.querySelectorAll('.an-region').forEach(el => {
@@ -720,7 +755,7 @@ function light() {
     el.style.fill = sw || '';
   });
   legend();
-  bendUI();
+  editUI();
   lead();
   drawGrips();
 }
@@ -812,29 +847,149 @@ function lead() {
   for (const c of wire.querySelectorAll('circle')) { c.setAttribute('cx', p.x); c.setAttribute('cy', p.y); }
 }
 
-/* Bending a limb by hand (look.bend): while the drag lasts, every muscle
-   whose actions include the movement lights at full strength, and the
-   key names them; letting go puts back what was lit. */
+/* Bending by hand (Edit Mode): while the drag lasts, every muscle whose
+   actions include the movement lights at full strength, and the key
+   names them; letting go puts back what was lit. Each drag is one step
+   to undo. */
 function onBend(info) {
   if (!isOpen() || !is3d) return;
   const was = bending?.action;
+  if (info && !bending) remember();
   bending = info;
   if (info && info.action !== was) mv.study(null, doers(info.action).map(r => r.id));
-  if (!info) light(); else { legend(); bendUI(); }
+  if (info) { legend(); editUI(); return; }
+  rig.joints = mv.getJoints?.() || null;
+  light();
+  if (editing && etab === 'pose') paintHud();
 }
 
-/* The bar while bending is on: what to do, or, while a limb moves, which
-   joint and what it is doing; Straighten once anything is bent; and the
-   way out. `bending`: { action (as TAGS has it), side ('L', 'R', or none
-   for the spine and neck), joint, act }. */
-function bendUI() {
-  const bar = $('#ax-bend'), on = is3d && look.bend;
-  X.classList.toggle('bend-on', on);
+/* The bar in Edit Mode: its name, or while a limb moves which joint and
+   what it is doing; undo, redo, Reset and Done. `bending`: { action (as
+   TAGS has it), side ('L', 'R', or none for the spine and neck), joint,
+   act }. */
+function editUI() {
+  const bar = $('#ax-bend'), on = is3d && editing;
+  X.classList.toggle('edit-on', on);
+  $('.ax-edit')?.setAttribute('aria-pressed', String(editing));
   if (bar.hidden === on) { bar.hidden = !on; layout(); }
   if (!on) return;
   const who = !bending ? '' : bending.side ? `${bending.side === 'L' ? 'Left' : 'Right'} ${bending.joint}` : bending.joint[0].toUpperCase() + bending.joint.slice(1);
-  $('#ax-bend-t').innerHTML = bending ? `<b>${who}</b> · ${bending.act}` : 'Drag a dot to bend him';
-  bar.querySelector('.ax-bend-b').disabled = !mv.isBent?.();
+  $('#ax-bend-t').innerHTML = bending ? `<b>${who}</b> · ${bending.act}` : '<b>Edit mode</b>';
+  bar.querySelector('[data-act="an-undo"]').disabled = !undos.length;
+  bar.querySelector('[data-act="an-redo"]').disabled = !redos.length;
+  bar.querySelector('[data-act="an-rigreset"]').disabled = JSON.stringify(rig) === JSON.stringify(RIG0());
+}
+
+/* ── Edit Mode ── */
+function setEditing(on) {
+  if (on && !is3d) return;
+  editing = on; bending = null; sliding = false;
+  if (on) { quiz = null; exv = null; hudOn = true; $('#ax-hud').hidden = false; toggleSet(false); if (!wide()) toggleList(false); }
+  paint();
+  if (on) { introGrips(); if (etab === 'muscles') mv.face(sel); }
+}
+const paintHud = () => { $('#ax-hud').innerHTML = editing ? editHTML() : hudHTML(); };
+/* the edit as it is now, onto the undo list (a new step clears redo) */
+function remember() {
+  undos.push(JSON.stringify(rig));
+  if (undos.length > 60) undos.shift();
+  redos = [];
+}
+function undoRedo(from, to) {
+  if (!from.length) return;
+  to.push(JSON.stringify(rig));
+  rig = JSON.parse(from.pop());
+  applyRig();
+  paintHud(); light();
+}
+/* Put the edit on the body: at once, or (`ease`) easing to the pose. */
+function applyRig(ease = false) {
+  if (!is3d) return;
+  mv.setPose?.(rig.pose, { snap: !ease });
+  if (rig.joints) mv.setJoints?.(rig.joints);
+  mv.setSizes?.(rig.sizes, rig.all);
+  mv.setTone?.(toneHex(rig.tone));
+}
+/* the selected muscle's size on the side being edited */
+const sizeOf = () => rig.sizes[sel]?.[eside === 'L' ? 0 : 1] || 0;
+function setSize(k, v, settle = true) {
+  v = clamp(Math.round(v * 100) / 100, SZ_LO, SZ_HI);
+  if (k === 'all') rig.all = v;
+  else {
+    const z = rig.sizes[sel] ? [...rig.sizes[sel]] : [0, 0];
+    if (mirror) z[0] = z[1] = v; else z[eside === 'L' ? 0 : 1] = v;
+    if (z[0] || z[1]) rig.sizes[sel] = z; else delete rig.sizes[sel];
+  }
+  if (is3d) mv.setSizes?.(rig.sizes, rig.all, { settle });
+}
+const pct = v => (!v ? 'Normal' : `${v > 0 ? '+' : '−'}${Math.round(Math.abs(v) * 100)}%`);
+
+/* A size slider moved (index.js passes its input and change events on):
+   the body follows as it moves, and settles when it is let go. One drag
+   is one step to undo. */
+export function range(el, done) {
+  if (!isOpen() || !editing) return;
+  if (!sliding) { remember(); sliding = true; }
+  const v = +el.value / 100;
+  setSize(el.dataset.k, v, done);
+  const out = $(`#ed-v-${el.dataset.k}`);
+  if (out) out.textContent = pct(clamp(Math.round(v * 100) / 100, SZ_LO, SZ_HI));
+  if (done) { sliding = false; editUI(); }
+}
+
+/* The edit panel, in the readout's place: Pose (the dots, where he starts
+   from, Mirror, Straighten), Muscles (the one picked made bigger or
+   smaller, on both sides or one) and Body (skin tone, every muscle at
+   once, shorts). */
+function editHTML() {
+  const tab = (k, n) => `<button type="button" role="tab" data-act="an-etab" data-v="${k}" aria-selected="${etab === k}">${n}</button>`;
+  const tog = (act, label, note, on, k = '') => `<div class="ax-set-row">
+      <span><b>${label}</b><small>${note}</small></span>
+      <button type="button" class="ax-tog" role="switch" data-act="${act}"${k ? ` data-k="${k}"` : ''} aria-checked="${on}" aria-label="${label}"><i></i></button>
+    </div>`;
+  const slider = (k, v, label) => `<div class="ax-ed-sz">
+      <button type="button" class="ax-sq" data-act="an-size" data-k="${k}" data-d="-10" aria-label="Smaller">${I.minus}</button>
+      <input type="range" class="an-range" data-k="${k}" min="${SZ_LO * 100}" max="${SZ_HI * 100}" step="1" value="${Math.round(v * 100)}" aria-label="${label}">
+      <button type="button" class="ax-sq" data-act="an-size" data-k="${k}" data-d="10" aria-label="Bigger">${I.plus}</button>
+      <output class="ax-ed-v" id="ed-v-${k}">${pct(v)}</output>
+    </div>`;
+  let body;
+  if (etab === 'pose') {
+    const poses = mv?.POSES || [];
+    body = `<p class="ax-ed-hint">Drag the dots on his joints, chest and head to bend him. The muscles doing each movement light up as you go.</p>
+      ${poses.length > 1 ? `<div class="ax-ed-k">Start from</div>
+      <div class="ax-seg" role="group" aria-label="Pose">${poses.map(q =>
+        `<button type="button" data-act="an-pose" data-v="${q.id}" aria-pressed="${rig.pose === q.id}">${q.name}</button>`).join('')}</div>` : ''}
+      ${tog('an-mirror', 'Mirror', 'Bend one arm or leg and the other follows', mirror)}
+      <button type="button" class="ax-ed-btn" data-act="an-straight"${rig.joints ? '' : ' disabled'}>${I.reset}<span>Straighten the bends</span></button>`;
+  } else if (etab === 'muscles') {
+    const r = R(sel), z = rig.sizes[sel];
+    body = `<div class="ax-ed-mh">
+        <div class="ax-hud-t">
+          <div class="ax-k2"><span>${r.group}${r.deep ? ' · deep' : ''}</span></div>
+          <h2 class="ax-name">${r.name}</h2>
+        </div>
+        <div class="ax-hud-b">
+          <button type="button" class="ax-sq" data-act="an-step" data-d="-1" aria-label="Previous muscle">${I.prev}</button>
+          <button type="button" class="ax-sq" data-act="an-step" data-d="1" aria-label="Next muscle">${I.next}</button>
+        </div>
+      </div>
+      <p class="ax-ed-hint">Tap any muscle on him to pick it, then make it bigger or smaller.</p>
+      ${mirror ? '' : `<div class="ax-seg" role="group" aria-label="Side">${[['L', 'His left'], ['R', 'His right']].map(([k, n]) =>
+        `<button type="button" data-act="an-eside" data-v="${k}" aria-pressed="${eside === k}">${n}</button>`).join('')}</div>`}
+      ${slider('size', sizeOf(), `${r.name} size`)}
+      ${tog('an-mirror', 'Both sides', 'Off to change one side only', mirror)}
+      <button type="button" class="ax-ed-btn" data-act="an-sizex"${z ? '' : ' disabled'}>${I.reset}<span>Back to normal</span></button>`;
+  } else {
+    body = `<div class="ax-ed-k">Skin tone</div>
+      <div class="ax-tones" role="group" aria-label="Skin tone">${TONES.map(([k, n, c]) =>
+        `<button type="button" class="ax-tone" data-act="an-tone" data-v="${k}" aria-pressed="${rig.tone === k}" aria-label="${n}" title="${n}" style="--c:${c}"></button>`).join('')}</div>
+      <div class="ax-ed-k">Every muscle</div>
+      ${slider('all', rig.all, 'Every muscle size')}
+      ${tog('an-look', 'Shorts', 'Off shows the glutes and hips whole', look.shorts, 'shorts')}`;
+  }
+  return `<div class="ax-ed-tabs" role="tablist" aria-label="Edit">${tab('pose', 'Pose')}${tab('muscles', 'Muscles')}${tab('body', 'Body')}</div>
+    <div class="ax-ed-b">${body}</div>`;
 }
 
 /* The handles (muscleview's grips()): a dot on each elbow, wrist, knee and
@@ -845,7 +1000,7 @@ let gripKey = '';
 function drawGrips() {
   const svg = $('.ax-grips');
   if (!svg) return;
-  const gs = is3d && look.bend ? mv.grips?.() : null;
+  const gs = is3d && editing ? mv.grips?.() : null;
   if (!gs) { if (gripKey) { svg.innerHTML = ''; gripKey = ''; } return; }
   let key = '';
   for (const g of gs) key += `${g.x | 0},${g.y | 0},${+g.far}${+g.held}${+g.hover}${+g.on};`;
@@ -863,7 +1018,7 @@ function drawGrips() {
     piv.setAttribute('cx', dx); piv.setAttribute('cy', dy);
   });
 }
-/* The dots pulse a few times when bending comes on, so they are found. */
+/* The dots pulse a few times when Edit Mode comes on, so they are found. */
 let introT = 0;
 function introGrips() {
   const svg = $('.ax-grips');
@@ -884,30 +1039,30 @@ export function attach() {
     .then(m => {
       mv = m;
       if (!box.isConnected || !ctx.free()) return false;
-      return m.orbit(box, { onTap: (r, air) => r ? pick(r.id, true) : air && tapAir(), onFrame: () => { lead(); drawGrips(); }, onBend, inset: insets(), look: { ...look, atlas: atlasMap() } });
+      return m.orbit(box, { onTap: (r, air, side) => r ? pick(r.id, true, side) : air && tapAir(), onFrame: () => { lead(); drawGrips(); }, onBend, inset: insets(), look: { ...look, atlas: atlasMap() } });
     })
     .then(ok => {
       if (ok === false || !box.isConnected) return;
       is3d = true; dressed = '';
       X.classList.add('is-3d');
-      if (look.pose !== 'rest') mv.setPose?.(look.pose);
+      applyRig();
       layout();
       light();
-      if (look.bend && !back) introGrips();
       if (back && litId()) mv.face(litId());
     })
     .catch(() => { is3d = false; X?.classList.add('no-3d'); layout(); });
 }
 
 /* ── interaction ── */
-function pick(id, fly) {
+function pick(id, fly, side) {
   if (!R(id)) return;
   if (quiz) { if (quiz.kind === 'find') answer(id); return; }
   exv = null;
   sel = id;
+  if (editing) { etab = 'muscles'; if (side) eside = side; }
   keep();
   showHud(true);
-  $('#ax-hud').innerHTML = hudHTML();
+  paintHud();
   X.querySelectorAll('.an-row').forEach(b => {
     const on = b.dataset.id === id;
     b.classList.toggle('on', on);
@@ -924,7 +1079,7 @@ function tapAir() {
   if (!$('#ax-set').hidden) toggleSet(false);
   else if (!$('#ax-drawer').hidden && !wide()) toggleList(false);
   else if (exv) leaveExercise();
-  else if (!quiz && hudOn) showHud(false);
+  else if (!quiz && !editing && hudOn) showHud(false);
 }
 function showHud(on) {
   if (hudOn === on) return;
@@ -942,14 +1097,15 @@ function paintSet() {
   if (b2) b2.scrollTop = top;
 }
 
-/* Reset: the body back to standing with its limbs straight and the camera
-   on the whole body, every setting back to its default, and any quiz,
-   exercise view closed. The quiz record is kept. */
+/* Reset: the body back as it came (Edit Mode's changes undone and left)
+   and the camera on all of him, every setting back to its default, and
+   any quiz or exercise view closed. The quiz record is kept. */
 function resetAll() {
   Object.assign(look, DEFAULT_LOOK);
   quiz = null; exv = null; bending = null; grp = ''; qry = '';
+  editing = false; rig = RIG0(); undos = []; redos = [];
   keep();
-  if (is3d) { mv.setPose?.('rest'); mv.resetBend?.(); }
+  applyRig(true);
   hudOn = true; $('#ax-hud').hidden = false;
   const q = $('#an-q'); if (q) q.value = '';
   paint();
@@ -1003,27 +1159,55 @@ export function act(el) {
     case 'an-reset': resetAll(); break;
     case 'an-look':
       if (a.k === 'atlas') look.atlas = a.v; else look[a.k] = !look[a.k];
-      if (a.k === 'bend' && is3d) {
-        if (!look.bend) mv.resetBend?.();
-        /* on a phone the settings cover his legs: put them away to bend */
-        else { if (!wide()) toggleSet(false); introGrips(); }
-      }
       keep();
       paintSet();
+      if (editing) paintHud();
       $('#an-list').innerHTML = listHTML();
       light();
       break;
+    /* Edit Mode */
+    case 'an-edit': setEditing(!editing); break;
+    case 'an-etab':
+      etab = a.v;
+      paintHud(); light();
+      if (etab === 'muscles' && is3d) mv.face(sel);
+      break;
+    case 'an-undo': undoRedo(undos, redos); break;
+    case 'an-redo': undoRedo(redos, undos); break;
+    case 'an-rigreset':
+      remember(); rig = RIG0();
+      applyRig(true);
+      paintHud(); light();
+      break;
     case 'an-pose':
-      look.pose = a.v; keep();
-      paintSet();
+      remember(); rig.pose = a.v; rig.joints = null;
       if (is3d) mv.setPose?.(a.v);
-      bendUI();
+      paintHud(); editUI();
       break;
     case 'an-straight':
+      remember(); rig.joints = null;
       if (is3d) mv.resetBend?.();
-      bendUI();
+      paintHud(); editUI();
+      break;
+    case 'an-mirror': mirror = !mirror; paintHud(); light(); break;
+    case 'an-eside': eside = a.v; paintHud(); break;
+    case 'an-size':
+      remember();
+      setSize(a.k, (a.k === 'all' ? rig.all : sizeOf()) + a.d / 100);
+      paintHud(); editUI();
+      break;
+    case 'an-sizex':
+      remember(); delete rig.sizes[sel];
+      if (is3d) mv.setSizes?.(rig.sizes, rig.all);
+      paintHud(); editUI();
+      break;
+    case 'an-tone':
+      remember(); rig.tone = a.v;
+      if (is3d) mv.setTone?.(toneHex(rig.tone));
+      paintHud(); editUI();
       break;
     case 'an-exv':
+      if (editing) setEditing(false);
       if (quiz) quiz = null;
       viewExercise(a.n);
       if (!wide()) toggleList(false);
@@ -1063,7 +1247,6 @@ function setHTML() {
       <button type="button" class="ax-tog" role="switch" data-act="an-look" data-k="${k}" aria-checked="${!!look[k]}" aria-label="${label}"><i></i></button>
     </div>`;
   const seen = POOL.filter(id => stats[id]?.[1]).length;
-  const poses = mv?.POSES || [];
   return `<div class="ax-set-h">
       <b>Settings</b>
       <button type="button" class="ax-reset" data-act="an-reset" title="Body, camera and settings back to the start">${I.reset}<span>Reset</span></button>
@@ -1071,10 +1254,9 @@ function setHTML() {
     </div>
     <div class="ax-set-b">
     <div class="ax-set-k">Body</div>
-    ${poses.length > 1 ? `<div class="ax-set-row col">
-      <span><b>Pose</b><small>Arms up opens the lats and serratus; flex shows the arms working</small></span>
-      <div class="ax-seg" role="group" aria-label="Pose">${poses.map(q =>
-        `<button type="button" data-act="an-pose" data-v="${q.id}" aria-pressed="${look.pose === q.id}">${q.name}</button>`).join('')}</div>
+    ${is3d ? `<div class="ax-set-row">
+      <span><b>Edit mode</b><small>Pose him, bend his spine and limbs, make any muscle far bigger or smaller, change his skin tone. Just to play with: nothing is saved</small></span>
+      <button type="button" class="ax-set-go" data-act="an-edit">${editing ? 'Done' : 'Edit'}</button>
     </div>` : ''}
     <div class="ax-set-row col">
       <span><b>Colour the body</b><small>Each muscle, each group, the sets each one got this week, or how long since each last worked</small></span>
@@ -1084,7 +1266,6 @@ function setHTML() {
     ${tog('shorts', 'Shorts', 'Off shows the glutes, hips and inner thighs whole')}
     ${tog('deep', 'Deep muscles', 'Show the ones under the surface: rhomboids, transversus, supraspinatus')}
     ${tog('flex', 'Flex on select', 'The selected muscle swells and pulses as if contracting')}
-    ${tog('bend', 'Bend it yourself', 'Dots come up on his chest, head, elbows, wrists, knees and ankles: drag one to bend his spine, neck or a limb, and the muscles doing the movement light up')}
     ${tog('idle', 'Idle life', 'Breathes and shifts its weight a little')}
     ${tog('spin', 'Auto-spin', 'Turns slowly whenever you leave him alone')}
     ${tog('holo', 'Hologram skin', 'See-through, with the muscles glowing inside')}
@@ -1164,6 +1345,7 @@ function options(id) {
 }
 
 function startQuiz(kind) {
+  editing = false; bending = null;
   quiz = { kind, right: 0, total: 0, streak: 0 };
   hudOn = true; $('#ax-hud').hidden = false;
   toggleSet(false);

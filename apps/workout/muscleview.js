@@ -59,7 +59,11 @@ const calm = () => !!LESS?.matches;
 
    `F` swells the muscle in focus for the Anatomy tab's flex: each point
    pushed out along its normal by its weight (aFlex) times uFlex, after
-   skinning, so it swells the same in every pose. */
+   skinning, so it swells the same in every pose. The muscles resized in
+   Edit Mode go the same way, by aSize (-1 to 1) times uSize (setSizes).
+   Both move along the body's own normal (aDir, skinned as the normal
+   is), so the shading normal is free to follow a resized muscle's new
+   shape (reshade). */
 function tintMaterial(src, uNeck, H, F) {
   const m = src.clone();
   m.name = src.name; m.visible = src.visible; m.metalness = 0;
@@ -69,9 +73,9 @@ function tintMaterial(src, uNeck, H, F) {
     sh.uniforms.uNeck = uNeck;
     Object.assign(sh.uniforms, H, F);
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute vec4 aTint;\nattribute float aTintW;\nattribute float aBlend;\nattribute float aFlex;\nuniform float uFlex;\nvarying vec4 vTint;\nvarying float vTintW;\nvarying float vBlend;\nvarying float vHoloY;')
+      .replace('#include <common>', '#include <common>\nattribute vec4 aTint;\nattribute float aTintW;\nattribute float aBlend;\nattribute float aFlex;\nuniform float uFlex;\nattribute float aSize;\nuniform float uSize;\nattribute vec3 aDir;\nvarying vec4 vTint;\nvarying float vTintW;\nvarying float vBlend;\nvarying float vHoloY;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTint = aTint;\nvTintW = aTintW;\nvBlend = aBlend;')
-      .replace('#include <skinning_vertex>', '#include <skinning_vertex>\ntransformed += normalize(objectNormal) * (aFlex * uFlex);')
+      .replace('#include <skinning_vertex>', '#include <skinning_vertex>\ntransformed += normalize((skinMatrix * vec4(aDir, 0.0)).xyz) * (aFlex * uFlex + aSize * uSize);')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvHoloY = (modelMatrix * vec4(transformed, 1.0)).y;');
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\nuniform vec3 uNeck;\nuniform float uHolo;\nuniform vec3 uHoloCol;\nuniform float uHoloK;\nvarying vec4 vTint;\nvarying float vTintW;\nvarying float vBlend;\nvarying float vHoloY;')
@@ -100,7 +104,7 @@ function tintMaterial(src, uNeck, H, F) {
 
 /* How the Anatomy tab dresses the body; the exercise card always gets
    the plain one (show() puts it back). */
-const PLAIN = { shorts: true, atlas: null, spin: false, holo: false, deep: false, flex: false, idle: false, bend: false };
+const PLAIN = { shorts: true, atlas: null, spin: false, holo: false, deep: false, flex: false, idle: false, bend: false, mirror: false };
 
 async function build() {
   const T = await loadTrainer(MODEL);
@@ -127,7 +131,7 @@ async function build() {
   for (const b of body.bones) { b.matrix.copy(M); b.matrixWorld.copy(M); }
   const old = body.mesh.material;
   const H = { uHolo: { value: 0 }, uHoloCol: { value: new THREE.Color('#ff7a18') }, uHoloK: { value: 1 } };
-  const F = { uFlex: { value: 0 } };
+  const F = { uFlex: { value: 0 }, uSize: { value: 0 } };
   body.mesh.material = old.map(o => tintMaterial(o, body.uniforms.uNeck, H, F));
   old.forEach(o => o.dispose());
   body.useEnv(studioEnv(renderer));
@@ -136,6 +140,12 @@ async function build() {
   g.setAttribute('aTint', new THREE.BufferAttribute(new Uint8Array(n * 4), 4, true));
   g.setAttribute('aTintW', new THREE.BufferAttribute(new Uint8Array(n), 1, true));
   g.setAttribute('aFlex', new THREE.BufferAttribute(new Uint8Array(n), 1, true));
+  g.setAttribute('aSize', new THREE.BufferAttribute(new Int8Array(n), 1, true));
+  /* the body's own normals: the way a resized muscle moves, and what
+     reshade() puts back */
+  g.setAttribute('aDir', g.attributes.normal.clone());
+  const n0 = new Float32Array(n * 3), NA0 = g.attributes.normal;
+  for (let i = 0; i < n; i++) { n0[3 * i] = NA0.getX(i); n0[3 * i + 1] = NA0.getY(i); n0[3 * i + 2] = NA0.getZ(i); }
   body.mesh.frustumCulled = false;
   scene.add(body.group);
 
@@ -168,7 +178,7 @@ async function build() {
     yaw: 0, view: 'both', focusOn: null, near: true, lit: new Map(), box: null, raf: 0, tick: 0, ro: null, onTap: null, spots: new Map(),
     orb: null, ins: { l: 0, r: 0, t: 0, b: 0 }, insGoal: { l: 0, r: 0, t: 0, b: 0 }, onFrame: null, onBend: null, anchors: new Map(), last: 0,
     H, F, look: { ...PLAIN }, idle: 0, spinT: 0,
-    sparse, kOf: new Map(regs.ids.map((id, k) => [id, k])), held: null, hover: null,
+    sparse, kOf: new Map(regs.ids.map((id, k) => [id, k])), held: null, hover: null, n0,
     /* the tint's working lists (paint()) */
     wa: new Float32Array(n), ww: new Float32Array(n), wc: new Uint8Array(n), pal: [], tintKey: '', dirty: false, sealed: false,
     cols: [null, new THREE.Color(), new THREE.Color(), new THREE.Color(), new THREE.Color()],
@@ -274,7 +284,10 @@ function paint() {
   const deep = !!(V.orb && V.look.deep);
   const fk = V.focusOn ? V.focusOn.join() : '';
   flexPaint(V.orb && V.look.flex ? fk : '');
-  const key = [cp, cs, ct, cd, deep, !!V.orb, V.orb ? V.look.atlasKey || '' : '', fk, [...V.lit].join(';')].join('|');
+  /* in Edit Mode the muscle in focus is tinted lightly, so the shape it
+     is being given shows through */
+  const fA = V.orb && V.look.bend ? 0.42 : 0.95;
+  const key = [cp, cs, ct, cd, deep, !!V.orb, V.orb ? V.look.atlasKey || '' : '', fk, [...V.lit].join(';'), fA].join('|');
   if (key === V.tintKey) return;
   V.tintKey = key;
   const [, c1, c2, c3, c4] = V.cols;
@@ -307,13 +320,13 @@ function paint() {
     const k = V.kOf.get(id);
     if (k === undefined || (REGIONS[k].deep && !deep)) continue;
     const c = focus && focus.has(id) ? col[1] : col[tier];
-    put(k, c, focus ? (focus.has(id) ? 0.95 : TIER_ALPHA[tier] * 0.3) : TIER_ALPHA[tier]);
+    put(k, c, focus ? (focus.has(id) ? fA : TIER_ALPHA[tier] * 0.3) : TIER_ALPHA[tier]);
   }
   /* a focused muscle outside the exercise's list still shows, in the
      primary colour */
   if (focus) for (const id of focus) if (!V.lit.has(id)) {
     const k = V.kOf.get(id);
-    if (k !== undefined) put(k, col[1], 0.95);
+    if (k !== undefined) put(k, col[1], fA);
   }
   const g = V.body.mesh.geometry, A = g.attributes.aTint, AW = g.attributes.aTintW, out = A.array, ow = AW.array;
   for (let i = 0, n = wa.length; i < n; i++) {
@@ -656,7 +669,9 @@ function tap(e) {
   if (!h) { V.onTap(null, true); return; }
   let best = null, bw = 0.15;
   for (const vi of [h.face.a, h.face.b, h.face.c]) V.regs.w.forEach((w, k) => { if (!REGIONS[k].deep && w[vi] > bw) { bw = w[vi]; best = REGIONS[k]; } });
-  V.onTap(best);
+  /* the third argument: his side it is on ('L' is +x), by where the point
+     was at rest */
+  V.onTap(best, false, V.T.geo.attributes.position.getX(h.face.a) > 0 ? 'L' : 'R');
 }
 
 /* ── poses ──
@@ -894,8 +909,10 @@ function skinCPU() {
   const SI = g.attributes.skinIndex.array, SW = g.attributes.skinWeight.array, n = g.attributes.position.count;
   const nk = N instanceof Int8Array ? 1 / 127 : 1;
   const E = V.body.bones.map(b => b.matrixWorld.elements), R = V.rest, O = V.nrm;
+  const SZ = V.sizeOn ? g.attributes.aSize.array : null, sk = SIZE_MAX / 127;
   for (let i = 0; i < n; i++) {
-    const x = P[3 * i], y = P[3 * i + 1], z = P[3 * i + 2], nx = N[3 * i] * nk, ny = N[3 * i + 1] * nk, nz = N[3 * i + 2] * nk;
+    const nx = N[3 * i] * nk, ny = N[3 * i + 1] * nk, nz = N[3 * i + 2] * nk, o = SZ ? SZ[i] * sk : 0, dv = SZ ? V.weld.dir : null;
+    const x = SZ ? P[3 * i] + dv[3 * i] * o : P[3 * i], y = SZ ? P[3 * i + 1] + dv[3 * i + 1] * o : P[3 * i + 1], z = SZ ? P[3 * i + 2] + dv[3 * i + 2] * o : P[3 * i + 2];
     let ox = 0, oy = 0, oz = 0, mx = 0, my = 0, mz = 0;
     for (let j = 0; j < 4; j++) {
       const w = SW[4 * i + j];
@@ -1233,6 +1250,13 @@ function bendMove(gb, cx, cy) {
     if (arm) B.el += da; else B.kn += da;
     if (Math.abs(da) > 1e-4) act = da > 0 ? 'flexion' : 'extension';
   }
+  /* Mirror (Edit Mode): the same joint on his other side follows, the
+     direction turned across his middle */
+  if (V.look.mirror) {
+    const O = Z.bend[gb.side === 'L' ? 'R' : 'L'], k = ball ? (arm ? 'shDir' : 'hipDir') : arm ? 'el' : 'kn';
+    if (!ball) O[k] = B[k];
+    else O[k] = B[k] ? (O[k] || new THREE.Vector3()).set(-B[k].x, B[k].y, B[k].z) : null;
+  }
   pose();
   gb.moved = true;
   if (act && act !== gb.act) { gb.act = act; V.onBend?.({ action: `${gb.joint} ${act}`, side: gb.side, joint: gb.joint, act }); }
@@ -1326,6 +1350,259 @@ function bendEnd(gb) {
 /* Whether any limb, the spine or the neck is bent by hand. */
 export const isBent = () => !!V && bent();
 
+/* The bends made by hand, as plain numbers (for saving, and for undo), or
+   null with none: each side's shoulder and hip directions, elbow and knee
+   angles, and the spine's and neck's turns. Rounded, so the same bends
+   always read the same. */
+const r4 = x => Math.round(x * 1e4) / 1e4;
+export function getJoints() {
+  if (!V || !bent()) return null;
+  const Z = V.pz, v3 = v => (v ? [r4(v.x), r4(v.y), r4(v.z)] : null), q4 = Q => [r4(Q.x), r4(Q.y), r4(Q.z), r4(Q.w)];
+  const side = B => ({ sh: v3(B.shDir), hip: v3(B.hipDir), el: r4(B.el), kn: r4(B.kn) });
+  return { R: side(Z.bend.R), L: side(Z.bend.L), spine: q4(Z.axial.spine), neck: q4(Z.axial.neck) };
+}
+/* Put bends back (getJoints' shape, or null for none) on whatever pose he
+   is in, at once. */
+export function setJoints(j) {
+  if (!V) return;
+  const Z = V.pz, v3 = a => (Array.isArray(a) && a.length === 3 ? new THREE.Vector3(...a).normalize() : null), num = x => (Number.isFinite(x) ? x : 0);
+  for (const s of ['R', 'L']) {
+    const B = Z.bend[s], d = j?.[s] || {};
+    B.shDir = v3(d.sh); B.hipDir = v3(d.hip); B.el = num(d.el); B.kn = num(d.kn);
+  }
+  for (const k of ['spine', 'neck']) {
+    const q = j?.[k];
+    if (Array.isArray(q) && q.length === 4) Z.axial[k].set(...q).normalize(); else Z.axial[k].identity();
+  }
+  Z.axBent = Math.abs(Z.axial.spine.w) < 0.99999 || Math.abs(Z.axial.neck.w) < 0.99999;
+  Z.ax0 = null;
+  if (bent()) seal();
+  pose(false); skinCPU(); pose();
+  draw();
+}
+
+/* ── Edit Mode's sizes and skin ──
+
+   setSizes: each muscle made bigger or smaller, by side ({ id: [left,
+   right] }), plus `all` for every muscle at once, the sum kept from
+   SIZE_LO to SIZE_HI. Each step of 1 moves the surface up to SIZE_CM
+   along its normal (out for bigger), so a muscle can go from about a
+   third thinner to several times its bulk: Edit Mode is for seeing what
+   that looks like, not for what a body can grow. A muscle changes by
+   its dome (domeOf): fullest in its middle, easing to nothing at its
+   edge, so it grows as a belly rather than a raised patch, and two
+   grown side by side keep the groove between them. The sides blend
+   across his middle over 3 cm where they differ. The shading follows
+   the new shape (reshade), at most about eight times a second while a
+   slider moves; `settle` (the default) also reskins the tap mesh to
+   match, which a slider being dragged leaves until it is let go. */
+export const SIZE_LO = -1, SIZE_HI = 3;
+const SIZE_CM = 2.5, SIZE_MAX = SIZE_CM * Math.max(-SIZE_LO, SIZE_HI);
+export function setSizes(sizes = {}, all = 0, { settle = true } = {}) {
+  if (!V || (!V.sizeOn && !all && !Object.keys(sizes).length)) return;
+  const g = V.body.mesh.geometry, n = g.attributes.position.count, X = V.T.geo.attributes.position.array, A = g.attributes.aSize;
+  const acc = V.sizeAcc ||= new Float32Array(n), ws = V.sizeW ||= new Float32Array(n);
+  acc.fill(0); ws.fill(0);
+  let any = false;
+  REGIONS.forEach((r, k) => {
+    const s = sizes[r.id], sl = s?.[0] || 0, sr = s?.[1] || 0;
+    if (!sl && !sr) return;
+    any = true;
+    const dm = regionDome(k), { idx } = V.sparse[k];
+    for (let j = 0; j < idx.length; j++) {
+      const w = dm[j];
+      if (!w) continue;
+      const i = idx[j], t = clamp((X[3 * i] + 1.5) / 3, 0, 1), sv = sr + (sl - sr) * t * t * (3 - 2 * t);
+      acc[i] += w * sv; ws[i] += w;
+    }
+  });
+  const mass = all ? massDome() : null;
+  if (all) any = true;
+  const out = A.array, q = 127 * SIZE_CM / SIZE_MAX;
+  for (let i = 0; i < n; i++) {
+    const v = (ws[i] ? acc[i] / Math.max(1, ws[i]) : 0) + (mass ? all * mass[i] : 0);
+    out[i] = Math.round(clamp(v, SIZE_LO, SIZE_HI) * q);
+  }
+  A.needsUpdate = true;
+  V.sizeOn = any;
+  V.F.uSize.value = any ? SIZE_MAX * V.T.cm : 0;
+  const now = performance.now();
+  if (settle || now - (V.shadeT || 0) > 120) { reshade(); V.shadeT = now; }
+  if (settle) { pose(false); skinCPU(); pose(); }
+  draw();
+}
+/* The shading normals for the sizes now: the body's own, turned by how
+   the resized surface's normals differ from the unresized one's, both
+   from the triangles round each place on the surface (its doubled
+   points, at the seams, as one), so the scan's own hard edges stay and a
+   seam shades the same on both sides. */
+function faceNormals(P, out) {
+  const I = V.body.mesh.geometry.index.array, L = welded().lead;
+  out.fill(0);
+  for (let t = 0; t < I.length; t += 3) {
+    const a = 3 * L[I[t]], b = 3 * L[I[t + 1]], c = 3 * L[I[t + 2]];
+    const ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2], vx = P[c] - P[a], vy = P[c + 1] - P[a + 1], vz = P[c + 2] - P[a + 2];
+    const x = uy * vz - uz * vy, y = uz * vx - ux * vz, z = ux * vy - uy * vx;
+    out[a] += x; out[a + 1] += y; out[a + 2] += z; out[b] += x; out[b + 1] += y; out[b + 2] += z; out[c] += x; out[c + 1] += y; out[c + 2] += z;
+  }
+  for (let i = 0; i < out.length; i += 3) { const l = Math.hypot(out[i], out[i + 1], out[i + 2]) || 1; out[i] /= l; out[i + 1] /= l; out[i + 2] /= l; }
+  return out;
+}
+function reshade() {
+  const g = V.body.mesh.geometry, NA = g.attributes.normal, N = NA.array, q = N instanceof Int8Array ? 127 : 1, n0 = V.n0, n = n0.length;
+  if (!V.sizeOn) {
+    if (!V.shaded) return;
+    for (let i = 0; i < n; i++) N[i] = q === 1 ? n0[i] : Math.round(n0[i] * q);
+    NA.needsUpdate = true; V.shaded = false;
+    return;
+  }
+  const P = g.attributes.position.array, S = g.attributes.aSize.array, o = SIZE_MAX / 127, { dir, lead } = welded();
+  const nu = V.nu || (V.nu = faceNormals(P, new Float32Array(n)));
+  const D = V.dispP ||= new Float32Array(n), nd = V.nd ||= new Float32Array(n);
+  for (let i = 0; i < n; i += 3) { const k = S[i / 3] * o; D[i] = P[i] + dir[i] * k; D[i + 1] = P[i + 1] + dir[i + 1] * k; D[i + 2] = P[i + 2] + dir[i + 2] * k; }
+  faceNormals(D, nd);
+  for (let i = 0; i < n; i += 3) {
+    const c = 3 * lead[i / 3];
+    let x = n0[i] + nd[c] - nu[c], y = n0[i + 1] + nd[c + 1] - nu[c + 1], z = n0[i + 2] + nd[c + 2] - nu[c + 2];
+    const l = Math.hypot(x, y, z) || 1;
+    x /= l; y /= l; z /= l;
+    if (q === 1) { N[i] = x; N[i + 1] = y; N[i + 2] = z; } else { N[i] = Math.round(x * q); N[i + 1] = Math.round(y * q); N[i + 2] = Math.round(z * q); }
+  }
+  NA.needsUpdate = true; V.shaded = true;
+}
+/* ── the shape of a resized muscle ──
+
+   welded(): the surface with the points that share a place (its seams:
+   UV seams, the head's and hands' grafts) joined into one (`lead`, as
+   seal() finds them), each place's edges to its neighbours (off, nb),
+   and the way each place moves when resized (`dir`, the normals of its
+   points averaged, written into aDir), so a seam never opens however far
+   a muscle goes.
+
+   domeOf(w): for the places where weight w passes a half, how far each
+   is from that edge across the surface (Dijkstra along the edges),
+   eased from 0 at the edge to 1 at `taper` in; by default all the way
+   to the muscle's middle (up to 14 cm), so it rises as a belly. regionDome(k), each
+   muscle's own (per point of its sparse list); massDome(), all the
+   muscle together for `all`, easing out over 6 cm at the hands, feet
+   and head. Each is worked out the first time it is needed. */
+function welded() {
+  if (V.weld) return V.weld;
+  const P = V.T.geo.attributes.position.array, n = P.length / 3, q = 1 / (V.T.meta?.posScale || 0.02);
+  const lead = new Int32Array(n), first = new Map();
+  for (let i = 0; i < n; i++) {
+    const k = (Math.round(P[3 * i] * q) + 32768) * 4294967296 + (Math.round(P[3 * i + 1] * q) + 32768) * 65536 + (Math.round(P[3 * i + 2] * q) + 32768);
+    const j = first.get(k);
+    if (j === undefined) { first.set(k, i); lead[i] = i; } else lead[i] = j;
+  }
+  const n0 = V.n0, dir = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { const l = 3 * lead[i]; dir[l] += n0[3 * i]; dir[l + 1] += n0[3 * i + 1]; dir[l + 2] += n0[3 * i + 2]; }
+  for (let i = 0; i < n; i++) {
+    const l = 3 * lead[i];
+    if (lead[i] === i) { const m = Math.hypot(dir[l], dir[l + 1], dir[l + 2]) || 1; dir[l] /= m; dir[l + 1] /= m; dir[l + 2] /= m; }
+  }
+  for (let i = 0; i < n; i++) { const l = 3 * lead[i]; if (lead[i] !== i) { dir[3 * i] = dir[l]; dir[3 * i + 1] = dir[l + 1]; dir[3 * i + 2] = dir[l + 2]; } }
+  const AD = V.body.mesh.geometry.attributes.aDir;
+  for (let i = 0; i < n; i++) AD.setXYZ(i, dir[3 * i], dir[3 * i + 1], dir[3 * i + 2]);
+  AD.needsUpdate = true;
+  const I = V.body.mesh.geometry.index.array, off = new Int32Array(n + 1);
+  for (let t = 0; t < I.length; t += 3) for (let e = 0; e < 3; e++) {
+    const a = lead[I[t + e]], b = lead[I[t + (e + 1) % 3]];
+    if (a !== b) { off[a + 1]++; off[b + 1]++; }
+  }
+  for (let i = 0; i < n; i++) off[i + 1] += off[i];
+  const nb = new Int32Array(off[n]), at = off.slice(0, n);
+  for (let t = 0; t < I.length; t += 3) for (let e = 0; e < 3; e++) {
+    const a = lead[I[t + e]], b = lead[I[t + (e + 1) % 3]];
+    if (a !== b) { nb[at[a]++] = b; nb[at[b]++] = a; }
+  }
+  return (V.weld = { lead, dir, off, nb });
+}
+function domeOf(w, taper) {
+  const { lead, off, nb } = welded(), P = V.T.geo.attributes.position.array, n = lead.length;
+  const len = (a, b) => Math.hypot(P[3 * a] - P[3 * b], P[3 * a + 1] - P[3 * b + 1], P[3 * a + 2] - P[3 * b + 2]);
+  const d = new Float64Array(n).fill(Infinity);   // (doubles: what the heap holds, so a place is never skipped for rounding)
+  /* a binary heap of (place, distance) */
+  const hi = [], hd = [];
+  const push = (i, v) => {
+    let c = hi.length; hi.push(i); hd.push(v);
+    while (c) { const p = (c - 1) >> 1; if (hd[p] <= hd[c]) break; [hi[p], hi[c]] = [hi[c], hi[p]]; [hd[p], hd[c]] = [hd[c], hd[p]]; c = p; }
+  };
+  const pop = () => {
+    const i = hi[0], v = hd[0], li = hi.pop(), lv = hd.pop();
+    if (hi.length) {
+      hi[0] = li; hd[0] = lv;
+      let c = 0;
+      for (;;) {
+        const l = 2 * c + 1, r = l + 1;
+        let m = c;
+        if (l < hi.length && hd[l] < hd[m]) m = l;
+        if (r < hi.length && hd[r] < hd[m]) m = r;
+        if (m === c) break;
+        [hi[m], hi[c]] = [hi[c], hi[m]]; [hd[m], hd[c]] = [hd[c], hd[m]]; c = m;
+      }
+    }
+    return [i, v];
+  };
+  for (let i = 0; i < n; i++) {
+    if (lead[i] !== i || w[i] < 0.5) continue;
+    let m = Infinity;
+    for (let e = off[i]; e < off[i + 1]; e++) if (w[nb[e]] < 0.5) m = Math.min(m, len(i, nb[e]));
+    if (m < Infinity) { d[i] = m; push(i, m); }
+  }
+  while (hi.length) {
+    const [i, di] = pop();
+    if (di > d[i]) continue;
+    for (let e = off[i]; e < off[i + 1]; e++) {
+      const j = nb[e];
+      if (w[j] < 0.5) continue;
+      const dj = di + len(i, j);
+      if (dj < d[j]) { d[j] = dj; push(j, dj); }
+    }
+  }
+  let mx = 0;
+  for (let i = 0; i < n; i++) if (d[i] < Infinity && d[i] > mx) mx = d[i];
+  const T = taper ?? clamp(0.95 * mx, 1.5, 14), out = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    if (lead[i] !== i || w[i] < 0.5) continue;
+    const x = Math.min(1, (d[i] === Infinity ? T : d[i]) / T);
+    out[i] = x * x * (3 - 2 * x);
+  }
+  for (let i = 0; i < n; i++) if (lead[i] !== i) out[i] = out[lead[i]];
+  return out;
+}
+function regionDome(k) {
+  const D = V.domes ||= [];
+  if (D[k]) return D[k];
+  const { idx, val } = V.sparse[k], w = new Float32Array(V.n0.length / 3);
+  for (let j = 0; j < idx.length; j++) w[idx[j]] = val[j];
+  const dm = domeOf(w), out = new Float32Array(idx.length);
+  for (let j = 0; j < idx.length; j++) out[j] = dm[idx[j]];
+  return (D[k] = out);
+}
+function massDome() {
+  if (V.mass) return V.mass;
+  const w = new Float32Array(V.n0.length / 3);
+  REGIONS.forEach((r, k) => {
+    if (r.deep) return;
+    const { idx, val } = V.sparse[k];
+    for (let j = 0; j < idx.length; j++) w[idx[j]] += val[j];
+  });
+  return (V.mass = domeOf(w, 6));
+}
+
+/* His skin tone: a colour for the flat skin and the neck's join, and the
+   same change, as a factor, on the head's and hands' photographs; null
+   for the model's own. */
+export function setTone(hex) {
+  if (!V) return;
+  const base = V.toneBase ||= new THREE.Color(V.T.mats.skin?.color || '#be8c70');
+  const t = hex ? new THREE.Color(hex) : base.clone(), f = new THREE.Color(t.r / base.r, t.g / base.g, t.b / base.b);
+  for (const m of V.body.mesh.material) if (isSkin(m.name)) m.color.copy(m.map ? f : t);
+  V.body.uniforms.uNeck.value.copy(t);
+  draw();
+}
+
 /* ── for the card ── */
 
 /* The exercise's muscle list (data.js `m`, most important first) → region
@@ -1367,6 +1644,8 @@ export async function show(box, mStr, { onTap } = {}) {
   /* standing at rest, still */
   const Z = V.pz;
   Z.idleK = 0; V.flexK = 0; V.F.uFlex.value = 0;
+  if (V.sizeOn) { V.sizeOn = false; V.F.uSize.value = 0; V.body.mesh.geometry.attributes.aSize.array.fill(0); V.body.mesh.geometry.attributes.aSize.needsUpdate = true; reshade(); skinCPU(); }
+  if (V.toneBase) setTone(null);
   if (Z.id !== 'rest' || bent() || Z.anim) setPose('rest', { snap: true });
   else pose();
   el.classList.remove('turned');
@@ -1455,6 +1734,7 @@ export function home() {
      flex    the muscle in focus swells and relaxes (study())
      idle    he breathes and shifts his weight
      bend    a drag from a handle (grips()) bends that joint (bendMove)
+     mirror  a limb bent by hand bends its pair the same (Edit Mode)
    Cheap to call with nothing changed: the tint is only redone when what
    it shows has. */
 export function setLook(look) {
