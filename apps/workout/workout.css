@@ -1520,21 +1520,21 @@ html.wk-ax .rest-bar{visibility:hidden}
 .wk .ax-list .pg-empty{padding:24px 14px}
 .wk .ax-list-h{display:flex;justify-content:space-between;padding:10px 14px 0;font-size:9.5px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;color:var(--text-3)}
 .wk .an-grp-h{padding:12px 14px 6px;font-size:9.5px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--blue)}
-.wk .an-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:10px 14px;background:none;border:none;
+.wk .ax-list .an-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:10px 14px;background:none;border:none;
   border-top:1px solid var(--border);border-left:2px solid transparent;color:var(--text);font-family:var(--font);text-align:left;cursor:pointer;transition:background .15s}
-.wk .an-row:hover{background:var(--bg-hover)}
-.wk .an-row.on{background:var(--bg-alt);border-left-color:var(--blue)}
-.wk .an-row-t{display:flex;flex-direction:column;gap:2px;min-width:0}
-.wk .an-row-n{font-size:13.5px;font-weight:600}
-.wk .an-row.ex .an-row-n{color:var(--blue)}
-.wk .an-row.ex .an-row-c{min-width:0;white-space:nowrap;font-size:11px}
-.wk .an-row.sw .an-row-n::before{content:'';display:inline-block;width:9px;height:9px;margin-right:7px;border-radius:2px;background:var(--sw);vertical-align:0}
-.wk .an-row.on .an-row-n{color:var(--blue)}
-.wk .an-row-n i{margin-left:7px;padding:1px 4px;border:1px solid var(--border-lt);border-radius:2px;font-style:normal;font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-3);vertical-align:2px}
-.wk .an-row-l{font-size:11.5px;line-height:1.35;color:var(--text-3)}
-.wk .an-row-c{flex-shrink:0;min-width:28px;padding:3px 6px;border-radius:2px;background:var(--bg);box-shadow:inset 0 0 0 1px var(--border);
+.wk .ax-list .an-row:hover{background:var(--bg-hover)}
+.wk .ax-list .an-row.on{background:var(--bg-alt);border-left-color:var(--blue)}
+.wk .ax-list .an-row-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.wk .ax-list .an-row-n{font-size:13.5px;font-weight:600}
+.wk .ax-list .an-row.ex .an-row-n{color:var(--blue)}
+.wk .ax-list .an-row.ex .an-row-c{min-width:0;white-space:nowrap;font-size:11px}
+.wk .ax-list .an-row.sw .an-row-n::before{content:'';display:inline-block;width:9px;height:9px;margin-right:7px;border-radius:2px;background:var(--sw);vertical-align:0}
+.wk .ax-list .an-row.on .an-row-n{color:var(--blue)}
+.wk .ax-list .an-row-n i{margin-left:7px;padding:1px 4px;border:1px solid var(--border-lt);border-radius:2px;font-style:normal;font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-3);vertical-align:2px}
+.wk .ax-list .an-row-l{font-size:11.5px;line-height:1.35;color:var(--text-3)}
+.wk .ax-list .an-row-c{flex-shrink:0;min-width:28px;padding:3px 6px;border-radius:2px;background:var(--bg);box-shadow:inset 0 0 0 1px var(--border);
   font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text-2);text-align:center;font-variant-numeric:tabular-nums}
-.wk .an-row-c.none{color:var(--text-3);opacity:.6}
+.wk .ax-list .an-row-c.none{color:var(--text-3);opacity:.6}
 
 /* A wide screen, or a phone on its side: the readout down the right,
    the list down the left (anatomy.js's WIDE is the same query). */
