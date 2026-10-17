@@ -15,17 +15,20 @@
 /* id (as in bodymap.js without f-/b- and -l/-r), name, group, and whether
    the region sits under the skin (shown as an overlay, not a tile). */
 export const REGIONS = [
+  ['scm', 'Sternocleidomastoid', 'Neck'],
   ['pec-up', 'Upper Chest', 'Chest'], ['pec', 'Chest', 'Chest'],
   ['delt-a', 'Front Delt', 'Shoulders'], ['delt-s', 'Side Delt', 'Shoulders'], ['rdelt', 'Rear Delt', 'Shoulders'],
+  ['supra', 'Supraspinatus', 'Shoulders', true], ['infra', 'Infraspinatus · Teres Minor', 'Shoulders'],
   ['trap', 'Upper Traps', 'Back'], ['trap-m', 'Mid Traps', 'Back'], ['rhom', 'Rhomboids', 'Back', true],
   ['lat', 'Lats', 'Back'], ['erec', 'Erectors', 'Back'],
   ['bi', 'Biceps', 'Arms'], ['brach', 'Brachialis', 'Arms'], ['tri-long', 'Triceps · Long Head', 'Arms'], ['tri-lat', 'Triceps · Lateral Head', 'Arms'],
   ['brad', 'Brachioradialis', 'Forearms'], ['fore-f', 'Wrist Flexors', 'Forearms'], ['fore-b', 'Wrist Extensors', 'Forearms'],
   ['abs-1', 'Upper Abs', 'Core'], ['abs-2', 'Mid Abs', 'Core'], ['abs-3', 'Lower Abs', 'Core'], ['obli', 'Obliques', 'Core'],
   ['serra', 'Serratus Anterior', 'Core'], ['tva', 'Transverse Abdominis', 'Core', true],
-  ['hipflex', 'Hip Flexors', 'Hips'], ['glute', 'Glutes', 'Hips'], ['addu', 'Adductors', 'Hips'],
+  ['hipflex', 'Hip Flexors', 'Hips'], ['glute', 'Glutes', 'Hips'], ['gmed', 'Glute Medius', 'Hips'], ['tfl', 'Tensor Fasciae Latae', 'Hips'],
+  ['addu', 'Adductors', 'Hips'],
   ['quad-rf', 'Quads · Rectus Femoris', 'Legs'], ['quad-vl', 'Quads · Vastus Lateralis', 'Legs'], ['quad-vm', 'Quads · Vastus Medialis', 'Legs'],
-  ['ham', 'Hamstrings', 'Legs'], ['gastro', 'Gastrocnemius', 'Legs'], ['soleus', 'Soleus', 'Legs'],
+  ['ham', 'Hamstrings', 'Legs'], ['gastro', 'Gastrocnemius', 'Legs'], ['soleus', 'Soleus', 'Legs'], ['tib', 'Tibialis Anterior', 'Legs'],
 ].map(([id, name, group, deep]) => ({ id, name, group, deep: !!deep }));
 
 /* A 2D body-map id (f-pec-up-l, b-trap-m …) → region id. */
@@ -51,6 +54,10 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const len = a => Math.hypot(a[0], a[1], a[2]);
 const norm = a => { const l = len(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 const perp = (h, a) => norm(sub(h, a.map(x => x * dot(h, a))));
+
+/* The sternocleidomastoid's line up the neck (see regionsFor): x, y, z
+   from the neck joint in trunk heights, and the band's half width there. */
+const SCM = [[0.074, -0.032, 0.122, 0.042], [0.096, 0.087, 0.062, 0.04], [0.092, 0.206, -0.01, 0.032]];
 
 export function regionsFor(T, overrides) {
   const { geo, bones, byName } = T;
@@ -126,6 +133,10 @@ export function regionsFor(T, overrides) {
       const g = win(t, 0.02, 0.55, 0.06) * ang(phi, 128, 232, 12);
       put('gastro', i, g);
       put('soleus', i, (1 - g) * win(t, 0.3, 0.84, 0.06) * ang(phi, 98, 262, 12));
+      /* tibialis anterior: the front of the shin just outside the tibia's
+         sharp crest (0°), its belly the upper two-thirds; the bare bone of
+         the inner shin stays bare, and the peroneals at the side too */
+      put('tib', i, win(t, 0.05, 0.62, 0.06) * ang(phi, 12, 72, 10));
     }
     if (/Pelvis|Spine|Neck|Clavicle|ShoulderHelper|Thigh/.test(bone)) {
       /* the trunk, by height between hip joint and neck (tt), distance out
@@ -146,27 +157,64 @@ export function regionsFor(T, overrides) {
       put('serra', i, win(tt, 0.44, 0.65, 0.04) * win(u, 0.55, 0.88, 0.06) * sideOn);
       put('tva', i, win(tt, -0.04, 0.32, 0.05) * win(u, -1, 0.62, 0.08) * win(nz, 0.1, 1.1, 0.2));
       put('hipflex', i, win(tt, -0.17, 0.03, 0.03) * win(u, 0.2, 0.6, 0.06) * front);
+      /* Sternocleidomastoid: a band from the top of the breastbone and the
+         inner collarbone (C0) up the front of the neck, turning round its
+         side (C1) to the bump behind the ear (C2). Points are from the neck
+         joint in trunk heights (x out from the midline, y up, z forward);
+         at each height the band is the skin within `hw` of the line, so it
+         narrows from its two heads at the bottom to the tendon at the top.
+         Upper traps take the side of the neck behind it. */
+      const k = ((p[1] - neck[1]) / span + 0.032) / 0.238;   // 0 at the breastbone, 1 behind the ear
+      if (k > -0.07 && k < 1.07) {
+        const x = u * xs / span, z = (p[2] - neck[2]) / span;
+        const [a, b, f] = k < 0.5 ? [SCM[0], SCM[1], k * 2] : [SCM[1], SCM[2], k * 2 - 1];
+        const d = Math.hypot(x - (a[0] + (b[0] - a[0]) * f), z - (a[2] + (b[2] - a[2]) * f));
+        put('scm', i, win(k, 0, 1, 0.07) * win(d, -1, a[3] + (b[3] - a[3]) * f, 0.012));
+      }
       /* upper traps: the slope from the neck to the shoulder and the top of
          the back, never the front of the chest or neck */
       const upperBack = win(tt, 0.84, 1.12, 0.05) * win(u, -1, 0.72, 0.08) * win(nz, -1.1, 0.12, 0.18) * win(N.getY(i) - nz * 0.4, 0.05, 1.5, 0.25);
       put('trap', i, upperBack);
+      /* The shoulder blade, either side of its spine, which climbs from
+         the blade's inner edge (u 0.35, tt 0.78) out to the point of the
+         shoulder: supraspinatus in the hollow above it, under the upper
+         traps (deep); infraspinatus and teres minor on the blade below it,
+         between the mid traps, the rear delt and the top of the lats. The
+         rear delt's cap, worked out round the arm, would run on over the
+         blade, so it gives way to them there. */
+      const spineAt = 0.78 + (u - 0.35) * 0.2;
+      put('supra', i, win(tt, spineAt + 0.01, spineAt + 0.1, 0.03) * win(u, 0.3, 0.82, 0.06) * win(nz, -1.1, 0.3, 0.2));
+      const infra = win(tt, 0.65, spineAt, 0.03) * win(u, 0.47, 0.8, 0.05) * back;
+      put('infra', i, infra);
+      w[ri.rdelt][i] *= 1 - infra;
       /* Back: mid traps between the shoulder blades, rhomboids under them,
          lats from the lower ribs and lumbar fascia up to the armpit, the
-         erectors either side of the lumbar spine, the glutes from the iliac
-         crest down to the gluteal fold (and round the upper side of the hip,
-         gluteus medius). */
+         erectors either side of the lumbar spine, and gluteus maximus from
+         the iliac crest down to the gluteal fold. */
       put('trap-m', i, win(tt, 0.52, 0.8, 0.04) * win(u, -1, 0.44, 0.06) * back);
       put('rhom', i, win(tt, 0.55, 0.76, 0.04) * win(u, 0.08, 0.36, 0.05) * back);
-      put('lat', i, win(tt, 0.25, 0.68, 0.04) * win(u, 0.3, 0.98, 0.06) * win(nz, -1.1, 0.05, 0.2) * (1 - win(tt, 0.52, 1, 0.02) * win(u, -1, 0.44, 0.04)));
+      put('lat', i, win(tt, 0.25, 0.68, 0.04) * win(u, 0.3, 0.98, 0.06) * win(nz, -1.1, 0.05, 0.2) * (1 - win(tt, 0.52, 1, 0.02) * win(u, -1, 0.44, 0.04)) * (1 - infra));
       put('erec', i, win(tt, 0.02, 0.5, 0.04) * win(u, -1, 0.3, 0.05) * back);
-      put('glute', i, Math.max(
-        win(tt, -0.12, 0.27, 0.04) * win(u, -1, 0.9, 0.06) * win(nz, -1.1, -0.05, 0.2),
-        win(tt, 0.06, 0.27, 0.04) * win(u, 0.55, 1.05, 0.06) * win(nxo, 0.3, 1.1, 0.2)));
+      /* gluteus maximus wraps round to the side of the hip low down, by
+         the top of the thigh bone, but higher up keeps to the back: its
+         front edge runs up and back from there to the crest by the sacrum */
+      put('glute', i, win(tt, -0.12, 0.27, 0.04) * win(u, -1, 0.9, 0.06) * win(nz, -1.1, -0.1 - 0.6 * Math.min(1, Math.max(0, tt / 0.13)), 0.2));
+      /* The side of the hip: gluteus medius above that edge, from the
+         iliac crest (under the obliques' overhang at the side) down to the
+         top of the thigh bone, and in front of it tensor fasciae latae,
+         from the front of the crest down and back towards the outside of
+         the thigh, in the thigh's own frame: from beside the hip flexors at
+         its top (30°) to the side (75°) a quarter of the way down. */
+      put('gmed', i, win(tt, -0.02, 0.27, 0.04) * win(u, 0.5, 1.05, 0.06) * win(nxo, 0.3, 1.1, 0.2) * win(nz, -1.1, 0.3, 0.2));
+      {
+        const [t, phi] = at(S.th, p), c = 30 + 45 * Math.min(1, Math.max(0, (t + 0.12) / 0.36));
+        put('tfl', i, win(t, -0.12, 0.22, 0.05) * ang(phi, c - 15, c + 15, 10));
+      }
     }
   }
   /* A vertex belongs mostly to one surface muscle: the strongest keeps its
      weight, the rest are scaled down so tiles don't double up. Deep
-     muscles (tva, rhomboids) stay as overlays. */
+     muscles (tva, rhomboids, supraspinatus) stay as overlays. */
   const surf = REGIONS.map((r, k) => (r.deep ? -1 : k)).filter(k => k >= 0);
   for (let i = 0; i < n; i++) {
     let best = -1, bv = 0;
@@ -268,8 +316,21 @@ export function regionPaint(T, hi = [], hi2 = [], MMAP) {
 /* Exercise muscle names (moves.js hi/hi2, data.js m: strings) → region ids,
    through the 2D map's own table so both agree on what "chest" is. */
 const ALIAS = { abs: 'rectus abdominis', serratus: 'serratus anterior', calves: 'gastrocnemius|soleus', 'upper chest': 'upper chest' };
+/* Muscles the 2D map has no shape for, straight to their regions, ahead
+   of the map's table (whose loose matching would otherwise reach for the
+   nearest name it has). The abductors are both muscles at the side of
+   the hip; medius alone is just itself. */
+const DIRECT = {
+  'rotator cuff': ['infra', 'supra'], infraspinatus: ['infra'], 'teres minor': ['infra'], 'external rotators': ['infra'],
+  supraspinatus: ['supra'],
+  'glute medius': ['gmed'], 'gluteus medius': ['gmed'], 'glute med': ['gmed'], 'hip abductors': ['gmed', 'tfl'], abductors: ['gmed', 'tfl'],
+  tfl: ['tfl'], 'tensor fasciae latae': ['tfl'],
+  tibialis: ['tib'], 'tibialis anterior': ['tib'],
+  neck: ['scm'], sternocleidomastoid: ['scm'],
+};
 export function regionsOfMuscle(name, MMAP) {
   const k = name.toLowerCase().replace(/\(.*?\)/g, '').trim();
+  if (DIRECT[k]) return [...DIRECT[k]];
   const keys = (ALIAS[k] || k).split('|');
   const out = new Set();
   for (const key of keys) {

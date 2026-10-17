@@ -473,7 +473,9 @@ writeFileSync(outDir + '/athlete.json', JSON.stringify({
     hands: { map: '../trainer/body.jpg', roughness: 0.64, paint: true },
     bareskin: { color: '#be8c70', roughness: 0.6, paint: true, hidden: true, ...(process.env.BODY_UV ? { normalMap: 'body_n.jpg', normalScale: 1 } : {}) },
     underskin: { color: '#be8c70', roughness: 0.6, paint: true, ...(process.env.BODY_UV ? { normalMap: 'body_n.jpg', normalScale: 1 } : {}) },
-    shorts: { map: 'shorts.jpg', normalMap: 'shorts_n.jpg', normalScale: 0.14, color: '#ffffff', roughness: 0.83, sheen: 0.22, doubleSide: true, paint: true },
+    /* fit 'legs': avatar.js smooths the shorts and fits their UVs on load
+       (span: cm from hem to waistband top); shorts_texture.py draws them */
+    shorts: { map: 'shorts.jpg', normalMap: 'shorts_n.jpg', normalScale: 0.9, color: '#ffffff', roughness: 0.82, sheen: 0.25, doubleSide: true, paint: true, fit: 'legs', span: 37, anisotropy: 8 },
   },
   bones,
 }));

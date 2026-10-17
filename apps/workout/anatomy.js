@@ -9,9 +9,15 @@
    which nerve runs it, and what in your program trains it — each of
    those a way into that exercise's card.
 
-   Settings (the sliders button) dress the body: shorts on or off, every
-   muscle in its own colour or its group's, a slow auto-spin, and a
-   hologram skin. The quiz runs in the readout: name the muscle that
+   Settings (the sliders button) pose and dress the body: a pose, shorts
+   on or off, the deep layer, colour by muscle, group or this week's
+   training (the training map) or by recovery (time since each muscle
+   last worked), a pulse on the selected muscle, idle life (breathing, a
+   small weight shift), bending a limb yourself — the muscles doing that
+   movement light up while you do — a slow auto-spin, and a hologram
+   skin.
+   Search finds muscles by name or by what they do ("elbow flexion"),
+   and exercises too: pick one and the body lights what it works. The quiz runs in the readout: name the muscle that
    lights up, or find the one named on the body, with the muscles you
    miss coming round more often.
 
@@ -24,9 +30,10 @@
 
 import { PROGRAM, MMAP } from './data.js?v=3d-oct14d';
 import { load, save } from './store.js?v=3d-oct14d';
-import { REGIONS, regionsOfMuscle, regionOfMapId } from './muscles3d.js?v=3d-oct14e';
+import { REGIONS, regionsOfMuscle, regionOfMapId } from './muscles3d.js?v=3d-oct16g';
 import { MUSCLE_SVG } from './bodymap.js?v=3d-oct14d';
-import { resEx } from './rank.js?v=3d-oct16a';
+import { resEx, setCountOf } from './rank.js?v=3d-oct16g';
+import { weekWork, lastDone } from './sessions.js?v=3d-oct16g';
 
 /* ── the reference ──
 
@@ -38,7 +45,9 @@ import { resEx } from './rank.js?v=3d-oct16a';
 
    Standard anatomy-text attachments (Gray's, Moore's), in plain words
    first where a plain word exists, checked against Kenhub,
-   TeachMeAnatomy and Wikipedia's Gray's-sourced pages in Oct 2026. The
+   TeachMeAnatomy and Wikipedia's Gray's-sourced pages in Oct 2026; the
+   training notes on the six added then (supraspinatus to the neck) each
+   rest on a PubMed study. The
    training notes keep to what studies support: where they disagree
    (upper-ab bias, brachioradialis by grip) the note says so. Upper, mid and lower abs are one
    muscle, rectus abdominis, in three bands; the body map splits it the
@@ -188,12 +197,12 @@ const A = {
     i: 'Lesser trochanter, a knob on the inside of the top of the thigh bone',
     v: 'Psoas: branches from L1–L3. Iliacus: femoral nerve (L2–L3)',
     t: 'They do most of the lifting in hanging leg raises; the abs hold the pelvis curled.' },
-  'glute': { l: 'Gluteus maximus (gluteus medius at the upper side)',
-    a: 'Drives the hip straight from a bend (hip extension) and turns the thigh outward; medius holds the pelvis level on one leg.',
+  'glute': { l: 'Gluteus maximus',
+    a: 'Drives the hip straight from a bend (hip extension), as when you stand up from a squat or climb, and turns the thigh outward; its upper fibers help lift the thigh out to the side.',
     o: 'Back of the hip bone (posterior ilium), the sacrum and tailbone, and the sacrotuberous ligament',
     i: 'Iliotibial band and the gluteal tuberosity at the back of the thigh bone',
-    v: 'Inferior gluteal nerve (L5–S2); medius by the superior gluteal nerve (L4–S1)',
-    t: 'The largest muscle in the body. Hip thrusts load it at full extension; deep split squats load it stretched.' },
+    v: 'Inferior gluteal nerve (L5–S2)',
+    t: 'By volume, the largest single muscle in the body. Hip thrusts load it hardest at full hip extension, but in a 9-week trial in beginners squats grew it about as much, and full squats grew it more than half squats.' },
   'addu': { l: 'Adductors (longus, brevis, magnus), with gracilis and pectineus',
     a: 'Draw the thigh in toward the midline; adductor magnus also straightens the hip, like a hamstring.',
     o: 'Front of the pubic bone and its lower branch; magnus also from the sitting bone (ischial tuberosity)',
@@ -236,7 +245,90 @@ const A = {
     i: 'Heel bone (calcaneus), through the Achilles tendon',
     v: 'Tibial nerve (S1–S2)',
     t: 'It does not cross the knee, so it works whether the knee is bent or straight. Bent-knee raises take the gastrocnemius out, but standing raises grow the soleus about as well.' },
+  'supra': { l: 'Supraspinatus', u: 'the trapezius',
+    a: 'Helps the deltoid lift the arm out to the side, and holds the ball of the shoulder centered in its socket.',
+    o: 'The hollow above the spine of the shoulder blade (supraspinous fossa)',
+    i: 'Top facet of the greater tubercle, the outer knob at the top of the humerus',
+    v: 'Suprascapular nerve (C5–C6)',
+    t: 'It switches on just before the arm moves, at the same time as the deltoid, infraspinatus and traps, so it does not start the lift alone. Thumbs-up raises angled slightly forward ("full can") work it as hard as thumbs-down ones ("empty can"), with less deltoid.' },
+  'infra': { l: 'Infraspinatus and teres minor',
+    a: 'Turn the arm outward (external rotation) and hold the ball of the shoulder down and back in its socket against the deltoid\'s upward pull. Teres minor also helps bring a raised arm back down to the side.',
+    o: 'Infraspinatus: the hollow below the spine of the shoulder blade (infraspinous fossa). Teres minor: upper two-thirds of the outer edge of the shoulder blade (lateral border)',
+    i: 'Back of the greater tubercle of the humerus: infraspinatus to its middle facet, teres minor to the lowest',
+    v: 'Infraspinatus: suprascapular nerve (C5–C6). Teres minor: axillary nerve (C5–C6)',
+    t: 'They are the main external rotators. In a fine-wire EMG study, side-lying external rotation with the elbow at the side worked both harder than any of the standing or prone versions tested.' },
+  'gmed': { l: 'Gluteus medius (gluteus minimus beneath)',
+    a: 'Lifts the thigh out to the side (abduction) and, when you stand on one leg, keeps the pelvis level. Its front fibers turn the thigh inward, its back fibers outward. Gluteus minimus, under it, does much the same.',
+    o: 'Outer face of the upper hip bone, below its crest (gluteal surface of the ilium, between the anterior and posterior gluteal lines)',
+    i: 'Outer face of the greater trochanter, the big knob at the top of the thigh bone',
+    v: 'Superior gluteal nerve (L4–S1), which also runs gluteus minimus and the TFL',
+    t: 'When it is weak, the pelvis drops on the side of the lifted leg as you stand on the other (a positive Trendelenburg sign). In EMG studies, side-lying leg raises and side planks with a leg raise worked it hardest, with single-leg squats close behind.' },
+  'tfl': { l: 'Tensor fasciae latae',
+    a: 'Helps lift the thigh forward and out to the side and turn it inward, and tightens the iliotibial band, steadying the knee when you stand on that leg.',
+    o: 'Front of the outer lip of the hip crest and the anterior superior iliac spine (ASIS), the bony point at the front of the hip',
+    i: 'The iliotibial band, which runs down the outside of the thigh to a bump on the outer top of the shin (Gerdy\'s tubercle, lateral tibial condyle)',
+    v: 'Superior gluteal nerve (L4–S1)',
+    t: 'It shares hip abduction with the gluteus medius but also turns the thigh in. In a fine-wire EMG study, clamshells, band side-steps, single-leg bridges and quadruped hip extensions worked the glutes significantly more than the TFL.' },
+  'tib': { l: 'Tibialis anterior',
+    a: 'Pulls the foot up (dorsiflexion) and turns the sole inward (inversion); helps hold up the inner arch. The strongest muscle that pulls the foot up.',
+    o: 'Outer surface of the upper two-thirds of the shinbone (lateral condyle and lateral surface of the tibia), and the membrane between tibia and fibula (interosseous membrane)',
+    i: 'Inner side of the midfoot: the medial cuneiform and the base of the first metatarsal',
+    v: 'Deep fibular (peroneal) nerve (L4–L5)',
+    t: 'It lifts the toes clear as the leg swings through and lowers the foot under control after the heel lands; if its nerve is damaged the foot drops and drags. Common "shin splints" (medial tibial stress syndrome) hurt along the inner back edge of the shin, away from this muscle, and are mainly a bone-stress injury.' },
+  'scm': { l: 'Sternocleidomastoid',
+    a: 'One side turns the face to the opposite side and tilts the head toward the same shoulder; both together bend the neck forward and, when you breathe hard, lift the breastbone.',
+    o: 'Two heads: the top front of the breastbone (manubrium) and the top of the inner third of the collarbone (medial clavicle)',
+    i: 'The bony bump behind the ear (mastoid process) and the outer half of the superior nuchal line at the back of the skull',
+    v: 'Spinal accessory nerve (cranial nerve XI); C2–C3 carry its sense of position',
+    t: 'The right one turns your head to the left. In a 12-week MRI study, squats, deadlifts, push presses and rows did not grow the neck muscles; only direct neck work did, and only in the muscles it trained.' },
 };
+
+/* Joint actions for search ("elbow flexion" finds every muscle that
+   does it), one shared vocabulary across muscles. */
+const TAGS = {
+  'pec-up':   ['shoulder flexion', 'horizontal adduction', 'shoulder internal rotation'],
+  'pec':      ['horizontal adduction', 'shoulder adduction', 'shoulder extension', 'shoulder internal rotation'],
+  'delt-a':   ['shoulder flexion', 'shoulder internal rotation', 'horizontal adduction'],
+  'delt-s':   ['shoulder abduction', 'horizontal abduction'],
+  'rdelt':    ['horizontal abduction', 'shoulder extension', 'shoulder external rotation'],
+  'trap':     ['scapular elevation', 'scapular upward rotation', 'neck extension'],
+  'trap-m':   ['scapular retraction'],
+  'rhom':     ['scapular retraction', 'scapular elevation', 'scapular downward rotation'],
+  'lat':      ['shoulder extension', 'shoulder adduction', 'shoulder internal rotation'],
+  'erec':     ['spinal extension', 'lateral flexion', 'trunk bracing'],
+  'bi':       ['elbow flexion', 'forearm supination', 'shoulder flexion'],
+  'brach':    ['elbow flexion'],
+  'tri-long': ['elbow extension', 'shoulder extension', 'shoulder adduction'],
+  'tri-lat':  ['elbow extension'],
+  'brad':     ['elbow flexion', 'forearm pronation', 'forearm supination'],
+  'fore-f':   ['wrist flexion', 'wrist radial deviation', 'wrist ulnar deviation'],
+  'fore-b':   ['wrist extension', 'wrist radial deviation', 'wrist ulnar deviation'],
+  'abs-1':    ['spinal flexion', 'trunk bracing'],
+  'abs-2':    ['spinal flexion', 'trunk bracing'],
+  'abs-3':    ['spinal flexion', 'posterior pelvic tilt', 'trunk bracing'],
+  'obli':     ['trunk rotation', 'lateral flexion', 'spinal flexion', 'trunk bracing'],
+  'serra':    ['scapular protraction', 'scapular upward rotation'],
+  'tva':      ['trunk bracing'],
+  'hipflex':  ['hip flexion', 'spinal flexion'],
+  'glute':    ['hip extension', 'hip external rotation', 'hip abduction'],
+  'addu':     ['hip adduction', 'hip extension', 'hip flexion'],
+  'quad-rf':  ['knee extension', 'hip flexion'],
+  'quad-vl':  ['knee extension'],
+  'quad-vm':  ['knee extension'],
+  'ham':      ['knee flexion', 'hip extension'],
+  'gastro':   ['ankle plantar flexion', 'knee flexion'],
+  'soleus':   ['ankle plantar flexion'],
+  'supra':    ['shoulder abduction', 'shoulder stabilization'],
+  'infra':    ['shoulder external rotation', 'shoulder stabilization'],
+  'gmed':     ['hip abduction', 'hip internal rotation', 'pelvic stabilization'],
+  'tfl':      ['hip abduction', 'hip flexion', 'hip internal rotation'],
+  'tib':      ['ankle dorsiflexion', 'foot inversion'],
+  'scm':      ['neck rotation', 'neck flexion', 'neck lateral flexion'],
+};
+
+/* A muscle's reference, or a stand-in for one the rig has but this table
+   does not yet, so a new region can never break the readout. */
+const info = id => A[id] || { l: R(id)?.name || id, a: '', o: '—', i: '—', v: '—' };
 
 const R = id => REGIONS.find(r => r.id === id);
 const GROUPS = [...new Set(REGIONS.map(r => r.group))];
@@ -254,15 +346,15 @@ const I = {
   set:   ico('<path d="M4 6h9"/><path d="M17 6h3"/><path d="M4 12h3"/><path d="M11 12h9"/><path d="M4 18h11"/><path d="M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>'),
 };
 
-/* Colours for "show every muscle": each muscle its own hue, spread round
+/* Colours for "colour the body": each muscle its own hue, spread round
    the wheel by the golden angle so neighbours differ, or one hue per
    group. Both keep out of 0–50°, the skin's own range, so a colour never
-   reads as skin. The deep muscles stay out: they would muddy the ones
-   over them. */
+   reads as skin. The deep muscles are coloured only with the deep layer
+   on: otherwise they would muddy the ones over them. */
 const SURFACE = REGIONS.filter(r => !r.deep);
 const HUE = {
-  muscle: Object.fromEntries(SURFACE.map((r, i) => [r.id, 55 + (i * 137.508) % 290])),
-  group: Object.fromEntries(SURFACE.map(r => [r.id, 55 + GROUPS.indexOf(r.group) * 290 / GROUPS.length])),
+  muscle: Object.fromEntries(REGIONS.map((r, i) => [r.id, 55 + (i * 137.508) % 290])),
+  group: Object.fromEntries(REGIONS.map(r => [r.id, 55 + GROUPS.indexOf(r.group) * 290 / GROUPS.length])),
 };
 const swatch = (id, by) => HUE[by]?.[id] === undefined ? null : `hsl(${Math.round(HUE[by][id])}, 72%, 55%)`;
 
@@ -301,19 +393,85 @@ function trainers() {
   return by;
 }
 
+/* ── the training map ──
+   The sets each muscle got this week. Each exercise brings its sets
+   (logged, or its prescribed sets when it was ticked off without them),
+   counted in full for a primary muscle and as half for a supporting one,
+   the usual way of counting "fractional" sets, and not at all for a
+   stabilizer. The bands follow the dose most studies point to for
+   growth, about 10–20 hard sets a week per muscle. */
+const BANDS = [[0.5, 'Under 5', 'hsl(215, 80%, 62%)'], [5, '5–9', 'hsl(175, 65%, 45%)'], [10, '10–20', 'hsl(135, 62%, 48%)'], [20.5, 'Over 20', 'hsl(42, 95%, 55%)']];
+const bandOf = v => { let b = null; for (const x of BANDS) if (v >= x[0]) b = x; return b; };
+const fmtSets = v => (Number.isInteger(v) ? String(v) : v.toFixed(1));
+function weekSets() {
+  const byName = new Map(), out = new Map();
+  PROGRAM.forEach(day => day.sections.forEach(sec => sec.ex.forEach(raw => { const ex = resEx(raw); byName.set(ex.n, ex); })));
+  for (const [n, w] of weekWork()) {
+    const ex = byName.get(n), sets = ex ? Math.max(w.sets, w.checked ? setCountOf(ex) : 0) : 0;
+    if (!sets) continue;
+    for (const [id, tier] of tiersOf(ex.m || '')) if (tier < 3) out.set(id, (out.get(id) || 0) + sets * (tier === 1 ? 1 : 0.5));
+  }
+  return out;
+}
+
+/* ── the recovery map ──
+   How long since each muscle last worked as a primary or supporting
+   muscle: from the sessions' own clock (each set's time) and, for days
+   finished before timing existed, the logbook's date, taken as that
+   evening. The bands follow the usual guidance that a muscle trained
+   hard wants about two to three days before it is trained hard again;
+   past four days it is due, and after two weeks it is left uncoloured. */
+const REST = [[0, 'Just trained', 'hsl(5, 80%, 60%)'], [24, 'Recovering', 'hsl(38, 95%, 55%)'], [48, 'Ready', 'hsl(135, 62%, 48%)'], [96, 'Due', 'hsl(215, 80%, 62%)']];
+const REST_MAX = 14 * 24;
+function lastWorked() {
+  const when = new Map();
+  const stamp = (ex, t) => { for (const [id, tier] of tiersOf(ex.m || '')) if (tier < 3 && t > (when.get(id) || 0)) when.set(id, t); };
+  for (const [n, t] of lastDone()) { const e = exs.get(n); if (e) stamp(e.ex, t); }
+  for (const e of load('bp_log', [])) {
+    const day = PROGRAM[e.di];
+    if (!day || !e.d) continue;
+    const t = new Date(e.d + 'T18:00').getTime();
+    day.sections.forEach(sec => sec.opt || sec.ex.forEach(raw => stamp(resEx(raw), t)));
+  }
+  return when;
+}
+const hoursSince = id => { const t = rested.get(id); return t ? Math.max(0, (Date.now() - t) / 36e5) : null; };
+const restBand = h => (h == null || h > REST_MAX ? null : REST.reduce((b, x) => (h >= x[0] ? x : b), null));
+const ago = h => (h < 1 ? 'within the hour' : h < 24 ? `${Math.round(h)} h ago` : `${Math.round(h / 24)} day${Math.round(h / 24) === 1 ? '' : 's'} ago`);
+const agoShort = h => (h == null ? '—' : h < 24 ? `${Math.round(h)}h` : `${Math.round(h / 24)}d`);
+
+/* ── exercises ──
+   Every exercise the program runs, once, with where it lives, for search
+   and for exercise view (`exv`): the body lit by what one exercise works,
+   primary, supporting and stabilizing. */
+function exercises() {
+  const out = new Map();
+  PROGRAM.forEach((day, di) => day.sections.forEach((sec, si) => sec.ex.forEach((raw, ei) => {
+    const ex = resEx(raw);
+    if (!out.has(ex.n)) out.set(ex.n, { ex, slot: [di, si, ei] });
+  })));
+  return out;
+}
+
 /* ── state ── */
 const PREF = 'bp_anat';
 const pref = load(PREF, {});
 let sel = R(pref.sel) ? pref.sel : 'pec';
 let min = !!pref.min;    // the readout folded down to its name
-/* the settings; atlas is '' (off), 'muscle' or 'group' */
-const look = { shorts: true, atlas: '', spin: false, holo: false, ...(pref.look || {}) };
-if (!['', 'muscle', 'group'].includes(look.atlas)) look.atlas = '';
+/* the settings; atlas is how the body is coloured: '' (not at all),
+   'muscle', 'group', 'week' (the training map) or 'rest' (recovery) */
+const look = { shorts: true, atlas: '', spin: false, holo: false, deep: false, flex: false, idle: false, bend: false, pose: 'rest', ...(pref.look || {}) };
+if (!['', 'muscle', 'group', 'week', 'rest'].includes(look.atlas)) look.atlas = '';
 /* quiz record, id → [right, asked] */
 const stats = pref.quiz && typeof pref.quiz === 'object' ? pref.quiz : {};
 let hudOn = true;        // the readout is up (a tap on empty space puts it away)
 let quiz = null;         // the quiz under way: { kind, id, lit, opts, done, picked, right, total, streak }
 let grp = '', qry = '';
+let week = new Map();    // weekSets()
+let rested = new Map();  // lastWorked()
+let exs = new Map();     // exercises()
+let exv = null;          // the exercise being viewed: { n, ex, slot, tiers: Map(region → tier) }
+let bending = null;      // { action, side } while a limb is being bent by hand
 let X = null;            // the full-screen layer, #ax
 let idx = new Map();     // trainers()
 let ctx = null;          // { loadMV, free, layer } from index.js
@@ -322,8 +480,28 @@ let is3d = false;
 let ro = null;
 
 const keep = () => save(PREF, { sel, min, look, quiz: stats });
-const atlasMap = () => look.atlas ? new Map(SURFACE.map(r => [r.id, swatch(r.id, look.atlas)])) : null;
-const wide = () => matchMedia('(min-width: 900px)').matches;
+const css = n => getComputedStyle(X).getPropertyValue(n).trim();
+
+/* The colour a muscle wears right now, or null: the exercise's tiers in
+   exercise view, else the training map's band, else its own or its
+   group's hue. */
+function colourOf(id) {
+  if (exv) return exv.tiers.has(id) ? [null, css('--blue'), css('--amber'), 'hsl(210, 30%, 72%)'][exv.tiers.get(id)] : null;
+  if (R(id)?.deep && !look.deep) return null;
+  if (look.atlas === 'week') return bandOf(week.get(id) || 0)?.[2] || null;
+  if (look.atlas === 'rest') return restBand(hoursSince(id))?.[2] || null;
+  return look.atlas ? swatch(id, look.atlas) : null;
+}
+function atlasMap() {
+  const m = new Map();
+  for (const r of REGIONS) { const c = colourOf(r.id); if (c) m.set(r.id, c); }
+  return m.size ? m : null;
+}
+/* Side panels (readout right, list left) on a wide screen, and on a
+   phone turned on its side, where a readout along the bottom would leave
+   the body a strip. workout.css uses the same query. */
+const WIDE = matchMedia('(min-width: 900px), (min-aspect-ratio: 4/3) and (min-width: 600px)');
+const wide = () => WIDE.matches;
 const $ = s => X.querySelector(s);
 
 /* index.js lends the 3D loader it shares with the exercise card, says
@@ -338,8 +516,8 @@ export const isOpen = () => !!X && !X.hidden;
 export function open() {
   X = ctx.layer();
   if (!X || isOpen()) return;
-  idx = trainers();
-  is3d = false; hudOn = true;
+  idx = trainers(); week = weekSets(); exs = exercises(); rested = lastWorked();
+  is3d = false; hudOn = true; exv = null;
   X.innerHTML = layerHTML();
   X.hidden = false;
   document.documentElement.classList.add('wk-ax');
@@ -359,7 +537,7 @@ export function close(fromPop) {
   removeEventListener('popstate', onPop);
   X.hidden = true;
   X.innerHTML = '';
-  is3d = false; quiz = null;
+  is3d = false; quiz = null; exv = null;
   document.documentElement.classList.remove('wk-ax');
   if (!fromPop && history.state?.ax) history.back();
   ctx.closed?.();
@@ -372,13 +550,15 @@ export function escape() {
   if (!$('#ax-set').hidden) toggleSet(false);
   else if (!$('#ax-drawer').hidden) toggleList(false);
   else if (quiz) endQuiz();
+  else if (exv) leaveExercise();
   else close();
 }
 
 /* Settings changed the program's kit: the exercise lists may differ. */
 export function refresh() {
   if (!isOpen()) return;
-  idx = trainers();
+  idx = trainers(); week = weekSets(); exs = exercises(); rested = lastWorked();
+  if (exv) exv = exs.has(exv.n) ? viewOf(exv.n) : null;
   paint();
 }
 
@@ -396,11 +576,12 @@ function layerHTML() {
       </div>
     </header>
     <div class="ax-load" id="ax-load">Loading the 3D body…</div>
+    <div class="ax-legend" id="ax-legend" hidden></div>
     <div class="ax-set" id="ax-set" hidden></div>
     <section class="ax-hud" id="ax-hud" aria-live="polite"></section>
     <aside class="ax-drawer" id="ax-drawer" hidden aria-label="Muscles">
       <div class="ax-drawer-h">
-        <input id="an-q" class="ax-q" type="search" placeholder="Search — deltoid, quads, lats…" value="${esc(qry)}" autocomplete="off" aria-label="Search muscles">
+        <input id="an-q" class="ax-q" type="search" placeholder="Muscle, exercise or action" value="${esc(qry)}" autocomplete="off" aria-label="Search muscles, exercises and actions">
         <button type="button" class="ax-btn" data-act="an-list" aria-label="Close the list">${I.close}</button>
       </div>
       <div class="an-groups" id="an-groups"></div>
@@ -412,12 +593,17 @@ function layerHTML() {
 function shown() {
   const t = qry.trim().toLowerCase();
   return REGIONS.filter(r => (!grp || r.group === grp) &&
-    (!t || [r.name, r.group, A[r.id].l].some(s => s.toLowerCase().includes(t))));
+    (!t || [r.name, r.group, info(r.id).l, ...(TAGS[r.id] || [])].some(s => s.toLowerCase().includes(t))));
+}
+/* Exercises the search matches, by name (only while searching) */
+function shownEx() {
+  const t = qry.trim().toLowerCase();
+  return t.length < 2 ? [] : [...exs.values()].filter(e => e.ex.n.toLowerCase().includes(t));
 }
 
 /* The readout: a chart of the muscle, tied to it by the line. */
 function hudHTML() {
-  const r = R(sel), a = A[sel], rs = shown().length ? shown() : REGIONS, at = rs.findIndex(x => x.id === sel);
+  const r = R(sel), a = info(sel), rs = shown().length ? shown() : REGIONS, at = rs.findIndex(x => x.id === sel), wk = week.get(sel) || 0;
   const tr = [...(idx.get(sel)?.values() || [])].sort((x, y) => x.tier - y.tier || x.n.localeCompare(y.n));
   const tiers = [1, 2, 3].map(t => [t, tr.filter(e => e.tier === t)]).filter(([, l]) => l.length);
   return `<div class="ax-hud-h">
@@ -433,7 +619,8 @@ function hudHTML() {
       </div>
     </div>
     <div class="ax-hud-body">
-      <p class="ax-does">${a.a}</p>
+      ${a.a ? `<p class="ax-does">${a.a}</p>` : ''}
+      ${TAGS[sel]?.length ? `<div class="ax-tags">${TAGS[sel].map(t => `<button type="button" class="ax-tag" data-act="an-tag" data-t="${esc(t)}">${esc(t)}</button>`).join('')}</div>` : ''}
       <dl class="ax-rows">
         <div><dt>Origin</dt><dd>${a.o}</dd></div>
         <div><dt>Insertion</dt><dd>${a.i}</dd></div>
@@ -442,7 +629,7 @@ function hudHTML() {
       ${a.u ? `<p class="ax-note">Deep muscle: it lies under ${a.u}, so the body shows it through them.</p>` : ''}
       ${a.t ? `<p class="ax-note">${a.t}</p>` : ''}
       <div class="ax-train">
-        <div class="ax-sub">In your program</div>
+        <div class="ax-sub">In your program${wk ? `<b>${fmtSets(wk)} set${wk === 1 ? '' : 's'} this week</b>` : ''}${hoursSince(sel) != null ? `<b>trained ${ago(hoursSince(sel))}</b>` : ''}</div>
         ${tiers.length ? tiers.map(([t, l]) => `<div class="ax-tier">
           <span class="ax-tier-l lvl-${t}">${TIER[t]}</span>
           <div class="ax-exs">${l.map(e => `<button type="button" class="an-ex lvl-${t}" data-act="row" data-di="${e.slot[0]}" data-si="${e.slot[1]}" data-ei="${e.slot[2]}">${esc(e.n)}</button>`).join('')}</div>
@@ -457,23 +644,27 @@ function groupsHTML() {
 }
 
 function listHTML() {
-  const rs = shown();
-  if (!rs.length) return `<div class="pg-empty">No muscle matches "${esc(qry)}".</div>`;
-  return `<div class="ax-list-h"><span>${rs.length} muscle${rs.length === 1 ? '' : 's'}</span><span>In program</span></div>` +
+  const rs = shown(), xs = shownEx(), byWeek = look.atlas === 'week', byRest = look.atlas === 'rest';
+  if (!rs.length && !xs.length) return `<div class="pg-empty">Nothing matches "${esc(qry)}".</div>`;
+  const exHTML = xs.length ? `<div class="an-grp-h">Exercises</div>` + xs.map(e => `<button type="button" class="an-row ex" data-act="an-exv" data-n="${esc(e.ex.n)}">
+      <span class="an-row-t"><span class="an-row-n">${esc(e.ex.n)}</span><span class="an-row-l">${esc(e.ex.m || '')}</span></span>
+      <span class="an-row-c">${esc(e.ex.s || '')}</span>
+    </button>`).join('') : '';
+  return exHTML + (rs.length ? `<div class="ax-list-h"><span>${rs.length} muscle${rs.length === 1 ? '' : 's'}</span><span>${byWeek ? 'Sets this week' : byRest ? 'Last trained' : 'In program'}</span></div>` : '') +
     [...new Set(rs.map(r => r.group))].map(g =>
       `<div class="an-grp-h">${g}</div>` + rs.filter(r => r.group === g).map(r => {
-        const n = idx.get(r.id)?.size || 0;
-        const sw = look.atlas && swatch(r.id, look.atlas);
+        const n = byWeek ? week.get(r.id) || 0 : byRest ? (hoursSince(r.id) ?? 0) : idx.get(r.id)?.size || 0;
+        const sw = !exv && colourOf(r.id);
         return `<button type="button" class="an-row${r.id === sel ? ' on' : ''}${sw ? ' sw' : ''}" data-act="an-pick" data-id="${r.id}"${r.id === sel ? ' aria-current="true"' : ''}${sw ? ` style="--sw:${sw}"` : ''}>
-          <span class="an-row-t"><span class="an-row-n">${r.name}${r.deep ? '<i>deep</i>' : ''}</span><span class="an-row-l">${A[r.id].l}</span></span>
-          <span class="an-row-c${n ? '' : ' none'}" title="${n} exercise${n === 1 ? '' : 's'} in your program work${n === 1 ? 's' : ''} it">${n}</span>
+          <span class="an-row-t"><span class="an-row-n">${r.name}${r.deep ? '<i>deep</i>' : ''}</span><span class="an-row-l">${info(r.id).l}</span></span>
+          <span class="an-row-c${n ? '' : ' none'}" title="${byRest ? (hoursSince(r.id) == null ? 'Not trained yet' : `Trained ${ago(hoursSince(r.id))}`) : byWeek ? `${fmtSets(n)} sets this week` : `${n} exercise${n === 1 ? '' : 's'} in your program work${n === 1 ? 's' : ''} it`}">${byRest ? agoShort(hoursSince(r.id)) : byWeek ? fmtSets(n) : n}</span>
         </button>`;
       }).join('')).join('');
 }
 
 function paint() {
   const hud = $('#ax-hud');
-  hud.innerHTML = quiz ? quizHTML() : hudHTML();
+  hud.innerHTML = quiz ? quizHTML() : exv ? exHTML() : hudHTML();
   hud.classList.toggle('min', min && !quiz);
   hud.classList.toggle('quiz', !!quiz);
   $('#ax-set').innerHTML = setHTML();
@@ -493,17 +684,47 @@ const groupIds = () => REGIONS.filter(r => r.group === (grp || R(sel).group) && 
    (none while you are looking for it); the faint group round it only
    when something is lit, and the colours and the quiz are not doing
    that job. Nothing selected, nothing tinted. */
-const litId = () => (quiz ? quiz.lit : hudOn ? sel : null);
+const litId = () => (quiz ? quiz.lit : exv ? null : hudOn ? sel : null);
+/* the muscle the label line runs to: the lit one, or an exercise's first
+   primary muscle */
+const lineId = () => (exv ? [...exv.tiers].find(([, t]) => t === 1)?.[0] || null : litId());
+let dressed = '';        // the look last handed to the body, so an unchanged one is not re-applied
 function light() {
   const id = litId(), g = new Set(!id || quiz || look.atlas ? [] : groupIds());
-  if (is3d) mv.study(id, [...g]);
+  if (is3d) {
+    const atlas = atlasMap(), key = JSON.stringify([look.shorts, look.holo, look.deep, look.spin, look.flex, look.idle, look.bend, atlas && [...atlas]]);
+    if (key !== dressed) { dressed = key; mv.setLook({ ...look, atlas }); }
+    if (!bending) mv.study(id, [...g]);
+  }
   X.querySelectorAll('.an-region').forEach(el => {
-    const rid = regionOfMapId(el.dataset.mid), sw = look.atlas && rid !== id && swatch(rid, look.atlas);
+    const rid = regionOfMapId(el.dataset.mid), sw = rid !== id && colourOf(rid);
     el.classList.toggle('lvl-1', rid === id);
     el.classList.toggle('lvl-3', rid !== id && g.has(rid));
     el.style.fill = sw || '';
   });
+  legend();
   lead();
+}
+
+/* The key to the colours, under the bar: the training map's bands, or
+   an exercise's three tiers. */
+const doers = action => REGIONS.filter(r => (TAGS[r.id] || []).includes(action));
+function legend() {
+  const el = $('#ax-legend');
+  if (bending) {
+    el.hidden = false;
+    el.innerHTML = `<b>${esc(bending.action)}</b>` + doers(bending.action).map(r => `<span><i style="background:${css('--blue')}"></i>${r.name}</span>`).join('');
+    return;
+  }
+  const key = exv ? [[TIER[1], colourOf([...exv.tiers].find(([, t]) => t === 1)?.[0]) || css('--blue')], [TIER[2], css('--amber')], [TIER[3], 'hsl(210, 30%, 72%)']]
+    : look.atlas === 'week' && !quiz ? BANDS.map(([, n, c]) => [n, c])
+    : look.atlas === 'rest' && !quiz ? REST.map(([, n, c]) => [n, c]) : null;
+  el.hidden = !key;
+  if (!key) return;
+  const title = exv ? 'Works' : look.atlas === 'rest' ? (rested.size ? 'Since last trained' : 'Nothing trained yet')
+    : week.size ? 'Sets this week' : 'Nothing logged this week yet';
+  el.innerHTML = `<b>${title}</b>` +
+    key.map(([n, c]) => `<span><i style="background:${c}"></i>${n}</span>`).join('');
 }
 
 /* How much of the screen the bar, the readout and (on a wide screen) the
@@ -516,8 +737,14 @@ function insets() {
   if (wide()) ins.r = xr.right - h.left + 12; else ins.b = xr.bottom - h.top + 10;
   return ins;
 }
+/* The layer's and the readout's boxes, measured when something moves
+   them (layout()), not on every frame the label line is redrawn. */
+let boxes = null;
 function layout() {
   if (!isOpen()) return;
+  const xr = X.getBoundingClientRect(), hr = $('#ax-hud').getBoundingClientRect();
+  boxes = { w: xr.width, h: xr.height, x: xr.left, y: xr.top, H: { l: hr.left - xr.left, r: hr.right - xr.left, t: hr.top - xr.top, b: hr.bottom - xr.top } };
+  last = '';
   const ins = insets();
   if (is3d) mv.setInset(ins);
   const s = $('.ax-2d').style;
@@ -528,20 +755,23 @@ function layout() {
 /* The label line: from the muscle to the readout's title, with a dot and
    a ring where it meets the muscle. Dashed while the point is turned away
    from you; gone while it is off screen or behind the readout. */
+let last = '';           // the line last drawn, so an unmoved one is not redrawn
 function lead() {
-  if (!isOpen()) return;
-  const xr = X.getBoundingClientRect(), wire = $('.ax-wire'), hr = $('#ax-hud').getBoundingClientRect();
+  if (!isOpen() || !boxes) return;
+  const wire = $('.ax-wire'), { H } = boxes;
   let p = null;
-  const id = litId();
+  const id = lineId();
   if (!id) p = null;
   else if (is3d) p = mv.anchorOf(id);
   else {
-    const el = [...X.querySelectorAll('.ax-2d .an-region.lvl-1')].find(e => e.getClientRects().length);
-    if (el) { const b = el.getBoundingClientRect(); p = { x: b.x + b.width / 2 - xr.x, y: b.y + b.height / 2 - xr.y, front: true, on: true }; }
+    const el = [...X.querySelectorAll('.ax-2d .an-region')].find(e => regionOfMapId(e.dataset.mid) === id && e.getClientRects().length);
+    if (el) { const b = el.getBoundingClientRect(); p = { x: b.x + b.width / 2 - boxes.x, y: b.y + b.height / 2 - boxes.y, front: true, on: true }; }
   }
-  const H = { l: hr.left - xr.left, r: hr.right - xr.left, t: hr.top - xr.top, b: hr.bottom - xr.top };
-  const off = !p || !p.on || p.x < 0 || p.y < 0 || p.x > xr.width || p.y > xr.height ||
-    (p.x > H.l && p.x < H.r && p.y > H.t && p.y < H.b);
+  const off = !p || !p.on || p.x < 0 || p.y < 0 || p.x > boxes.w || p.y > boxes.h ||
+    (!$('#ax-hud').hidden && p.x > H.l && p.x < H.r && p.y > H.t && p.y < H.b);
+  const key = off ? 'off' : `${Math.round(p.x * 2)},${Math.round(p.y * 2)},${p.front}`;
+  if (key === last) return;
+  last = key;
   wire.classList.toggle('off', off);
   if (off) return;
   wire.classList.toggle('back', !p.front);
@@ -560,6 +790,17 @@ function lead() {
   for (const c of wire.querySelectorAll('circle')) { c.setAttribute('cx', p.x); c.setAttribute('cy', p.y); }
 }
 
+/* Bending a limb by hand (look.bend): while the drag lasts, every muscle
+   whose actions include the movement lights at full strength, and the
+   key names them; letting go puts back what was lit. */
+function onBend(info) {
+  if (!isOpen() || !is3d) return;
+  const was = bending?.action;
+  bending = info;
+  if (info && info.action !== was) mv.study(null, doers(info.action).map(r => r.id));
+  if (!info) light(); else legend();
+}
+
 /* Put the 3D body in the layer — on opening, and again when the exercise
    card hands it back. The 2D map stands in until it is ready, and for
    good where there is no WebGL. */
@@ -570,12 +811,13 @@ export function attach() {
     .then(m => {
       mv = m;
       if (!box.isConnected || !ctx.free()) return false;
-      return m.orbit(box, { onTap: (r, air) => r ? pick(r.id, true) : air && tapAir(), onFrame: lead, inset: insets(), look: { ...look, atlas: atlasMap() } });
+      return m.orbit(box, { onTap: (r, air) => r ? pick(r.id, true) : air && tapAir(), onFrame: lead, onBend, inset: insets(), look: { ...look, atlas: atlasMap() } });
     })
     .then(ok => {
       if (ok === false || !box.isConnected) return;
-      is3d = true;
+      is3d = true; dressed = '';
       X.classList.add('is-3d');
+      if (look.pose !== 'rest') mv.setPose?.(look.pose);
       layout();
       light();
       if (back && litId()) mv.face(litId());
@@ -587,6 +829,7 @@ export function attach() {
 function pick(id, fly) {
   if (!R(id)) return;
   if (quiz) { if (quiz.kind === 'find') answer(id); return; }
+  exv = null;
   sel = id;
   keep();
   showHud(true);
@@ -606,6 +849,7 @@ function pick(id, fly) {
 function tapAir() {
   if (!$('#ax-set').hidden) toggleSet(false);
   else if (!$('#ax-drawer').hidden && !wide()) toggleList(false);
+  else if (exv) leaveExercise();
   else if (!quiz && hudOn) showHud(false);
 }
 function showHud(on) {
@@ -660,11 +904,28 @@ export function act(el) {
     case 'an-set':  toggleSet($('#ax-set').hidden); break;
     case 'an-look':
       if (a.k === 'atlas') look.atlas = a.v; else look[a.k] = !look[a.k];
+      if (a.k === 'bend' && !look.bend && is3d) mv.resetBend?.();
       keep();
       $('#ax-set').innerHTML = setHTML();
-      if (is3d) mv.setLook({ ...look, atlas: atlasMap() });
       $('#an-list').innerHTML = listHTML();
       light();
+      break;
+    case 'an-pose':
+      look.pose = a.v; keep();
+      $('#ax-set').innerHTML = setHTML();
+      if (is3d) mv.setPose?.(a.v);
+      break;
+    case 'an-exv':
+      if (quiz) quiz = null;
+      viewExercise(a.n);
+      if (!wide()) toggleList(false);
+      break;
+    case 'an-exit': leaveExercise(); break;
+    case 'an-tag':
+      qry = a.t;
+      $('#an-q').value = qry;
+      $('#an-list').innerHTML = listHTML();
+      toggleList(true);
       break;
     case 'an-quiz':  startQuiz(a.k); break;
     case 'an-qa':    answer(a.id); break;
@@ -694,13 +955,23 @@ function setHTML() {
       <button type="button" class="ax-tog" role="switch" data-act="an-look" data-k="${k}" aria-checked="${!!look[k]}" aria-label="${label}"><i></i></button>
     </div>`;
   const seen = POOL.filter(id => stats[id]?.[1]).length;
+  const poses = mv?.POSES || [];
   return `<div class="ax-set-k">Body</div>
-    ${tog('shorts', 'Shorts', 'Off shows the glutes, hips and inner thighs whole')}
+    ${poses.length > 1 ? `<div class="ax-set-row col">
+      <span><b>Pose</b><small>Arms up opens the lats and serratus; flex shows the arms working</small></span>
+      <div class="ax-seg" role="group" aria-label="Pose">${poses.map(q =>
+        `<button type="button" data-act="an-pose" data-v="${q.id}" aria-pressed="${look.pose === q.id}">${q.name}</button>`).join('')}</div>
+    </div>` : ''}
     <div class="ax-set-row col">
-      <span><b>Show every muscle</b><small>Each in its own colour, or coloured by body group</small></span>
-      <div class="ax-seg" role="group" aria-label="Show every muscle">${[['', 'Off'], ['muscle', 'Each'], ['group', 'Groups']].map(([v, n]) =>
+      <span><b>Colour the body</b><small>Each muscle, each group, the sets each one got this week, or how long since each last worked</small></span>
+      <div class="ax-seg" role="group" aria-label="Colour the body">${[['', 'Off'], ['muscle', 'Each'], ['group', 'Groups'], ['week', 'Week'], ['rest', 'Recovery']].map(([v, n]) =>
         `<button type="button" data-act="an-look" data-k="atlas" data-v="${v}" aria-pressed="${look.atlas === v}">${n}</button>`).join('')}</div>
     </div>
+    ${tog('shorts', 'Shorts', 'Off shows the glutes, hips and inner thighs whole')}
+    ${tog('deep', 'Deep muscles', 'Show the ones under the surface: rhomboids, transversus, supraspinatus')}
+    ${tog('flex', 'Flex on select', 'The selected muscle swells and pulses as if contracting')}
+    ${tog('bend', 'Bend it yourself', 'Drag an arm or leg to bend it; the muscles doing the movement light up. Pick the pose again to straighten up')}
+    ${tog('idle', 'Idle life', 'Breathes and shifts its weight a little')}
     ${tog('spin', 'Auto-spin', 'Turns slowly whenever you leave him alone')}
     ${tog('holo', 'Hologram skin', 'See-through, with the muscles glowing inside')}
     <div class="ax-set-k">Quiz yourself</div>
@@ -709,6 +980,49 @@ function setHTML() {
       <button type="button" class="ax-qb" data-act="an-quiz" data-k="find"><b>Find it</b><small>You get a name; tap it on the body</small></button>
     </div>
     <p class="ax-qstat">${seen ? `You know ${known()} of ${POOL.length} · ${seen} tried` : `${POOL.length} muscles to learn`}</p>`;
+}
+
+/* ── exercise view ── */
+function viewOf(n) {
+  const e = exs.get(n);
+  return e && { n, ex: e.ex, slot: e.slot, tiers: tiersOf(e.ex.m || '') };
+}
+function viewExercise(n) {
+  const v = viewOf(n);
+  if (!v) return;
+  exv = v;
+  hudOn = true; $('#ax-hud').hidden = false;
+  paint();
+  if (is3d) mv.home();
+}
+function leaveExercise() {
+  exv = null;
+  paint();
+  if (is3d && hudOn) mv.face(sel);
+}
+function exHTML() {
+  const { ex, slot, tiers } = exv;
+  const by = [1, 2, 3].map(t => [t, [...tiers].filter(([, k]) => k === t).map(([id]) => R(id)).filter(Boolean)]).filter(([, l]) => l.length);
+  return `<div class="ax-hud-h">
+      <div class="ax-hud-t">
+        <div class="ax-k2"><span>Exercise</span><b>${esc(ex.s || '')}</b></div>
+        <h2 class="ax-name">${esc(ex.n)}</h2>
+        <div class="ax-latin">${esc(ex.m || '')}</div>
+      </div>
+      <div class="ax-hud-b">
+        <button type="button" class="ax-sq ax-fold" data-act="an-min" aria-expanded="${!min}" aria-label="${min ? 'Show the details' : 'Fold the details away'}">${I.fold}</button>
+        <button type="button" class="ax-sq" data-act="an-exit" aria-label="Back to the muscle" title="Back">${I.close}</button>
+      </div>
+    </div>
+    <div class="ax-hud-body">
+      <div class="ax-train">
+        ${by.length ? by.map(([t, l]) => `<div class="ax-tier">
+          <span class="ax-tier-l lvl-${t}">${TIER[t]}</span>
+          <div class="ax-exs">${l.map(r => `<button type="button" class="an-ex lvl-${t}" data-act="an-pick" data-id="${r.id}">${r.name}</button>`).join('')}</div>
+        </div>`).join('') : `<p class="ax-none">No mapped muscles for this one.</p>`}
+      </div>
+      <button type="button" class="ax-next" data-act="row" data-di="${slot[0]}" data-si="${slot[1]}" data-ei="${slot[2]}">Open the exercise ${I.next}</button>
+    </div>`;
 }
 
 /* ── the quiz ──
@@ -765,7 +1079,7 @@ function endQuiz() {
 function quizHTML() {
   const q = quiz, r = R(q.id), name = q.kind === 'name', ok = q.picked === q.id;
   const title = q.done ? r.name : name ? 'Name the lit muscle' : `Find the ${r.name}`;
-  const sub = q.done ? A[q.id].l : name ? 'Turn him round if you need a better look' : 'Tap it on the body; turn him round if it is on the back';
+  const sub = q.done ? info(q.id).l : name ? 'Turn him round if you need a better look' : 'Tap it on the body; turn him round if it is on the back';
   const verdict = !q.done ? '' : ok ? 'Correct.'
     : q.picked === '' ? 'Here it is.'
     : name ? `Not quite. You picked the ${R(q.picked).name}.`
@@ -781,7 +1095,7 @@ function quizHTML() {
     <div class="ax-quiz">
       ${name ? `<div class="ax-opts">${q.opts.map(id => `<button type="button" class="ax-opt${q.done && id === q.id ? ' right' : ''}${q.done && id === q.picked && !ok ? ' wrong' : ''}" data-act="an-qa" data-id="${id}"${q.done ? ' disabled' : ''}>${R(id).name}</button>`).join('')}</div>` : ''}
       ${q.done
-        ? `<p class="ax-verdict ${ok ? 'ok' : 'no'}">${verdict}</p><p class="ax-does">${A[q.id].a}</p><button type="button" class="ax-next" data-act="an-qnext">Next muscle ${I.next}</button>`
+        ? `<p class="ax-verdict ${ok ? 'ok' : 'no'}">${verdict}</p><p class="ax-does">${info(q.id).a}</p><button type="button" class="ax-next" data-act="an-qnext">Next muscle ${I.next}</button>`
         : name ? '' : `<button type="button" class="ax-skip" data-act="an-qa" data-id="">Show me</button>`}
     </div>`;
 }

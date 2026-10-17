@@ -11,7 +11,11 @@ bench (tools/anatomy/).
   skin material.
 - **Head and hands:** Microsoft Rocketbox Male_Adult_01 (MIT); its license
   is in ../trainer/LICENSE.md.
-- **Shorts texture and shape:** a hand edit by Edrin, applied by
-  tools/howto/trainer/build_athlete.mjs from shorts_shape.json.
+- **Shorts shape:** a hand edit by Edrin, applied by
+  tools/howto/trainer/build_athlete.mjs from shorts_shape.json, and tidied
+  when the model loads (avatar.js, the shorts' `fit` entry).
+- **Shorts textures:** drawn from code by tools/howto/trainer/shorts_texture.py
+  to the same design (ribbed waistband, mesh side panel with piping, the
+  diagonal accent and mark, hem stitching). No outside licence.
 
 How it is built is in tools/howto/README.md.

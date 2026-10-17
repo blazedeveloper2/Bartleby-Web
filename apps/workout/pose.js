@@ -17,7 +17,7 @@
    build every frame of a rep without drawing anything.
    ═══════════════════════════════════════════════════════════ */
 
-import { MOTION } from './moves.js?v=3d-oct14h';
+import { MOTION } from './moves.js?v=3d-oct16g';
 import { timeline } from './timeline.js?v=3d-oct14d';
 import { skeleton, holds, points, normalize, W, v3 } from './rig.js?v=3d-oct14h';
 export { MOTION };
@@ -77,7 +77,7 @@ export function playAnim(fig, name) {
   /* The card and the viewer share one WebGL canvas, so the card's rep
      stops while the viewer is open and picks up where the viewer left
      it: the same moment of the rep, the same camera. */
-  const start = carry => import('./stage.js?v=3d-oct14h')
+  const start = carry => import('./stage.js?v=3d-oct16g')
     .then(S => S.ready().then(() => S))
     .then(S => {
       if (stopped || viewer) return S;

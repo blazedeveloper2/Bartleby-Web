@@ -1374,6 +1374,22 @@ html.wk-ax .rest-bar{visibility:hidden}
   .wk .ax-tier-l{padding-top:0}
 }
 
+.wk .ax-tags{display:flex;flex-wrap:wrap;gap:5px;margin:-4px 0 12px}
+.wk .ax-tag{padding:3px 8px;background:none;border:1px solid var(--holo-faint);border-radius:20px;color:var(--text-2);
+  font-family:var(--mono);font-size:10.5px;cursor:pointer;transition:color .15s,border-color .15s}
+.wk .ax-tag:hover{color:var(--blue);border-color:var(--holo)}
+.wk .ax-sub b{margin-left:8px;color:var(--blue);letter-spacing:1px}
+.wk .ax-hud .ax-train+.ax-next{margin-top:12px}
+
+/* the key to the colours: training map bands, or an exercise's tiers */
+.wk .ax-legend{position:absolute;z-index:4;left:max(14px,env(safe-area-inset-left,0px));right:max(14px,env(safe-area-inset-right,0px));
+  top:calc(env(safe-area-inset-top,0px) + 62px);display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;pointer-events:none;
+  font-size:11px;color:var(--text-2)}
+.wk .ax-legend[hidden]{display:none}
+.wk .ax-legend b{font-size:9.5px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;color:var(--text-3)}
+.wk .ax-legend span{display:flex;align-items:center;gap:5px}
+.wk .ax-legend i{width:10px;height:10px;border-radius:2px}
+
 /* the quiz, in the readout */
 .wk .ax-quiz{margin-top:12px}
 .wk .ax-opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:10px}
@@ -1414,7 +1430,7 @@ html.wk-ax .rest-bar{visibility:hidden}
 .wk .ax-tog[aria-checked="true"]{background:var(--blue)}
 .wk .ax-tog[aria-checked="true"] i{transform:translateX(18px);background:var(--on-accent)}
 .wk .ax-seg{display:flex;gap:3px;padding:3px;border-radius:8px;background:color-mix(in srgb,var(--bg) 60%,transparent)}
-.wk .ax-seg button{flex:1;min-height:32px;padding:0 8px;background:none;border:1px solid transparent;border-radius:6px;color:var(--text-3);
+.wk .ax-seg button{flex:1 1 auto;min-width:0;min-height:32px;padding:0 4px;white-space:nowrap;background:none;border:1px solid transparent;border-radius:6px;color:var(--text-3);
   font-family:var(--font);font-size:12px;font-weight:600;cursor:pointer}
 .wk .ax-seg button[aria-pressed="true"]{color:var(--blue);background:var(--blue-d);border-color:var(--sel-bd)}
 .wk .ax-qbtns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:6px}
@@ -1455,6 +1471,8 @@ html.wk-ax .rest-bar{visibility:hidden}
 .wk .an-row.on{background:var(--bg-alt);border-left-color:var(--blue)}
 .wk .an-row-t{display:flex;flex-direction:column;gap:2px;min-width:0}
 .wk .an-row-n{font-size:13.5px;font-weight:600}
+.wk .an-row.ex .an-row-n{color:var(--blue)}
+.wk .an-row.ex .an-row-c{min-width:0;white-space:nowrap;font-size:11px}
 .wk .an-row.sw .an-row-n::before{content:'';display:inline-block;width:9px;height:9px;margin-right:7px;border-radius:2px;background:var(--sw);vertical-align:0}
 .wk .an-row.on .an-row-n{color:var(--blue)}
 .wk .an-row-n i{margin-left:7px;padding:1px 4px;border:1px solid var(--border-lt);border-radius:2px;font-style:normal;font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-3);vertical-align:2px}
@@ -1463,10 +1481,11 @@ html.wk-ax .rest-bar{visibility:hidden}
   font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text-2);text-align:center;font-variant-numeric:tabular-nums}
 .wk .an-row-c.none{color:var(--text-3);opacity:.6}
 
-/* A wide screen: the readout down the right, the list down the left. */
-@media (min-width:900px){
-  .wk .ax-hud{left:auto;right:max(20px,env(safe-area-inset-right,0px));top:calc(env(safe-area-inset-top,0px) + 84px);bottom:auto;width:360px;max-height:calc(100% - 104px)}
-  .wk .ax-drawer{right:auto;top:0;width:320px;height:auto;padding-top:calc(env(safe-area-inset-top,0px) + 84px);
+/* A wide screen, or a phone on its side: the readout down the right,
+   the list down the left (anatomy.js's WIDE is the same query). */
+@media (min-width:900px),(min-aspect-ratio:4/3) and (min-width:600px){
+  .wk .ax-hud{left:auto;right:max(20px,env(safe-area-inset-right,0px));top:calc(env(safe-area-inset-top,0px) + 84px);bottom:auto;width:min(360px,42vw);max-height:calc(100% - 104px)}
+  .wk .ax-drawer{right:auto;top:0;width:min(320px,36vw);height:auto;padding-top:calc(env(safe-area-inset-top,0px) + 84px);
     box-shadow:inset -1px 0 0 var(--holo),20px 0 40px -10px #0008;animation-name:ax-side}
   @keyframes ax-side{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
 }

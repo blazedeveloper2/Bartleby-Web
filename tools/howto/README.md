@@ -281,7 +281,12 @@ whole with the arms overhead; each shoulder also has a helper joint that
 swings half as far as the arm (half its swing, not half its whole turn,
 which flips sides with the arm overhead). The hand-edited shorts are re-applied from
 `shorts_shape.json` on every build (the build reports how many points it
-applied); their texture is `assets/models/athlete/shorts.jpg`.
+applied). Their textures, `assets/models/athlete/shorts.jpg` and
+`shorts_n.jpg`, are drawn from code by `trainer/shorts_texture.py`
+(`python -I shorts_texture.py <outDir> [preview]`), and avatar.js tidies
+the cloth once as the model loads (`fit: "legs"` on the shorts material):
+edges and surface smoothed, normals from the cloth itself, texture
+coordinates refitted.
 
 ## Adding or changing an exercise
 

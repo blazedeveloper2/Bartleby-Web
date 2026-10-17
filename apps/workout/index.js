@@ -16,7 +16,7 @@ import {
   liftScores, standingOf, resEx, resKit, lvlOf, setLvl, resetTargets, applyReset,
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip,
-} from './rank.js?v=3d-oct16a';
+} from './rank.js?v=3d-oct16g';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
@@ -24,10 +24,10 @@ const LIFT_NAMES = new Set(Object.keys(LIFTS));
 import { MUSCLE_SVG } from './bodymap.js?v=3d-oct14d';
 import { restBand, BANDS, fmtRest } from './rest.js?v=3d-oct14d';
 import * as rest from './timer.js?v=3d-oct14d';
-import * as timing from './sessions.js?v=3d-oct16a';
+import * as timing from './sessions.js?v=3d-oct16g';
 import { HOWTO } from './howto.js?v=3d-oct14h';
-import * as anatomy from './anatomy.js?v=3d-oct16e';
-import { animHTML, playAnim } from './pose.js?v=3d-oct14h';
+import * as anatomy from './anatomy.js?v=3d-oct16g';
+import { animHTML, playAnim } from './pose.js?v=3d-oct16g';
 import { standingsFor } from './anthro.js?v=3d-oct14d';
 import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=3d-oct14d';
 import {
@@ -884,7 +884,7 @@ function openMM(ex) {
 let mv3 = null, mv3Load = null;
 /* The Anatomy tab borrows the same body (anatomy.js), so it loads it
    through here too. */
-const loadMV = () => (mv3Load ||= import('./muscleview.js?v=3d-oct16e').then(m => (mv3 = m)));
+const loadMV = () => (mv3Load ||= import('./muscleview.js?v=3d-oct16g').then(m => (mv3 = m)));
 /* Warm the 3D up while the app sits on its first tab, so nothing you open
    makes you wait: the model (one download, shared by the exercise card,
    the rep animation and Anatomy), the muscle view with its shaders
@@ -896,7 +896,7 @@ function warm3D() {
   warmed = true;
   const go = () => {
     loadMV().then(m => m.warm()).catch(() => {});
-    import('./stage.js?v=3d-oct14h').then(S => S.ready()).catch(() => {});
+    import('./stage.js?v=3d-oct16g').then(S => S.ready()).catch(() => {});
   };
   if ('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 2500 });
   else setTimeout(go, 1200);
@@ -1998,7 +1998,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=3d-oct16d',
+  styles: 'apps/workout/workout.css?v=3d-oct16g',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {

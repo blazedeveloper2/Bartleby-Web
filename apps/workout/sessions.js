@@ -123,6 +123,32 @@ export function headline(all = sessions()) {
   };
 }
 
+/* What each exercise got this week (Monday on), from the moments the
+   sessions recorded: name → { sets: sets logged, checked: ticked off }.
+   Anatomy's training map turns it into sets per muscle; an exercise
+   ticked off without its sets logged is counted there at its prescribed
+   sets, which only the program knows. */
+export function weekWork() {
+  const wk = weekStart(new Date()), out = new Map();
+  for (const [k, r] of Object.entries(stored())) {
+    if (k.slice(0, k.lastIndexOf('.')) < wk) continue;
+    for (const [, n, type] of r.ev) {
+      const e = out.get(n) || out.set(n, { sets: 0, checked: false }).get(n);
+      if (type === 's') e.sets++;
+      else if (type === 'c') e.checked = true;
+    }
+  }
+  return out;
+}
+
+/* When each exercise was last worked: name → the time (ms) of its latest
+   logged set or check-off. Anatomy's recovery map. */
+export function lastDone() {
+  const out = new Map();
+  for (const r of Object.values(stored())) for (const [t, n] of r.ev) if (t > (out.get(n) || 0)) out.set(n, t);
+  return out;
+}
+
 /* ── formatting ── */
 export function fmtDur(ms) {
   const m = Math.round(ms / 60000);

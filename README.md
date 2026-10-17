@@ -68,10 +68,25 @@ Live apps:
   training note, and the exercises in your current program that work it,
   each opening that exercise. The readout folds down to the name, and a
   tap on empty space puts it (or the settings, or the list) away; the
-  back gesture, Escape or × closes Anatomy. The settings button dresses
-  the body: shorts on or off, every muscle in its own colour or its
-  group's, a slow auto-spin when left alone, and a see-through hologram
-  skin in the theme's accent. **Quiz yourself** runs in the readout: name
+  back gesture, Escape or × closes Anatomy. The settings button poses
+  and dresses the body: a pose (standing, arms up, arms out, a biceps
+  flex), shorts on or off, the deep layer (rhomboids, transversus,
+  supraspinatus), colour by muscle, by group or by **this week's
+  training** — the sets each muscle got, a logged set counting in full
+  for a primary muscle and half for a supporting one, banded around the
+  10–20 hard sets a week most studies point to for growth — or by
+  **recovery**, how long since each muscle last worked (just trained,
+  recovering, ready after about two days, due after four), a pulse on
+  the selected muscle as if it were contracting, **bend it yourself**
+  (drag an arm or leg to bend its joint and the muscles doing that
+  movement light up), idle life (breathing and a small weight shift), a
+  slow auto-spin when left alone, and a see-through hologram skin in the
+  theme's accent. Search finds muscles by name or by action ("hip
+  abduction"), and exercises: pick one and the body lights what it
+  works, primary, supporting and stabilizing. The rig maps 38 muscle
+  regions, including the rotator cuff (supraspinatus, infraspinatus and
+  teres minor), gluteus medius, TFL, tibialis anterior and the
+  sternocleidomastoid. **Quiz yourself** runs in the readout: name
   the muscle that lights up (four choices, two from its own group), or
   find the one named by tapping it on the body. Muscles you miss come up
   more often, and it keeps count of the ones you know. The reference text was checked

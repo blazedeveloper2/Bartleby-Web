@@ -335,8 +335,10 @@ export const MOTION = {
      at arm's length beyond it. */
   'Dumbbell Crunch': {
     scene: [{ k: 'bench', x: 120 }], rest: 'pad',
-    base: { hip: [113, 149.5], torso: 180, foot: [153, ANK], uab: -15, fab: -14 },
-    poses: { bottom: { flex: 0, tilt: 12, ua: 177, fa: 177 }, top: { flex: 40, tilt: 0, ua: 140, fa: 140 } },
+    /* the dumbbell held in both hands against the chest, elbows out, and
+       carried up with it: the abs curl the trunk, the arms never swing it */
+    base: { hip: [113, 149.5], torso: 180, foot: [153, ANK], uab: 38, fab: -62 },
+    poses: { bottom: { flex: 0, tilt: 12, ua: 352, fa: 106 }, top: { flex: 40, tilt: 0, ua: 28, fa: 126 } },
     hold: { n: 'db-both' }, hi: ['abs'],
     tempo: [['top', 1, 'Curl'], ['top', 1, 'Squeeze'], ['bottom', 2, 'Lower'], ['bottom', 0.5, 'Stretch']],
     still: 'top', cam: CAM.bench,

@@ -42,10 +42,10 @@ export function loadTrainer(name = 'trainer') {
       fetch(new URL(`${name}.bin`, DIR)).then(r => { if (!r.ok) throw new Error(`${name}.bin`); return r.arrayBuffer(); }),
     ]);
     const tl = new THREE.TextureLoader();
-    const tex = async (f, srgb = true) => {
+    const tex = async (f, srgb = true, aniso = 4) => {
       const t = await tl.loadAsync(new URL(f, DIR).href);
       if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-      t.anisotropy = 4;
+      t.anisotropy = aniso;
       t.userData.shared = true;
       return t;
     };
@@ -59,7 +59,10 @@ export function loadTrainer(name = 'trainer') {
     const mats = {};
     await Promise.all(matNames.map(async n => {
       const m = MATS[n];
-      mats[n] = { ...m, map: m.map && await tex(m.map), normalMap: m.normalMap && await tex(m.normalMap, false) };
+      mats[n] = { ...m, map: m.map && await tex(m.map, true, m.anisotropy), normalMap: m.normalMap && await tex(m.normalMap, false, m.anisotropy) };
+      /* a part fitted round the legs (fitLegs) repeats its texture across
+         the inside seam */
+      if (m.fit === 'legs') for (const t of [mats[n].map, mats[n].normalMap]) if (t) t.wrapS = THREE.RepeatWrapping;
     }));
     const arr = (name, T) => new T(bin, meta.layout[name].offset, meta.layout[name].length);
     const pos16 = arr('position', Int16Array);
@@ -81,6 +84,9 @@ export function loadTrainer(name = 'trainer') {
     const bones = meta.bones.map(b => ({ ...b, P: new THREE.Vector3(...b.p) }));
     const byName = Object.fromEntries(bones.map((b, i) => [b.name, i]));
     if (!meta.materials) athletic(geo, bones, BUILD);
+    for (const r of meta.ranges) if (MATS[r.mat]?.fit === 'legs' && r.count) fitLegs(geo, r.start, r.count, bones, byName, MATS[r.mat].span || 37);
+    const part = n => meta.ranges.find(r => r.mat === n && r.count);
+    if (part('underskin') && part('bareskin') && part('skin')) meetUnderskin(geo, part('underskin'), part('bareskin'), part('skin'));
     /* Scale: rig units per model unit, and how much higher the model's
        ankle sits above its sole than the rig's (3.7) does. */
     const cm = meta.rigPerUnit ?? 1 / 1.1;
@@ -199,6 +205,267 @@ function athletic(geo, bones, k) {
   geo.setAttribute('normal', new THREE.BufferAttribute(NN, 3));
 }
 
+/* ── shorts that fit their cloth ──
+   The athlete's shorts are the sculpt's own surface, smoothed into cloth
+   and shaped by hand (tools/howto/trainer/build_athlete.mjs and
+   shorts_shape.json). They kept marks of where they came from: normals
+   from the skin underneath (muscle shading on smooth cloth), small folds
+   where the cloth was pushed over the crotch (dark specks: a folded
+   triangle faces in), teeth along the hems and waistband, and UVs worked
+   out from where each point was before any of that, so the texture's
+   piping zigzagged and the hem stitching came and went. A part whose
+   material says `fit: 'legs'` is tidied here, once, on load:
+     rims     the hems and the waistband smoothed along themselves
+     cloth    the small lumps smoothed away, the folds kept; a triangle
+              still folded right over is turned to face out
+     normals  worked out again from the cloth itself
+     u        round each leg about the thigh's own line: 0.5 the outside
+              of the thigh, 0.5 → 1 the front, 0.5 → 0 the back, meeting
+              along the inside seam (the texture repeats across it and
+              skinLook samples it there without a smear)
+     v        `span` cm from the hem (0) to the top of the waistband (1),
+              in true centimetres from the nearer edge, so stitching lies
+              a fixed distance in from it all the way round
+     shade    the baked occlusion softened across the cloth, so folds
+              shade smoothly rather than in blotches
+   Positions, normals, UVs and occlusion are changed in place; no point is
+   added or removed, so every per-point list made from the model still
+   lines up. tools/howto/trainer/shorts_texture.py draws for this layout. */
+function fitLegs(geo, start, count, bones, byName, span) {
+  const I = geo.index.array, PA = geo.attributes.position, P = PA.array;
+  const len3 = (x, y, z) => Math.sqrt(x * x + y * y + z * z);
+  /* the part's points, numbered 0 … m − 1 */
+  let lo = Infinity, hi = -1;
+  for (let f = start; f < start + count; f++) { if (I[f] < lo) lo = I[f]; if (I[f] > hi) hi = I[f]; }
+  const loc = new Int32Array(hi - lo + 1).fill(-1), ids = [];
+  for (let f = start; f < start + count; f++) if (loc[I[f] - lo] < 0) { loc[I[f] - lo] = ids.length; ids.push(I[f]); }
+  const m = ids.length, T = new Int32Array(count);
+  for (let f = 0; f < count; f++) T[f] = loc[I[start + f] - lo];
+  const X = new Float64Array(m * 3);
+  for (let i = 0; i < m; i++) for (let c = 0; c < 3; c++) X[3 * i + c] = P[3 * ids[i] + c];
+  /* neighbours, and the open rims: an edge used by one triangle */
+  const keys = new Float64Array(count);
+  for (let f = 0; f < count; f += 3) for (let e = 0; e < 3; e++) {
+    const a = T[f + e], b = T[f + (e + 1) % 3];
+    keys[f + e] = a < b ? a * m + b : b * m + a;
+  }
+  keys.sort();
+  const off = new Int32Array(m + 1), rimN = new Uint8Array(m), rimA = new Int32Array(m * 2);
+  const edges = [];
+  for (let k = 0; k < count;) {
+    let n = 1; while (k + n < count && keys[k + n] === keys[k]) n++;
+    const a = Math.floor(keys[k] / m), b = keys[k] - a * m;
+    edges.push(a, b);
+    off[a + 1]++; off[b + 1]++;
+    if (n === 1) { if (rimN[a] < 2) rimA[2 * a + rimN[a]] = b; rimN[a]++; if (rimN[b] < 2) rimA[2 * b + rimN[b]] = a; rimN[b]++; }
+    k += n;
+  }
+  for (let i = 0; i < m; i++) off[i + 1] += off[i];
+  const adj = new Int32Array(off[m]), fill = off.slice(0, m);
+  for (let e = 0; e < edges.length; e += 2) { const a = edges[e], b = edges[e + 1]; adj[fill[a]++] = b; adj[fill[b]++] = a; }
+  const D = new Float64Array(m * 3);
+
+  /* rims: smoothed along themselves (Taubin's two steps, so a hem does
+     not shrink) */
+  for (let it = 0; it < 12; it++) {
+    const k = it % 2 ? -0.53 : 0.5;
+    for (let i = 0; i < m; i++) if (rimN[i] === 2) { const a = rimA[2 * i], b = rimA[2 * i + 1]; for (let c = 0; c < 3; c++) D[3 * i + c] = (X[3 * a + c] + X[3 * b + c]) / 2 - X[3 * i + c]; }
+    for (let i = 0; i < m; i++) if (rimN[i] === 2) for (let c = 0; c < 3; c++) X[3 * i + c] += k * D[3 * i + c];
+  }
+
+  /* the cloth: small lumps left from the sculpt under it smoothed away
+     (Taubin again: it keeps the folds and the volume, so the shorts
+     neither shrink onto the skin nor lose their shape) */
+  for (let it = 0; it < 32; it++) {
+    const k = it % 2 ? -0.53 : 0.5;
+    for (let i = 0; i < m; i++) {
+      if (rimN[i]) continue;
+      let x = 0, y = 0, z = 0; const n = off[i + 1] - off[i];
+      for (let j = off[i]; j < off[i + 1]; j++) { const q = 3 * adj[j]; x += X[q]; y += X[q + 1]; z += X[q + 2]; }
+      D[3 * i] = x / n - X[3 * i]; D[3 * i + 1] = y / n - X[3 * i + 1]; D[3 * i + 2] = z / n - X[3 * i + 2];
+    }
+    for (let i = 0; i < m; i++) if (!rimN[i]) for (let c = 0; c < 3; c++) X[3 * i + c] += k * D[3 * i + c];
+  }
+
+  /* folds: a triangle the smoothing leaves folded right over (facing
+     against the cloth round it: its points' normals, averaged over a few
+     neighbours) is turned to face out, or it would draw as a dark speck */
+  const FN = new Float64Array(count), VN = new Float64Array(m * 3), S = new Float64Array(m * 3);
+  const faces = () => {
+    VN.fill(0);
+    for (let f = 0; f < count; f += 3) {
+      const a = 3 * T[f], b = 3 * T[f + 1], c = 3 * T[f + 2];
+      const ux = X[b] - X[a], uy = X[b + 1] - X[a + 1], uz = X[b + 2] - X[a + 2], vx = X[c] - X[a], vy = X[c + 1] - X[a + 1], vz = X[c + 2] - X[a + 2];
+      const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      FN[f] = nx; FN[f + 1] = ny; FN[f + 2] = nz;
+      VN[a] += nx; VN[a + 1] += ny; VN[a + 2] += nz; VN[b] += nx; VN[b + 1] += ny; VN[b + 2] += nz; VN[c] += nx; VN[c + 1] += ny; VN[c + 2] += nz;
+    }
+  };
+  /* S: unit normals, averaged `n` times over each point's neighbours */
+  const soften = n => {
+    for (let i = 0; i < m; i++) { const l = len3(VN[3 * i], VN[3 * i + 1], VN[3 * i + 2]) || 1; for (let c = 0; c < 3; c++) S[3 * i + c] = VN[3 * i + c] / l; }
+    for (let it = 0; it < n; it++) {
+      for (let i = 0; i < m; i++) {
+        let x = S[3 * i], y = S[3 * i + 1], z = S[3 * i + 2];
+        for (let j = off[i]; j < off[i + 1]; j++) { const q = 3 * adj[j]; x += S[q]; y += S[q + 1]; z += S[q + 2]; }
+        const l = len3(x, y, z) || 1; D[3 * i] = x / l; D[3 * i + 1] = y / l; D[3 * i + 2] = z / l;
+      }
+      S.set(D);
+    }
+  };
+  const facing = f => {
+    let sx = 0, sy = 0, sz = 0;
+    for (let e = 0; e < 3; e++) { const p = 3 * T[f + e]; sx += S[p]; sy += S[p + 1]; sz += S[p + 2]; }
+    const l = len3(FN[f], FN[f + 1], FN[f + 2]) * len3(sx, sy, sz);
+    return l ? (FN[f] * sx + FN[f + 1] * sy + FN[f + 2] * sz) / l : 1;
+  };
+  faces();
+  soften(3);
+  for (let f = 0; f < count; f += 3) if (facing(f) < 0) {
+    [T[f + 1], T[f + 2]] = [T[f + 2], T[f + 1]];
+    [I[start + f + 1], I[start + f + 2]] = [I[start + f + 2], I[start + f + 1]];
+  }
+  /* normals from the cloth, eased over a point's neighbours */
+  faces();
+  soften(2);
+  const NA = geo.attributes.normal;
+  for (let i = 0; i < m; i++) {
+    NA.setXYZ(ids[i], S[3 * i], S[3 * i + 1], S[3 * i + 2]);
+    PA.setXYZ(ids[i], X[3 * i], X[3 * i + 1], X[3 * i + 2]);
+  }
+
+  /* distance over the cloth from a rim: along edges first (Dijkstra),
+     then straightened across each triangle (a few sweeps of the
+     fast-marching update), so lines of equal distance run smooth */
+  const dist = (a, b) => len3(X[3 * a] - X[3 * b], X[3 * a + 1] - X[3 * b + 1], X[3 * a + 2] - X[3 * b + 2]);
+  const near = 0.4 * span;
+  const fromRim = keep => {
+    const d = new Float64Array(m).fill(Infinity), cap = off[m] + m + 1;
+    const hd = new Float64Array(cap), hi = new Int32Array(cap);
+    let hn = 0;
+    const push = (dd, i) => {
+      let j = hn++;
+      while (j) { const p = (j - 1) >> 1; if (hd[p] <= dd) break; hd[j] = hd[p]; hi[j] = hi[p]; j = p; }
+      hd[j] = dd; hi[j] = i;
+    };
+    const pop = () => {
+      const top = hi[0], dd = hd[--hn], ii = hi[hn];
+      let j = 0;
+      for (;;) {
+        let s = 2 * j + 1; if (s >= hn) break;
+        if (s + 1 < hn && hd[s + 1] < hd[s]) s++;
+        if (hd[s] >= dd) break;
+        hd[j] = hd[s]; hi[j] = hi[s]; j = s;
+      }
+      hd[j] = dd; hi[j] = ii;
+      return top;
+    };
+    for (let i = 0; i < m; i++) if (rimN[i] && keep(i)) { d[i] = 0; push(0, i); }
+    while (hn) {
+      const i = pop();
+      for (let j = off[i]; j < off[i + 1]; j++) { const q = adj[j], nd = d[i] + dist(i, q); if (nd < d[q]) { d[q] = nd; push(nd, q); } }
+    }
+    for (let sw = 0; sw < 3; sw++) for (let f = 0; f < count; f += 3) for (let e = 0; e < 3; e++) {
+      const A = T[f + e], B = T[f + (e + 1) % 3], C = T[f + (e + 2) % 3], dA = d[A], dB = d[B];
+      if (dA > near || dB > near) continue;   // far from the rim v is blended, and the cloth there plain
+      const ex = X[3 * B] - X[3 * A], ey = X[3 * B + 1] - X[3 * A + 1], ez = X[3 * B + 2] - X[3 * A + 2];
+      const fx = X[3 * C] - X[3 * A], fy = X[3 * C + 1] - X[3 * A + 1], fz = X[3 * C + 2] - X[3 * A + 2];
+      const le = len3(ex, ey, ez); if (le < 1e-9) continue;
+      const cx = (ex * fx + ey * fy + ez * fz) / le, cy = Math.sqrt(Math.max(0, fx * fx + fy * fy + fz * fz - cx * cx));
+      const sx = (dA * dA - dB * dB + le * le) / (2 * le), s2 = dA * dA - sx * sx;
+      if (s2 < 0) continue;
+      const sy = -Math.sqrt(s2), xi = sx + (cx - sx) * (-sy / (cy - sy));
+      if (xi < 0 || xi > le) continue;
+      const nd = Math.sqrt((cx - sx) * (cx - sx) + (cy - sy) * (cy - sy));
+      if (nd < d[C]) d[C] = nd;
+    }
+    /* and eased over each point's neighbours, the rim held, so what is
+       left of the mesh's grain does not wobble a line drawn along it */
+    const d2 = new Float64Array(m);
+    for (let it = 0; it < 8; it++) {
+      for (let i = 0; i < m; i++) {
+        if (d[i] === 0 || d[i] === Infinity) { d2[i] = d[i]; continue; }
+        let s = d[i], n = 1;
+        for (let j = off[i]; j < off[i + 1]; j++) { const q = d[adj[j]]; if (q !== Infinity) { s += q; n++; } }
+        d2[i] = s / n;
+      }
+      d.set(d2);
+    }
+    return d;
+  };
+  let y0 = Infinity, y1 = -Infinity;
+  for (let i = 0; i < m; i++) if (rimN[i]) { y0 = Math.min(y0, X[3 * i + 1]); y1 = Math.max(y1, X[3 * i + 1]); }
+  const yMid = (y0 + y1) / 2;
+  const dH = fromRim(i => X[3 * i + 1] < yMid), dW = fromRim(i => X[3 * i + 1] >= yMid);
+  /* the axis each leg turns about: the thigh bone's line, held at the hip
+     joint above it */
+  const axis = (y, s) => {
+    const h = bones[byName[s < 0 ? 'R_Thigh' : 'L_Thigh']]?.P, k = bones[byName[s < 0 ? 'R_Calf' : 'L_Calf']]?.P;
+    if (!h || !k) return [10 * s, -8];
+    const t = Math.max(0, (h.y - y) / (h.y - k.y));
+    return [h.x + (k.x - h.x) * t, h.z + (k.z - h.z) * t];
+  };
+  const UA = geo.attributes.uv, smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  for (let i = 0; i < m; i++) {
+    const hh = dH[i], ww = dW[i], s = smooth(0.3, 0.7, hh / (hh + ww || 1));
+    const v = Math.min(1, Math.max(0, (hh / span) * (1 - s) + (1 - ww / span) * s));
+    const x = X[3 * i], sg = x < 0 ? -1 : 1, [xc, zc] = axis(X[3 * i + 1], sg);
+    const u = 0.5 + Math.atan2(X[3 * i + 2] - zc, (x - xc) * sg) / (2 * Math.PI);
+    UA.setXY(ids[i], Math.min(1, Math.max(0, u)), v);
+  }
+
+  /* occlusion, softened across the cloth */
+  const O = geo.attributes.aOcc?.array;
+  if (O) {
+    const o = new Float64Array(m), o2 = new Float64Array(m);
+    for (let i = 0; i < m; i++) o[i] = O[ids[i]];
+    for (let it = 0; it < 6; it++) {
+      for (let i = 0; i < m; i++) { let s = o[i]; for (let j = off[i]; j < off[i + 1]; j++) s += o[adj[j]]; o2[i] = s / (off[i + 1] - off[i] + 1); }
+      o.set(o2);
+    }
+    for (let i = 0; i < m; i++) O[ids[i]] = Math.round(o[i]);
+  }
+}
+
+/* The athlete's skin under the shorts (underskin) is a copy of the body
+   there (bareskin, triangle for triangle) sunk 0.8 cm in, so it cannot
+   show through the cloth. Where it meets the skin left bare, that left a
+   step, and up a leg of the shorts the step's ragged edge showed as dark
+   teeth just inside the hem. Here the copy rises back to the skin's own
+   surface over its first rings from that edge, so the two meet without a
+   gap; the cloth stands a centimetre off the skin there, so it still
+   covers it. */
+function meetUnderskin(geo, us, bs, sk) {
+  if (us.count !== bs.count) return;
+  const I = geo.index.array, P = geo.attributes.position.array, n = P.length / 3;
+  const bare = new Uint8Array(n);
+  for (let f = sk.start; f < sk.start + sk.count; f++) bare[I[f]] = 1;
+  const twin = new Int32Array(n).fill(-1), ring = new Int8Array(n).fill(-1);
+  for (let j = 0; j < us.count; j++) {
+    const u = I[us.start + j], b = I[bs.start + j];
+    if (twin[u] >= 0) continue;
+    twin[u] = b;
+    if (bare[b]) ring[u] = 0;
+  }
+  const keep = [0, 0.12, 0.3, 0.55, 0.8];   // how much of the 0.8 cm (and of its own shade) each ring keeps
+  for (let r = 1; r < keep.length; r++) for (let f = us.start; f < us.start + us.count; f += 3) {
+    const a = I[f], b = I[f + 1], c = I[f + 2];
+    if (ring[a] !== r - 1 && ring[b] !== r - 1 && ring[c] !== r - 1) continue;
+    if (ring[a] < 0) ring[a] = r;
+    if (ring[b] < 0) ring[b] = r;
+    if (ring[c] < 0) ring[c] = r;
+  }
+  /* the occlusion too: the copy was baked with the shorts on, the bare
+     skin without, so its shade eases in from the bare skin's */
+  const O = geo.attributes.aOcc?.array;
+  for (let u = 0; u < n; u++) {
+    const r = ring[u]; if (r < 0) continue;
+    const b = twin[u], k = keep[r];
+    for (let c = 0; c < 3; c++) P[3 * u + c] = P[3 * b + c] + (P[3 * u + c] - P[3 * b + c]) * k;
+    if (O) O[u] = Math.round(O[b] + (O[u] - O[b]) * k);
+  }
+}
+
 /* ── small vector helpers on plain arrays ── */
 const { add, sub, mul, dot, cross, norm, mad, lerp } = v3;
 const perp = (h, a, alt) => {
@@ -301,25 +568,64 @@ export function studioEnv(r) {
                 away from it, red furthest, the way it scatters under the
                 skin: a softer, warmer edge to every shadow
      specular   held back in the creases too, so only the tops of the
-                muscles catch a highlight */
+                muscles catch a highlight
+   Cloth (a textured part that is neither skin nor alpha-tested: the
+   athlete's shorts) differs in three ways:
+     seam       its u runs round the leg and wraps from 1 to 0 along the
+                inside seam (fitLegs); each point also carries u shifted
+                half a turn, and wherever u jumps across a triangle the
+                shifted one, smooth there, is sampled instead (the texture
+                repeats), so the seam shows no smear (Tarini's method)
+     occlusion  gentler, so a fold or the crotch reads as soft shade, not
+                a black patch
+     inside     the inside of the shorts, seen up a leg or over the
+                waistband, in its own shadow */
 const SKIN_PARTS = new Set(['skin', 'head', 'hands', 'bareskin', 'underskin', 'body']);
 export const isSkin = name => SKIN_PARTS.has(name);
 export function skinLook(sh, skin) {
+  /* sh is three's program parameters: map / normalMap / alphaTest say
+     what the material has, and are part of the program's cache key */
+  const cloth = !skin && !!sh.map && !!sh.normalMap && !sh.alphaTest;
   sh.vertexShader = sh.vertexShader
-    .replace('#include <common>', '#include <common>\nattribute float aOcc;\nvarying float vOcc;')
+    .replace('#include <common>', '#include <common>\nattribute float aOcc;\nvarying float vOcc;' + (cloth ? '\nvarying vec2 vClothAlt;' : ''))
     .replace('#include <begin_vertex>', '#include <begin_vertex>\nvOcc = aOcc;');
+  if (cloth) sh.vertexShader = sh.vertexShader.replace('#include <uv_vertex>', [
+    '#include <uv_vertex>',
+    'vClothAlt = vec2(fract(vMapUv.x + 0.5) - 0.5, fract(vNormalMapUv.x + 0.5) - 0.5);',
+  ].join('\n'));
   let frag = sh.fragmentShader
     .replace('#include <common>', '#include <common>\nvarying float vOcc;')
     .replace('#include <aomap_fragment>', [
       '#include <aomap_fragment>',
       'float skOpen = 1.0 - vOcc;',
       /* in a skin crease the light that does get in comes back redder */
-      skin ? 'vec3 skAO = pow(vec3(skOpen), vec3(1.15, 1.5, 1.65));' : 'vec3 skAO = vec3(skOpen * skOpen);',
+      skin ? 'vec3 skAO = pow(vec3(skOpen), vec3(1.15, 1.5, 1.65));' : cloth ? 'vec3 skAO = vec3(mix(1.0, skOpen, 0.75));' : 'vec3 skAO = vec3(skOpen * skOpen);',
       'reflectedLight.indirectDiffuse *= skAO;',
       'reflectedLight.indirectSpecular *= skOpen * skOpen;',
-      'reflectedLight.directDiffuse *= mix(vec3(1.0), skAO, 0.6);',
+      `reflectedLight.directDiffuse *= mix(vec3(1.0), skAO, ${cloth ? '0.35' : '0.6'});`,
       'reflectedLight.directSpecular *= skOpen;',
+      ...(cloth ? [
+        'if (!gl_FrontFacing) {',
+        '  reflectedLight.directDiffuse *= 0.45; reflectedLight.indirectDiffuse *= 0.55;',
+        '  reflectedLight.directSpecular *= 0.25; reflectedLight.indirectSpecular *= 0.4;',
+        '}',
+      ] : []),
     ].join('\n'));
+  if (cloth) {
+    frag = frag
+      .replace('#include <common>', [
+        '#include <common>',
+        'varying vec2 vClothAlt;',
+        'vec2 clothUv(vec2 uv, float alt) { return fwidth(alt) < 0.5 * fwidth(uv.x) ? vec2(alt, uv.y) : uv; }',
+      ].join('\n'))
+      .replace('#include <map_fragment>', [
+        'vec2 clothMapUv = clothUv(vMapUv, vClothAlt.x);',
+        'vec2 clothNormalUv = clothUv(vNormalMapUv, vClothAlt.y);',
+        THREE.ShaderChunk.map_fragment.replaceAll('vMapUv', 'clothMapUv'),
+      ].join('\n'))
+      .replace('#include <normal_fragment_begin>', THREE.ShaderChunk.normal_fragment_begin.replaceAll('vNormalMapUv', 'clothNormalUv'))
+      .replace('#include <normal_fragment_maps>', THREE.ShaderChunk.normal_fragment_maps.replaceAll('vNormalMapUv', 'clothNormalUv'));
+  }
   if (skin) frag = frag.replace('#include <lights_physical_pars_fragment>', THREE.ShaderChunk.lights_physical_pars_fragment.replace(
     'reflectedLight.directDiffuse += irradiance * BRDF_Lambert( material.diffuseColor );',
     [

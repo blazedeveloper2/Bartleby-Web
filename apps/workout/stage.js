@@ -18,12 +18,12 @@
    ═══════════════════════════════════════════════════════════ */
 
 import * as THREE from '../../assets/vendor/three/three.module.min.js';
-import { MOTION } from './moves.js?v=3d-oct14h';
+import { MOTION } from './moves.js?v=3d-oct16g';
 import { timeline } from './timeline.js?v=3d-oct14d';
 import { skeleton, holds, points, normalize, SEG, BODY, v3, W } from './rig.js?v=3d-oct14h';
-import { loadTrainer, Trainer, studioEnv } from './avatar.js?v=3d-oct14h';
+import { loadTrainer, Trainer, studioEnv } from './avatar.js?v=3d-oct16g';
 import { axisLock } from './drag.js?v=3d-oct14d';
-import { regionPaint } from './muscles3d.js?v=3d-oct14e';
+import { regionPaint } from './muscles3d.js?v=3d-oct16g';
 import { MMAP } from './data.js?v=3d-oct14d';
 
 const D = Math.PI / 180;
