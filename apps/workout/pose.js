@@ -77,7 +77,7 @@ export function playAnim(fig, name) {
   /* The card and the viewer share one WebGL canvas, so the card's rep
      stops while the viewer is open and picks up where the viewer left
      it: the same moment of the rep, the same camera. */
-  const start = carry => import('./stage.js?v=3d-oct16h')
+  const start = carry => import('./stage.js?v=3d-oct18a')
     .then(S => S.ready().then(() => S))
     .then(S => {
       if (stopped || viewer) return S;

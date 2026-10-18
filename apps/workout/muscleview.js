@@ -25,7 +25,7 @@ import * as THREE from '../../assets/vendor/three/three.module.min.js';
 import { loadTrainer, Trainer, skinLook, isSkin, studioEnv } from './avatar.js?v=3d-oct16h';
 import { skeleton } from './rig.js?v=3d-oct14h';
 import { REGIONS, regionsOf, regionsOfMuscle } from './muscles3d.js?v=3d-oct16g';
-import { MMAP } from './data.js?v=3d-oct14d';
+import { MMAP } from './data.js?v=3d-oct18a';
 import { axisLock } from './drag.js?v=3d-oct14d';
 
 const MODEL = 'athlete';

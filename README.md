@@ -95,7 +95,7 @@ Live apps:
   `apps/workout/muscleview.js`.
 
   **Settings → Program** switches whose workout the app runs: **Edrin**
-  (the default, the dumbbell-and-calisthenics program above) or **Andrew**
+  (the default, the four-day dumbbell program above) or **Andrew**
   (a seven-day gym program — heavy upper/lower, push/pull/legs, two Zone 2
   rest days). Each person keeps their own log, weights, body entries and
   awards; see `apps/workout/store.js`. Andrew's lifts are machines and

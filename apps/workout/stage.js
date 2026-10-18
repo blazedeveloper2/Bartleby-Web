@@ -24,7 +24,7 @@ import { skeleton, holds, points, normalize, SEG, BODY, v3, W } from './rig.js?v
 import { loadTrainer, Trainer, studioEnv } from './avatar.js?v=3d-oct16h';
 import { axisLock } from './drag.js?v=3d-oct14d';
 import { regionPaint } from './muscles3d.js?v=3d-oct16g';
-import { MMAP } from './data.js?v=3d-oct14d';
+import { MMAP } from './data.js?v=3d-oct18a';
 
 const D = Math.PI / 180;
 /* A pose's planted marks: hands and feet (timeline.js's targets). */

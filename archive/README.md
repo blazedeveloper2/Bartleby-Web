@@ -28,3 +28,19 @@ app is restored.
    `scripture` back in the `APPS` array.
 4. Restore the Scripture entries in the root `README.md` and `manifest.json`
    description if you care to.
+
+## Edrin's Saturday workout (archived 2026-10-18)
+
+The Upper · Calisthenics day (skill ladders, chin-ups/rows, push-up and
+HSPU lines, rollout and arch hold) was cut from `EDRIN` in
+`apps/workout/data.js` and kept unchanged in `apps/workout/saturday.js`.
+
+Everything it pointed at is still live in the app and was left alone: the
+`LADDERS` it names, the how-to and animation entries for its moves, and their
+strength standards. Saturday sessions already logged stay in `bp_log` under
+`di 4`; they just aren't counted toward a week while the day is gone.
+
+### To restore
+
+Paste the object in `SATURDAY` back into `EDRIN` as its last entry (index 4,
+right after Friday), so old Saturday logs line up with it again.

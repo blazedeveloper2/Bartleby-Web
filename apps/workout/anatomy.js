@@ -31,12 +31,12 @@
    map stands in and works the same way.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, MMAP } from './data.js?v=3d-oct14d';
+import { PROGRAM, MMAP } from './data.js?v=3d-oct18a';
 import { load, save } from './store.js?v=3d-oct14d';
 import { REGIONS, regionsOfMuscle, regionOfMapId } from './muscles3d.js?v=3d-oct16g';
 import { MUSCLE_SVG } from './bodymap.js?v=3d-oct14d';
-import { resEx, setCountOf } from './rank.js?v=3d-oct16g';
-import { weekWork, lastDone } from './sessions.js?v=3d-oct16g';
+import { resEx, setCountOf } from './rank.js?v=3d-oct18a';
+import { weekWork, lastDone } from './sessions.js?v=3d-oct18a';
 
 /* ── the reference ──
 

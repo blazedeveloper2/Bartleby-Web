@@ -24,7 +24,7 @@
    average rather than dragging them down.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js?v=3d-oct14d';
+import { PROGRAM } from './data.js?v=3d-oct18a';
 import { load, save, todayStr, dateStr } from './store.js?v=3d-oct14d';
 
 const KEY = 'bp_time';
