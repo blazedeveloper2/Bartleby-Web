@@ -264,8 +264,8 @@ Live apps:
   labelled as the inference it is.
 - **Food** — a food journal that can also count calories. Type what you ate
   (`2 eggs, toast, coffee` logs three entries) or scan a package's barcode;
-  meals come from the time of day. Calories are a layer you can switch off in
-  Settings. Fresh foods come from USDA FoodData Central (all 7,793 SR Legacy
+  meals come from the time of day. Calories are a layer you can switch on in
+  Settings; off, it is a plain food log with no suggestions but your own. Fresh foods come from USDA FoodData Central (all 7,793 SR Legacy
   foods ship in `apps/food/foods.json`, searched on the device), packaged ones
   from Open Food Facts (only the barcode is sent, and only when allowed) or
   the label, saved per barcode so the next scan is offline. Every counted
@@ -289,7 +289,7 @@ equipment toggles, and backup. Pull-up bar and ab wheel default on; the
 barbell defaults off, and turning it on swaps the RDLs, the goblet squat and
 the hip thrust for their barbell versions, each scored on its own standard.
 The grip dynamometer defaults on and shows or hides the grip card.
-Food has Count Calories (on) and Barcode Lookup (ask first).
+Food has Calorie Tracking (off) and Barcode Lookup (ask first).
 
 All data is stored locally in your browser (`localStorage`). Nothing is sent
 anywhere. Use **Settings → Export Backup** to save a `.json` file before

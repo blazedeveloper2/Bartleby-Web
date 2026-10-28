@@ -71,7 +71,7 @@ const logAll    = () => load('food_log', []);
 const logSave   = l => save('food_log', l);
 const codesAll  = () => load('food_codes', {});
 const codesSave = m => save('food_codes', m);
-const calLayer  = () => load('food_cal', true);
+const calLayer  = () => load('food_cal', false);
 const offAuto   = () => load('food_offauto', false);
 
 /* ── state ── */
@@ -175,6 +175,7 @@ function packPortions(p) {
   return [...(p.sg ? [{ n: `serving (${p.sg} g)`, g: p.sg }] : []), { n: '100 g', g: 100 }];
 }
 function packCal(code, p, por = packPortions(p)[0]) {
+  if (p.k100 == null && p.sk == null) return null;
   if (p.k100 != null) return { s:'pack', code, pn: por.n, g: por.g, k100: p.k100, p100: p.p100, f100: p.f100, c100: p.c100 };
   return { s:'pack', code, pn:'serving', k: p.sk, p: p.sp, f: p.sf, c: p.sc };
 }
@@ -252,7 +253,7 @@ function autoCal(n) {
 function addEntries(items) {
   if (!items.length) return;
   const t = day === todayStr() ? nowHM() : '12:00';
-  const added = items.map(it => ({ id: uid(), d: day, t, n: it.n, q: it.q, out: false, cal: it.cal !== undefined ? it.cal : autoCal(it.n) }));
+  const added = items.map(it => ({ id: uid(), d: day, t, n: it.n, q: it.q, out: false, cal: it.cal !== undefined ? it.cal : calOn ? autoCal(it.n) : null }));
   log.push(...added);
   persist();
   renderToday();
@@ -379,6 +380,7 @@ function suggestions(text) {
   const hits = word => lc(word).startsWith(term) || lc(word).split(/[\s-]+/).some(w => w.startsWith(term));
   const mine = history().filter(h => hits(h.n)).slice(0, 3).map(h => ({ n: h.n, cal: h.cal, src: 'mine', c: h.c }));
   const taken = new Set(mine.filter(m => m.cal?.s === 'usda').map(m => m.cal.fdc));
+  if (!calOn) return mine;
   const usda = term.length < 2 ? [] : search(term, 8).filter(f => !taken.has(f.fdc)).slice(0, 6 - mine.length)
     .map(f => ({ n: shortName(f), cal: usdaCal(f), src: 'usda', desc: f.desc }));
   return [...mine, ...usda];
@@ -391,7 +393,7 @@ function renderSugs() {
   const lead = parseLine(inp.value.split(',').pop() || '').q;
   box.innerHTML = sugList.map((s, i) => {
     const k = s.cal ? kcalOf({ q: lead, cal: s.cal }) : null;
-    const meta = s.src === 'mine' ? `You · ${s.c}×${s.cal ? ' · ' + esc(s.cal.pn) : ''}` : `USDA · ${esc(s.desc)} · ${esc(s.cal.pn)}`;
+    const meta = s.src === 'mine' ? `${s.c}×${calOn && s.cal ? ' · ' + esc(s.cal.pn) : ''}` : `USDA · ${esc(s.desc)} · ${esc(s.cal.pn)}`;
     return `<button class="fd-sug" data-act="sug" data-i="${i}">
       <span class="fd-sug-b"><span class="fd-sug-n">${lead !== 1 ? `${fmtQ(lead)}× ` : ''}${esc(s.n)}</span><span class="fd-sug-m">${meta}</span></span>
       ${calOn && k != null ? `<span class="fd-sug-k">${fmtK(k)}</span>` : ''}
@@ -461,7 +463,7 @@ async function lookup(code) {
     const p = await offLookup(code);
     if (!sheet || sheet.code !== code) return;
     if (!p) setScan({ st: 'label', why: 'none', draft: blankDraft() });
-    else if (p.k100 == null) setScan({ st: 'label', why: 'nokcal', draft: { ...blankDraft(), n: p.n, sg: p.sg ?? '' }, off: p });
+    else if (p.k100 == null && calOn) setScan({ st: 'label', why: 'nokcal', draft: { ...blankDraft(), n: p.n, sg: p.sg ?? '' }, off: p });
     else setScan({ st: 'found', off: p, name: p.n || '' });
   } catch (e) {
     if (sheet?.code === code) setScan({ st: 'error', err: String(e?.message || e) });
@@ -492,6 +494,7 @@ function saveLabel() {
   const d = readDraft();
   const k = num(d.k);
   if (!d.n.trim()) { q('#sc-n')?.focus(); return; }
+  if (!calOn) { saveProduct({ n: d.n.trim(), brand: sheet.off?.brand || '', src: 'label' }); return; }
   if (k == null) { q('#sc-k')?.focus(); return; }
   const sg = num(d.sg);
   const base = { n: d.n.trim(), brand: sheet.off?.brand || '', src: 'label', sg: sg > 0 ? sg : null };
@@ -526,6 +529,10 @@ function scanHtml() {
   if (s.st === 'error') return head + `
     <p class="fd-p">Couldn't connect.</p>
     <div class="fd-sh-foot"><button class="fd-btn" data-act="sc-label">Enter from label</button><button class="fd-btn pri" data-act="sc-look">Try again</button></div>`;
+  if (s.st === 'found' && !calOn) return head + `
+      <input class="fd-in-sm" id="sc-name" value="${esc(s.name)}" placeholder="What is it?" autocomplete="off" aria-label="Name">
+      ${s.off.brand ? `<div class="sc-brand">${esc(s.off.brand)}</div>` : ''}
+      <div class="fd-sh-foot"><button class="fd-btn pri" data-act="sc-add">Add</button></div>`;
   if (s.st === 'found') {
     const o = s.off, serv = o.sg ? Math.round(o.sg * o.k100 / 100) : null;
     const row = (l, v, u) => `<div><span>${l}</span><b>${v == null ? '—' : (u === 'kcal' ? fmtK(v) : fmtG(v))}</b></div>`;
@@ -536,11 +543,14 @@ function scanHtml() {
       <div class="fd-sec-l">Per 100 g <span class="fd-opt">· Open Food Facts</span></div>
       <div class="sc-facts">${row('Calories', o.k100, 'kcal')}${row('Protein', o.p100)}${row('Carbs', o.c100)}${row('Fat', o.f100)}</div>
       <label class="sc-sg"><span>One serving</span><input class="fd-in-sm" id="sc-sg1" type="number" inputmode="decimal" min="0" step="any" value="${esc(o.sg ?? '')}" placeholder="g"><span>g</span><b id="sc-sgk">${serv != null ? `= ${fmtK(serv)} kcal` : ''}</b></label>
-      <p class="fd-note">${o.sg ? '' : 'No serving size listed: type the one on the label, or it logs 100 g. '}Crowd-sourced data, so a quick look at the label is worth it the first time.</p>
       <div class="fd-sh-foot"><button class="fd-btn" data-act="sc-edit">Edit numbers</button><button class="fd-btn pri" data-act="sc-add">Add 1 serving</button></div>`;
   }
   const d = s.draft;
   const why = { none: 'Not found.', nokcal: 'No calories listed.' }[s.why] || '';
+  if (!calOn) return head + `
+    ${why ? `<p class="fd-p">${why}</p>` : ''}
+    <input class="fd-in-sm" id="sc-n" value="${esc(d.n)}" placeholder="What is it?" autocomplete="off" aria-label="Name">
+    <div class="fd-sh-foot"><button class="fd-btn" data-act="close">Cancel</button><button class="fd-btn pri" data-act="sc-save">Add</button></div>`;
   const fld = (id, l, v, ph) => `<label class="sc-f"><span>${l}</span><input class="fd-in-sm" id="sc-${id}" type="number" inputmode="decimal" min="0" step="any" value="${esc(v)}" placeholder="${ph}"></label>`;
   return head + `
     ${why ? `<p class="fd-p">${why}</p>` : ''}
@@ -839,14 +849,15 @@ function renderFoods() {
   const mine = !h.length ? '<div class="fd-find-none">Nothing yet</div>'
     : h.map(x => {
       const k = x.cal ? kcalOf({ q: 1, cal: x.cal }) : null;
-      return `<div class="fd-food"><div><div class="fd-food-n">${esc(x.n)}</div><div class="fd-food-s">${x.c}× · ${x.cal ? calSub({ cal: x.cal }) : 'not counted'}</div></div>
+      return `<div class="fd-food"><div><div class="fd-food-n">${esc(x.n)}</div><div class="fd-food-s">${x.c}×${calOn ? ' · ' + (x.cal ? calSub({ cal: x.cal }) : 'not counted') : ''}</div></div>
         ${calOn ? `<span class="${k != null ? 'fd-k' : 'fd-addk'}">${k != null ? fmtK(k) : '+ kcal'}</span>` : ''}</div>`;
     }).join('');
   const scanned = codes.map(([code, p]) => {
     const k = kcalOf({ q: 1, cal: packCal(code, p) });
+    const kc = k != null ? `<span class="fd-k">${fmtK(k)}</span>` : '<span class="fd-addk">+ kcal</span>';
     return `<div class="fd-food"><div><div class="fd-food-n">${esc(p.n)}</div>
         <div class="fd-food-s">${esc([p.brand, p.src === 'off' ? 'Open Food Facts' : 'label'].filter(Boolean).join(' · '))} · <span class="sc-code sm">${esc(code)}</span></div></div>
-        <div class="fd-food-r">${calOn ? `<span class="fd-k">${fmtK(k)}</span>` : ''}<button class="fd-x sm" data-act="forget" data-code="${esc(code)}" aria-label="Forget ${esc(p.n)}">&times;</button></div></div>`;
+        <div class="fd-food-r">${calOn ? kc : ''}<button class="fd-x sm" data-act="forget" data-code="${esc(code)}" aria-label="Forget ${esc(p.n)}">&times;</button></div></div>`;
   }).join('');
   el.innerHTML = `
     <button class="fd-scan" data-act="scan"><span class="fd-scan-i">${icon('scan')}</span><span><b>Scan a barcode</b></span></button>

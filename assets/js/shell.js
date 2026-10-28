@@ -9,7 +9,7 @@
 
 import workout from '../../apps/workout/index.js?v=3d-oct18a';
 import finance from '../../apps/finance/index.js?v=3d-oct14d';
-import food from '../../apps/food/index.js?v=food-3';
+import food from '../../apps/food/index.js?v=food-4';
 import { toast } from './ui.js?v=3d-oct14d';
 import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=3d-oct14d';
 
@@ -272,10 +272,10 @@ const PREFS = [
 /* The Food app's switches, painted and stored the same way. Defaults
    must match where apps/food/index.js reads them (calLayer, offAuto). */
 const FOOD_PREFS = [
-  { id:'foodcal', key:'food_cal', name:'Count Calories', on:'On', off:'Off',
+  { id:'foodcal', key:'food_cal', def:false, name:'Calorie Tracking', on:'On', off:'Off',
     subOn:'Calories and daily totals.',
     subOff:'Just the journal.',
-    toastOn:'Calories on', toastOff:'Calories hidden' },
+    toastOn:'Calorie tracking on', toastOff:'Calorie tracking off' },
   { id:'foodoff', key:'food_offauto', def:false, name:'Barcode Lookup', on:'Automatic', off:'Ask First',
     subOn:'New barcodes look up on Open Food Facts.',
     subOff:'Asks before looking up a new barcode.',
