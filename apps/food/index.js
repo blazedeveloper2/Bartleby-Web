@@ -39,6 +39,7 @@ const ICO = {
   bars:  '<path d="M3 20h18"/><path d="M6.5 20V12"/><path d="M12 20V5"/><path d="M17.5 20v-5.5"/>',
   list:  '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/>',
   plus:  '<path d="M12 5v14"/><path d="M5 12h14"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/>',
   scan:  '<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8"/><path d="M10.5 8v8"/><path d="M14 8v8"/><path d="M17 8v8"/>',
 };
 const icon = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICO[k]}</svg>`;
@@ -91,6 +92,7 @@ let undo = null, undoTimer = null;
 let swipe = null, swallowClick = false;
 let sugList = [];
 let scanMod = null;
+let when = null, whensOpen = false;
 
 const q = s => root.querySelector(s);
 const uid = () => (crypto?.randomUUID?.() || (Date.now() + '-' + Math.random().toString(16).slice(2)));
@@ -254,11 +256,13 @@ function autoCal(n) {
   return f ? usdaCal(f) : null;
 }
 
-/* Entries are { id, d:'YYYY-MM-DD', t:'HH:MM', n, q, out, cal }. */
-function addEntries(items) {
+/* Entries are { id, d:'YYYY-MM-DD', t:'HH:MM', n, q, out, cal, ap? }.
+   `ap` marks a time picked as a part of the day ("Morning") rather than
+   a clock time, so the day never shows it as a precise 8:00 AM. */
+function addEntries(items, w = takeWhen()) {
   if (!items.length) return;
-  const t = day === todayStr() ? nowHM() : '12:00';
-  const added = items.map(it => ({ id: uid(), d: day, t, n: it.n, q: it.q, out: false, cal: it.cal !== undefined ? it.cal : calOn ? autoCal(it.n) : null }));
+  const t = w?.t ?? (day === todayStr() ? nowHM() : '12:00');
+  const added = items.map(it => ({ id: uid(), d: day, t, n: it.n, q: it.q, out: false, cal: it.cal !== undefined ? it.cal : calOn ? autoCal(it.n) : null, ...(w?.ap ? { ap: true } : {}) }));
   log.push(...added);
   persist();
   renderToday();
@@ -347,7 +351,7 @@ function renderToday() {
      so a line typed as "2 eggs, toast" still reads in the order typed. */
   const body = list.length
     ? groups(list).reverse().map(g => `<section class="fd-grp">
-        <div class="fd-grp-h"><span>${mealName(g.m)}</span><span class="fd-grp-t">${fmtTime(g.t)}</span></div>
+        <div class="fd-grp-h"><span>${mealName(g.m)}</span><span class="fd-grp-t">${g.items.some(e => !e.ap) ? fmtTime(g.items.find(e => !e.ap).t) : ''}</span></div>
         ${g.items.slice().sort((a, b) => b.t.localeCompare(a.t)).map(rowHtml).join('')}
       </section>`).join('')
     : `<div class="fd-empty">
@@ -372,7 +376,7 @@ function renderToday() {
    person's own most-eaten foods and the meal they had this time
    yesterday, each one tap. The barcode button sits beside it. */
 function suggestions(text) {
-  const { n } = parseLine(text.split(',').pop() || '');
+  const { n } = parseLine(parseWhen(text).text.split(',').pop() || '');
   const term = lc(n || '');
   if (!term) return [];
   const hits = word => lc(word).startsWith(term) || lc(word).split(/[\s-]+/).some(w => w.startsWith(term));
@@ -388,7 +392,8 @@ function renderSugs() {
   const inp = q('#fd-in'), box = q('#fd-sugs');
   if (!inp || !box) return;
   sugList = suggestions(inp.value);
-  const lead = parseLine(inp.value.split(',').pop() || '').q;
+  const lead = parseLine(parseWhen(inp.value).text.split(',').pop() || '').q;
+  paintWhen();
   box.innerHTML = sugList.map((s, i) => {
     const k = s.cal ? kcalOf({ q: lead, cal: s.cal }) : null;
     const meta = !calOn ? '' : s.src === 'mine' ? (s.cal ? esc(s.cal.pn) : '') : `USDA · ${esc(s.desc)} · ${esc(s.cal.pn)}`;
@@ -398,7 +403,6 @@ function renderSugs() {
     </button>`;
   }).join('');
   box.classList.toggle('on', sugList.length > 0);
-  q('#fd-quick')?.classList.toggle('off', inp.value.trim().length > 0);
 }
 
 function renderQuick() {
@@ -414,7 +418,9 @@ function renderQuick() {
 
 function commitLine(pick) {
   const inp = q('#fd-in');
-  const parts = inp.value.split(',').map(s => s.trim()).filter(Boolean);
+  const { text, when: typed } = parseWhen(inp.value);
+  if (typed) when = typed;
+  const parts = text.split(',').map(s => s.trim()).filter(Boolean);
   if (!parts.length && !pick) return;
   const items = parts.map(parseLine);
   if (pick) {
@@ -424,6 +430,90 @@ function commitLine(pick) {
   inp.value = '';
   renderSugs();
   addEntries(items);
+}
+
+/* ── when ──
+
+   Entries default to now (noon on a past day). The clock button in the
+   bar picks a part of the day or an exact time for the next add, and a
+   line can say it itself: "eggs at 8", "toast 7:30am", "pizza tonight",
+   "pasta for dinner". The phrase is only read off the end of the line,
+   and meal words need their "for"/"at", so "Breakfast burrito" and
+   "TV dinner" stay food. */
+const SLOTS = [
+  { k: 'morning',   n: 'Morning',   t: '08:00', re: /morning/ },
+  { k: 'afternoon', n: 'Afternoon', t: '15:00', re: /afternoon/ },
+  { k: 'evening',   n: 'Evening',   t: '19:00', re: /evening|tonight/ },
+  { k: 'night',     n: 'Night',     t: '22:30', re: /night|late/ },
+];
+const MEAL_AT = { breakfast: '08:00', brunch: '10:30', lunch: '12:30', dinner: '19:00', supper: '19:00' };
+const RX_CLOCK = /\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?$/i;
+const RX_AT = /\s+at\s+(\d{1,2})(?::(\d{2}))?$/i;
+const RX_PART = /\s+(?:this\s+|in\s+the\s+|at\s+|late\s+)?(morning|afternoon|evening|tonight|night)$/i;
+const RX_MEAL = /\s+(?:for|at)\s+(breakfast|brunch|lunch|dinner|supper)$/i;
+const hm = (h, m) => `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+
+/* "at 8" with no am/pm: the latest of 8:00 and 20:00 that has already
+   happened today, else the morning one; on a past day, 7 to 11 is
+   morning and anything else afternoon or evening. */
+function bareHour(h, m) {
+  if (h === 0 || h > 12) return hm(h % 24, m);
+  const am = hm(h % 12, m), pm = hm(h % 12 + 12, m);
+  if (day !== todayStr()) return h >= 7 && h <= 11 ? am : pm;
+  const now = nowHM();
+  return pm <= now ? pm : am;
+}
+
+/* The time phrase at the end of a line, if any, and the line without it. */
+function parseWhen(s) {
+  let m;
+  if ((m = s.match(RX_CLOCK))) {
+    let h = +m[1] % 12; if (/p/i.test(m[3])) h += 12;
+    const t = hm(h, +(m[2] || 0));
+    return { text: s.slice(0, m.index), when: { t, label: fmtTime(t) } };
+  }
+  if ((m = s.match(RX_AT)) && +m[1] <= 23) {
+    const t = bareHour(+m[1], +(m[2] || 0));
+    return { text: s.slice(0, m.index), when: { t, label: fmtTime(t) } };
+  }
+  if ((m = s.match(RX_PART))) {
+    const sl = SLOTS.find(x => x.re.test(m[1].toLowerCase()));
+    return { text: s.slice(0, m.index), when: { t: sl.t, ap: true, label: sl.n } };
+  }
+  if ((m = s.match(RX_MEAL))) {
+    const w = m[1].toLowerCase();
+    return { text: s.slice(0, m.index), when: { t: MEAL_AT[w], ap: true, label: cap(w) } };
+  }
+  return { text: s, when: null };
+}
+
+/* The time for this add, cleared once used so the next add is "now" again. */
+function takeWhen() {
+  const w = when;
+  when = null; whensOpen = false;
+  paintWhen();
+  return w;
+}
+
+function paintWhen() {
+  const btn = q('#fd-when'), row = q('#fd-whens'), inp = q('#fd-in');
+  if (!btn) return;
+  const typed = inp && parseWhen(inp.value).when;
+  const w = typed || when;
+  btn.classList.toggle('set', !!w);
+  btn.querySelector('span').textContent = w ? w.label : 'Now';
+  row.classList.toggle('on', whensOpen);
+  row.innerHTML = !whensOpen ? '' : `<button class="fd-chip${!when ? ' sel' : ''}" data-act="when-pick" data-k="now">Now</button>`
+    + `<label class="fd-chip fd-when-t${when && !when.ap ? ' sel' : ''}">${icon('clock')}<input id="fd-when-t" type="time" value="${when && !when.ap ? when.t : ''}" aria-label="Exact time"></label>`
+    + SLOTS.map(s => `<button class="fd-chip${when?.label === s.n ? ' sel' : ''}" data-act="when-pick" data-k="${s.k}">${s.n}</button>`).join('');
+  q('#fd-quick')?.classList.toggle('off', whensOpen || !!inp?.value.trim());
+}
+
+function pickWhen(k) {
+  const s = SLOTS.find(x => x.k === k);
+  when = s ? { t: s.t, ap: true, label: s.n } : null;
+  whensOpen = false;
+  paintWhen();
 }
 
 function repeatMeal(slot) {
@@ -1008,6 +1098,8 @@ function onClick(e) {
   else if (act === 'undo') runUndo();
   else if (act === 'sug') commitLine(sugList[+btn.dataset.i]);
   else if (act === 'send') commitLine();
+  else if (act === 'when') { whensOpen = !whensOpen; paintWhen(); }
+  else if (act === 'when-pick') pickWhen(btn.dataset.k);
   else if (act === 'scan') startScan();
   else if (act === 'repeat') repeatMeal(btn.dataset.meal);
   else if (act === 'quick') quickAdd(btn.dataset.n);
@@ -1049,10 +1141,16 @@ function onInput(e) {
 
 function onChange(e) {
   if (e.target.id === 'fd-grams') { setGrams(e.target.value); return; }
+  if (e.target.id === 'fd-when-t') {
+    const t = e.target.value;
+    if (t) { when = { t, label: fmtTime(t) }; whensOpen = false; paintWhen(); }
+    return;
+  }
   if (e.target.id !== 'fd-time') return;
   const ent = sheet?.kind === 'entry' && entry(sheet.id);
   if (!ent || !e.target.value) return;
   ent.t = e.target.value;
+  delete ent.ap;
   persist();
   renderSheet();
   renderToday();
@@ -1119,10 +1217,12 @@ function template() {
             <div class="fd-bar-in">
               <button class="fd-scanbtn" data-act="scan" aria-label="Scan a barcode">${icon('scan')}</button>
               <input id="fd-in" type="text" placeholder="What did you eat?" autocomplete="off" enterkeyhint="done" aria-label="What did you eat?">
+              <button class="fd-when" id="fd-when" data-act="when" aria-label="When">${icon('clock')}<span>Now</span></button>
               <button class="fd-send" data-act="send" aria-label="Add">${icon('plus')}</button>
             </div>
             <div class="fd-sugs" id="fd-sugs"></div>
           </div>
+          <div class="fd-whens" id="fd-whens"></div>
           <div class="fd-quick" id="fd-quick"></div>
         </div>
         <div id="fd-today-body"></div>
@@ -1138,7 +1238,7 @@ export default {
   id: 'food',
   name: 'Food',
   storagePrefix: 'food_',
-  styles: 'apps/food/food.css?v=food-5',
+  styles: 'apps/food/food.css?v=food-6',
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3v5a3 3 0 0 0 6 0V3"/><path d="M7 3v18"/><path d="M17 21V3c-2.2 0-4 2.5-4 7v3h4"/></svg>',
   mount(el) {
     root = el;
