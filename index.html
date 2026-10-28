@@ -17,9 +17,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/tokens.css?v=3d-oct14d">
-<link rel="stylesheet" href="assets/css/themes.css?v=3d-oct14d">
-<link rel="stylesheet" href="assets/css/shell.css?v=3d-oct14d">
+<link rel="stylesheet" href="assets/css/tokens.css?v=3d-oct28a">
+<link rel="stylesheet" href="assets/css/themes.css?v=3d-oct28a">
+<link rel="stylesheet" href="assets/css/shell.css?v=3d-oct28a">
 <!-- Every app's stylesheet, render-blocking and up front. shell.js loads these
      anyway on boot, but from JS, which does not block paint: the app's markup
      went into the DOM in the gap before its CSS landed, and the rule hiding
@@ -28,6 +28,7 @@
      max-age=600, so that gap reopened every ten minutes rather than once. -->
 <link rel="stylesheet" href="apps/workout/workout.css?v=3d-oct16u">
 <link rel="stylesheet" href="apps/finance/finance.css?v=3d-oct14d">
+<link rel="stylesheet" href="apps/food/food.css?v=food-1">
 <script>
 /* Set the theme before first paint so there's no flash of the wrong palette.
    Kept inline and dependency-free on purpose — assets/js/theme.js owns the
@@ -78,7 +79,7 @@
   </main>
 </div>
 
-<script type="module" src="assets/js/shell.js?v=3d-oct14d"></script>
+<script type="module" src="assets/js/shell.js?v=3d-oct28a"></script>
 
 <script>
 /* ═══ Self-update ═══
