@@ -26,7 +26,6 @@ const CROP_W = 0.86, CROP_H = 0.5;
 
 let el = null, video = null, stream = null, timer = null, busy = false, engine = null, onCode = null, zxLoad = null;
 
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 const status = msg => { const s = el?.querySelector('.sc-msg'); if (s) s.innerHTML = msg; };
 
 /* UPC-A is EAN-13 with a leading zero; store everything in the 13-digit form. */
@@ -105,9 +104,9 @@ export async function openScanner(cb) {
     <div class="sc-shade"><div class="sc-frame"><i></i><i></i><i></i><i></i><b class="sc-line"></b></div></div>
     <div class="sc-top"><span>Scan a barcode</span><button class="sc-x" data-sc="close" aria-label="Close">&times;</button></div>
     <div class="sc-bot">
-      <div class="sc-msg">Starting the camera…</div>
+      <div class="sc-msg"></div>
       <form class="sc-type" data-sc="form">
-        <input class="sc-in" inputmode="numeric" pattern="[0-9]*" maxlength="14" placeholder="Or type the number" aria-label="Barcode number" autocomplete="off">
+        <input class="sc-in" inputmode="numeric" pattern="[0-9]*" maxlength="14" placeholder="Barcode number" aria-label="Barcode number" autocomplete="off">
         <button class="sc-go" type="submit">Go</button>
       </form>
     </div>`;
@@ -118,12 +117,12 @@ export async function openScanner(cb) {
     e.preventDefault();
     const v = el.querySelector('.sc-in').value.replace(/\D/g, '');
     if (validCode(normalize(v))) found(v);
-    else status('That is not a barcode number: 8, 12 or 13 digits.');
+    else status('Not a barcode number');
   });
   document.addEventListener('keydown', onKey);
 
   if (!navigator.mediaDevices?.getUserMedia) {
-    status('This browser cannot open the camera here. Type the number under the barcode.');
+    status('No camera. Type the number.');
     return;
   }
   try {
@@ -132,15 +131,13 @@ export async function openScanner(cb) {
     if (!el) { stream.getTracks().forEach(t => t.stop()); return; }
     video.srcObject = stream;
     await video.play().catch(() => {});
-    status('Hold the barcode inside the frame');
+    status('');
     engine = await makeEngine();
     if (!el) return;
     timer = setInterval(tick, TICK);
   } catch (e) {
     const denied = e && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
-    status(denied
-      ? 'Camera access is off for this site. Allow it in the browser settings, or type the number under the barcode.'
-      : `Could not start the camera (${esc(e?.message || e)}). Type the number under the barcode instead.`);
+    status(denied ? 'Camera blocked. Type the number.' : 'No camera. Type the number.');
   }
 }
 

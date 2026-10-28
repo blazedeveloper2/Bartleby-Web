@@ -9,7 +9,7 @@
 
 import workout from '../../apps/workout/index.js?v=3d-oct18a';
 import finance from '../../apps/finance/index.js?v=3d-oct14d';
-import food from '../../apps/food/index.js?v=food-1';
+import food from '../../apps/food/index.js?v=food-2';
 import { toast } from './ui.js?v=3d-oct14d';
 import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=3d-oct14d';
 
@@ -273,12 +273,12 @@ const PREFS = [
    must match where apps/food/index.js reads them (calLayer, offAuto). */
 const FOOD_PREFS = [
   { id:'foodcal', key:'food_cal', name:'Count Calories', on:'On', off:'Off',
-    subOn:'Entries show calories, and days total up when every entry is counted.',
-    subOff:'A plain food journal. Calories you already added are kept, just hidden.',
+    subOn:'Calories and daily totals.',
+    subOff:'Just the journal.',
     toastOn:'Calories on', toastOff:'Calories hidden' },
   { id:'foodoff', key:'food_offauto', def:false, name:'Barcode Lookup', on:'Automatic', off:'Ask First',
-    subOn:'New barcodes are looked up on Open Food Facts straight away. Only the number is sent.',
-    subOff:'A new barcode asks before it is looked up on Open Food Facts.',
+    subOn:'New barcodes look up on Open Food Facts.',
+    subOff:'Asks before looking up a new barcode.',
     toastOn:'Barcodes look up automatically', toastOff:'Barcodes ask before looking up' },
 ];
 const eqOn = eq => {

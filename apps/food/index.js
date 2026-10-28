@@ -330,7 +330,7 @@ function summaryHtml(st) {
   }
   const status = st.complete
     ? '<span class="fd-st ok">Complete day</span>'
-    : `<span class="fd-st part">Partial · ${st.n - st.counted} of ${st.n} not counted</span>`;
+    : `<span class="fd-st part">${st.n - st.counted} not counted</span>`;
   const mac = st.macros ? `<div class="fd-mac">
       <span><b>${fmtG(st.macros.p)}</b> protein</span><span><b>${fmtG(st.macros.c)}</b> carbs</span><span><b>${fmtG(st.macros.f)}</b> fat</span>
     </div>` : '';
@@ -352,7 +352,7 @@ function renderToday() {
       </section>`).join('')
     : `<div class="fd-empty">
         <div class="fd-empty-t">${isToday ? 'Nothing logged yet today' : 'Nothing logged this day'}</div>
-        <div class="fd-empty-s">Type what you ate below. A list works too: <b>2 eggs, toast, coffee</b>. Or tap the barcode button to scan a package.</div>
+        <div class="fd-empty-s">Try <b>2 eggs, toast</b></div>
       </div>`;
   el.innerHTML = `
     <div class="fd-daynav">
@@ -444,7 +444,7 @@ function quickAdd(n) {
    to automatic. Whatever comes back is crowd-sourced, so it is shown
    for checking against the label before it is saved. */
 function startScan() {
-  import('./scan.js?v=food-1').then(S => { scanMod = S; S.openScanner(onCode); }).catch(() => showUndo('Scanner failed to load', null));
+  import('./scan.js?v=food-2').then(S => { scanMod = S; S.openScanner(onCode); }).catch(() => showUndo('Scanner failed to load', null));
 }
 
 function onCode(code) {
@@ -519,14 +519,13 @@ function scanHtml() {
     <div class="fd-sh-top"><div class="fd-sh-title">${s.st === 'found' ? 'Found it' : 'New barcode'}</div><button class="fd-x" data-act="close" aria-label="Close">&times;</button></div>
     <div class="sc-code">${esc(s.code)}</div>`;
   if (s.st === 'ask') return head + `
-    <p class="fd-p">Not in your foods yet. Look it up on <b>Open Food Facts</b>, a free crowd-sourced product database? Only the barcode number is sent.</p>
-    <button class="fd-btn pri wide" data-act="sc-look">Look it up</button>
-    <button class="fd-tog${offAuto() ? ' on' : ''}" data-act="sc-auto"><span class="fd-tog-b"></span>Always look up new barcodes</button>
-    <button class="fd-btn wide" data-act="sc-label">Type it from the label instead</button>`;
+    <button class="fd-btn pri wide" data-act="sc-look">Look up on Open Food Facts</button>
+    <button class="fd-tog${offAuto() ? ' on' : ''}" data-act="sc-auto"><span class="fd-tog-b"></span>Always look up</button>
+    <button class="fd-btn wide" data-act="sc-label">Enter from label</button>`;
   if (s.st === 'loading') return head + '<div class="sc-wait"><i></i>Looking it up…</div>';
   if (s.st === 'error') return head + `
-    <p class="fd-p">The lookup didn't go through (${esc(s.err)}). You might be offline.</p>
-    <div class="fd-sh-foot"><button class="fd-btn" data-act="sc-label">Type from label</button><button class="fd-btn pri" data-act="sc-look">Try again</button></div>`;
+    <p class="fd-p">Couldn't connect.</p>
+    <div class="fd-sh-foot"><button class="fd-btn" data-act="sc-label">Enter from label</button><button class="fd-btn pri" data-act="sc-look">Try again</button></div>`;
   if (s.st === 'found') {
     const o = s.off, serv = o.sg ? Math.round(o.sg * o.k100 / 100) : null;
     const row = (l, v, u) => `<div><span>${l}</span><b>${v == null ? '—' : (u === 'kcal' ? fmtK(v) : fmtG(v))}</b></div>`;
@@ -541,16 +540,13 @@ function scanHtml() {
       <div class="fd-sh-foot"><button class="fd-btn" data-act="sc-edit">Edit numbers</button><button class="fd-btn pri" data-act="sc-add">Add 1 serving</button></div>`;
   }
   const d = s.draft;
-  const why = { none: 'Open Food Facts doesn\'t know this barcode. Copy the nutrition label once and it\'s saved for next time.',
-    nokcal: 'Open Food Facts has this product but no calories for it. Copy them from the label once.',
-    edit: 'Check these against the label and fix anything that differs.',
-    self: 'Copy the nutrition label once and it\'s saved for next time.' }[s.why] || '';
+  const why = { none: 'Not found.', nokcal: 'No calories listed.' }[s.why] || '';
   const fld = (id, l, v, ph) => `<label class="sc-f"><span>${l}</span><input class="fd-in-sm" id="sc-${id}" type="number" inputmode="decimal" min="0" step="any" value="${esc(v)}" placeholder="${ph}"></label>`;
   return head + `
-    <p class="fd-p">${why}</p>
+    ${why ? `<p class="fd-p">${why}</p>` : ''}
     <label class="fd-sec-l" for="sc-n">Name</label>
     <input class="fd-in-sm" id="sc-n" value="${esc(d.n)}" placeholder="e.g. Granola bar" autocomplete="off">
-    <div class="fd-sec-l">The label's numbers are per</div>
+    <div class="fd-sec-l">Per</div>
     <div class="fd-seg2"><button class="${d.per === 'serving' ? 'sel' : ''}" data-act="sc-per" data-v="serving">Serving</button><button class="${d.per === '100g' ? 'sel' : ''}" data-act="sc-per" data-v="100g">100 g</button></div>
     <div class="sc-grid">
       ${fld('k', 'Calories', d.k, 'kcal')}${fld('sg', 'Serving size', d.sg, 'g (optional)')}
@@ -643,7 +639,7 @@ function calHtml(e) {
 let findRes = [];
 function findHtml(e) {
   findRes = search(sheetQ || e.n, 6);
-  if (!findRes.length) return `<div class="fd-find-none">No USDA match${sheetQ ? '' : ` for “${esc(e.n)}”`}. Try fewer words, or type the number from the label or the restaurant's menu.</div>`;
+  if (!findRes.length) return `<div class="fd-find-none">No match</div>`;
   return findRes.map((f, i) => {
     const p = defaultPortion(f);
     return `<button class="fd-res" data-act="pick" data-i="${i}">
@@ -793,7 +789,7 @@ function renderWeek() {
   const late = wk.filter(e => e.t >= '22:00' || e.t < '04:00').length;
 
   const patterns = !wk.length
-    ? `<div class="fd-empty"><div class="fd-empty-t">Nothing logged this week</div><div class="fd-empty-s">Patterns show up here once a few days are in.</div></div>`
+    ? `<div class="fd-empty"><div class="fd-empty-t">Nothing logged this week</div></div>`
     : `<div class="fd-card">
     <div class="fd-card-h"><span>Patterns</span></div>
     <div class="fd-pat">
@@ -823,7 +819,7 @@ function renderFoods() {
   if (!el) return;
   const h = history();
   const codes = Object.entries(codesAll()).sort((a, b) => a[1].n.localeCompare(b[1].n));
-  const mine = !h.length ? '<div class="fd-find-none">Foods you log show up here, most-eaten first.</div>'
+  const mine = !h.length ? '<div class="fd-find-none">Nothing yet</div>'
     : h.map(x => {
       const k = x.cal ? kcalOf({ q: 1, cal: x.cal }) : null;
       return `<div class="fd-food"><div><div class="fd-food-n">${esc(x.n)}</div><div class="fd-food-s">${x.c}× · ${x.cal ? calSub({ cal: x.cal }) : 'not counted'}</div></div>
@@ -836,17 +832,11 @@ function renderFoods() {
         <div class="fd-food-r">${calOn ? `<span class="fd-k">${fmtK(k)}</span>` : ''}<button class="fd-x sm" data-act="forget" data-code="${esc(code)}" aria-label="Forget ${esc(p.n)}">&times;</button></div></div>`;
   }).join('');
   el.innerHTML = `
-    <button class="fd-scan" data-act="scan"><span class="fd-scan-i">${icon('scan')}</span><span><b>Scan a barcode</b><em>Packaged food, from the camera</em></span></button>
-    ${codes.length ? `<div class="fd-card"><div class="fd-card-h"><span>Scanned products</span><span class="fd-card-n">${codes.length} saved on this device</span></div><div class="fd-foods">${scanned}</div></div>` : ''}
+    <button class="fd-scan" data-act="scan"><span class="fd-scan-i">${icon('scan')}</span><span><b>Scan a barcode</b></span></button>
+    ${codes.length ? `<div class="fd-card"><div class="fd-card-h"><span>Scanned products</span><span class="fd-card-n">${codes.length}</span></div><div class="fd-foods">${scanned}</div></div>` : ''}
     <div class="fd-card">
-      <div class="fd-card-h"><span>Your foods</span><span class="fd-card-n">${h.length ? `${h.length} from your journal` : ''}</span></div>
+      <div class="fd-card-h"><span>Your foods</span><span class="fd-card-n">${h.length || ''}</span></div>
       <div class="fd-foods">${mine}</div>
-    </div>
-    <div class="fd-card">
-      <div class="fd-card-h"><span>Where the numbers come from</span></div>
-      <p class="fd-p"><b>Fresh and cooked foods</b> come from USDA FoodData Central (SR Legacy, all 7,793 foods, stored with the app). Every counted entry shows the exact USDA food, the portion and the math, with a link to the record.</p>
-      <p class="fd-p"><b>Packaged foods</b> come from their barcode: Open Food Facts when you allow the lookup, or the label you copy in. Either way the product is saved here, so the next scan works offline.</p>
-      <p class="fd-p">Nothing is matched by guesswork. A name only gets calories by itself when you have counted it before, or it is an everyday food like "banana" or "2 eggs". Everything else stays uncounted until you pick a food or type the number.</p>
     </div>`;
 }
 
