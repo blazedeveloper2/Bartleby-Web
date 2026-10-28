@@ -372,3 +372,10 @@ html[data-theme="light"] .fd-in-sm{color-scheme:light}
 .fd-when-t svg{width:14px;height:14px;flex-shrink:0}
 .fd-when-t input{background:none;border:none;outline:none;color:inherit;font-family:var(--mono);font-size:13px;color-scheme:dark;min-width:86px}
 html[data-theme="light"] .fd-when-t input{color-scheme:light}
+.fd-chk-t{margin-left:auto;font-size:11px;font-weight:600;color:var(--text-3);white-space:nowrap}
+.ck-at{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.ck-at .fd-por{padding:6px 9px}
+.ck-time{display:inline-flex;align-items:center;gap:4px;cursor:pointer}
+.ck-time svg{width:13px;height:13px;flex-shrink:0}
+.ck-time input{background:none;border:none;outline:none;color:inherit;font-family:var(--mono);font-size:12px;color-scheme:dark;min-width:78px;padding:0}
+html[data-theme="light"] .ck-time input{color-scheme:light}

@@ -863,13 +863,18 @@ function checkCount(d) {
   return { n: items.length, done: items.filter(c => done.has(c.id)).length };
 }
 
+/* An item's time of day: null (any time), a SLOTS key, or 'HH:MM'. The
+   card lists items in that order, any-time ones last. */
+const atKey = at => (!at ? '99' : SLOTS.find(s => s.k === at)?.t ?? at);
+const atLabel = at => (!at ? '' : SLOTS.find(s => s.k === at)?.n ?? fmtTime(at));
+
 function checklistHtml() {
-  const items = checksOn(day);
+  const items = checksOn(day).sort((a, b) => atKey(a.at).localeCompare(atKey(b.at)));
   if (!items.length) return `<button class="fd-chk-add" data-act="ck-open">${icon('plus')}Checklist</button>`;
   const done = new Set(doneAll()[day] || []), n = items.filter(c => done.has(c.id)).length;
   return `<div class="fd-card fd-chks">
     <div class="fd-card-h"><span>Checklist</span><span class="fd-card-n"><b class="${n === items.length ? 'ok' : ''}">${n}/${items.length}</b><button class="fd-lnk" data-act="ck-open">Edit</button></span></div>
-    ${items.map(c => `<button class="fd-chk${done.has(c.id) ? ' on' : ''}" data-act="ck-tick" data-id="${c.id}" aria-pressed="${done.has(c.id)}"><span class="fd-chk-b"></span><span class="fd-chk-n">${esc(c.n)}</span></button>`).join('')}
+    ${items.map(c => `<button class="fd-chk${done.has(c.id) ? ' on' : ''}" data-act="ck-tick" data-id="${c.id}" aria-pressed="${done.has(c.id)}"><span class="fd-chk-b"></span><span class="fd-chk-n">${esc(c.n)}</span>${c.at ? `<span class="fd-chk-t">${atLabel(c.at)}</span>` : ''}</button>`).join('')}
   </div>`;
 }
 
@@ -880,6 +885,15 @@ function tick(id) {
   if (set.size) all[day] = [...set]; else delete all[day];
   save('food_done', all);
   renderToday();
+}
+
+function atRow(c) {
+  const exact = c.at && !SLOTS.some(s => s.k === c.at);
+  return `<div class="ck-at">
+      <button class="fd-por${c.at ? '' : ' sel'}" data-act="ck-at" data-id="${c.id}" data-k="">Any time</button>
+      ${SLOTS.map(s => `<button class="fd-por${c.at === s.k ? ' sel' : ''}" data-act="ck-at" data-id="${c.id}" data-k="${s.k}">${s.n}</button>`).join('')}
+      <label class="fd-por ck-time${exact ? ' sel' : ''}">${icon('clock')}<input class="ck-time-in" data-id="${c.id}" type="time" value="${exact ? c.at : ''}" aria-label="Exact time"></label>
+    </div>`;
 }
 
 function checksHtml() {
@@ -894,6 +908,7 @@ function checksHtml() {
     ${items.map(c => `<div class="ck-item">
       <div class="ck-top"><input class="fd-in-sm ck-name" data-id="${c.id}" value="${esc(c.n)}" aria-label="Name" autocomplete="off" enterkeyhint="done"><button class="fd-x sm" data-act="ck-del" data-id="${c.id}" aria-label="Remove ${esc(c.n)}">&times;</button></div>
       ${days(c)}
+      ${atRow(c)}
     </div>`).join('')}
     <div class="fd-sh-foot"><button class="fd-btn pri" data-act="close">Done</button></div>`;
 }
@@ -913,6 +928,7 @@ function checksAct(act, btn) {
   }
   if (!c) return;
   if (act === 'ck-every') c.days = null;
+  else if (act === 'ck-at') c.at = btn.dataset.k || null;
   else if (act === 'ck-day') {
     const w = +btn.dataset.w, set = new Set(c.days || []);
     if (set.has(w)) set.delete(w); else set.add(w);
@@ -1141,6 +1157,11 @@ function onInput(e) {
 
 function onChange(e) {
   if (e.target.id === 'fd-grams') { setGrams(e.target.value); return; }
+  if (e.target.classList.contains('ck-time-in')) {
+    const items = checksAll(), c = items.find(x => x.id === e.target.dataset.id);
+    if (c && e.target.value) { c.at = e.target.value; checksSave(items); renderSheet(); renderToday(); }
+    return;
+  }
   if (e.target.id === 'fd-when-t') {
     const t = e.target.value;
     if (t) { when = { t, label: fmtTime(t) }; whensOpen = false; paintWhen(); }
@@ -1238,7 +1259,7 @@ export default {
   id: 'food',
   name: 'Food',
   storagePrefix: 'food_',
-  styles: 'apps/food/food.css?v=food-6',
+  styles: 'apps/food/food.css?v=food-7',
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3v5a3 3 0 0 0 6 0V3"/><path d="M7 3v18"/><path d="M17 21V3c-2.2 0-4 2.5-4 7v3h4"/></svg>',
   mount(el) {
     root = el;
