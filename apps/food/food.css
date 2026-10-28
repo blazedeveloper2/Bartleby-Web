@@ -5,6 +5,8 @@
    ═══════════════════════════════════════════════════════════ */
 
 .food{--fd:var(--amber);--fd-d:var(--amber-d);--fd-ink:var(--ink-amber)}
+/* The page behind an open sheet stays put (see the keyboard note in index.js) */
+html.fd-lock,html.fd-lock body{overflow:hidden}
 
 /* ── Internal tab nav (Finance's, in amber) ── */
 .food .nav{position:sticky;top:var(--shell-bar-h,0);z-index:50;background:var(--bg);border-bottom:1px solid var(--border);padding-top:14px}
@@ -98,7 +100,7 @@
    Fixed rather than sticky, so it stays in the thumb zone on a short
    day too. Its left edge clears the shell's 220px sidebar on desktop
    (shell.css), and the bar collapses to the top above 820px's break. */
-.fd-compose{position:fixed;left:220px;right:0;bottom:0;z-index:70;pointer-events:none;
+.fd-compose{position:fixed;left:220px;right:0;bottom:var(--kb,0px);z-index:70;pointer-events:none;
   padding:0 16px calc(12px + env(safe-area-inset-bottom));
   background:linear-gradient(to top,var(--bg) 62%,transparent)}
 .fd-compose.off{display:none}
@@ -130,10 +132,10 @@
 .fd-send svg{width:20px;height:20px;stroke-width:2.4}
 
 /* ── Entry sheet ── */
-.fd-ov{position:fixed;inset:0;z-index:300;background:var(--ol-bg);backdrop-filter:blur(10px);
+.fd-ov{position:fixed;inset:0;bottom:var(--kb,0px);z-index:300;background:var(--ol-bg);backdrop-filter:blur(10px);
   display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
 .fd-ov.on{opacity:1;pointer-events:auto}
-.fd-sheet{width:100%;max-width:520px;max-height:88dvh;overflow-y:auto;background:var(--bg-card);
+.fd-sheet{width:100%;max-width:520px;max-height:calc(var(--vvh,100dvh) * .88);overflow-y:auto;overscroll-behavior:contain;background:var(--bg-card);
   border:1px solid var(--border-lt);border-bottom:none;border-radius:16px 16px 0 0;
   padding:8px 18px calc(18px + env(safe-area-inset-bottom));transform:translateY(24px);transition:transform .25s cubic-bezier(.22,.68,0,1)}
 .fd-ov.on .fd-sheet{transform:none}
@@ -201,7 +203,7 @@ html[data-theme="light"] .fd-in-sm{color-scheme:light}
 .fd-sh-foot{display:flex;gap:8px;margin-top:20px}
 
 /* ── Undo toast ── */
-.fd-toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));z-index:320;
+.fd-toast{position:fixed;left:50%;bottom:calc(150px + var(--kb,0px) + env(safe-area-inset-bottom));z-index:320;
   display:flex;align-items:center;gap:14px;padding:8px 8px 8px 16px;background:var(--bg-alt);border:1px solid var(--border-lt);
   border-radius:var(--r);font-size:13px;font-weight:500;box-shadow:0 8px 40px #0006;
   transform:translateX(-50%) translateY(16px);opacity:0;pointer-events:none;transition:all .25s cubic-bezier(.22,.68,0,1.1)}

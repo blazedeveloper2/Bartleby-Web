@@ -574,10 +574,27 @@ function openSheet(s) {
   sheet = s; sheetQ = '';
   renderSheet();
   q('#fd-ov').classList.add('on');
+  document.documentElement.classList.add('fd-lock');
 }
 function closeSheet() {
   sheet = null;
   q('#fd-ov')?.classList.remove('on');
+  document.documentElement.classList.remove('fd-lock');
+}
+
+/* ── keyboard ──
+
+   iOS leaves fixed elements on the layout viewport, which the keyboard
+   covers, then scrolls the page to bring the focused field into view —
+   and draws the caret where the field was before that scroll. Pinning
+   the composer and the sheet to the visual viewport (--kb: keyboard
+   height, --vvh: visible height) keeps the field still under the caret.
+   The page behind an open sheet is locked for the same reason. */
+function syncViewport() {
+  const vv = window.visualViewport;
+  if (!vv || !root) return;
+  root.style.setProperty('--kb', Math.max(0, window.innerHeight - vv.height - vv.offsetTop) + 'px');
+  root.style.setProperty('--vvh', vv.height + 'px');
 }
 
 function calHtml(e) {
@@ -599,9 +616,9 @@ function calHtml(e) {
       pors = p && c.k100 != null ? packPortions(p) : [];
       link = p?.src === 'off' ? `<a class="fd-lnk" href="${OFF_PAGE}${esc(c.code)}" target="_blank" rel="noopener">View on Open Food Facts ↗</a>` : '';
     }
-    const custom = c.k100 != null && !pors.some(p => p.g === c.g && p.n === c.pn);
+    const at = pors.findIndex(p => p.g === c.g), custom = c.k100 != null && at < 0;
     const chips = pors.length > 1 || c.k100 != null ? `<div class="fd-pors">${pors.map((p, i) =>
-      `<button class="fd-por${p.g === c.g && p.n === c.pn ? ' sel' : ''}" data-act="por" data-i="${i}">${esc(p.n)} <em>${p.g} g</em></button>`).join('')}
+      `<button class="fd-por${i === at ? ' sel' : ''}" data-act="por" data-i="${i}">${esc(p.n)} <em>${p.g} g</em></button>`).join('')}
       ${c.k100 != null ? `<label class="fd-por grams${custom ? ' sel' : ''}"><input id="fd-grams" type="number" inputmode="decimal" min="0" step="any" value="${custom ? c.g : ''}" placeholder="grams"><em>g</em></label>` : ''}</div>` : '';
     const math = c.k100 != null
       ? `${fmtQ(e.q)} × ${esc(c.pn)}${c.pn.includes(`${c.g} g`) ? '' : ` (${c.g} g)`} = ${fmtG(e.q * c.g)} · ${c.k100} kcal per 100 g`
@@ -1006,7 +1023,7 @@ export default {
   id: 'food',
   name: 'Food',
   storagePrefix: 'food_',
-  styles: 'apps/food/food.css?v=food-1',
+  styles: 'apps/food/food.css?v=food-2',
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3v5a3 3 0 0 0 6 0V3"/><path d="M7 3v18"/><path d="M17 21V3c-2.2 0-4 2.5-4 7v3h4"/></svg>',
   mount(el) {
     root = el;
@@ -1023,6 +1040,9 @@ export default {
     root.addEventListener('pointerup', onUp);
     root.addEventListener('pointercancel', onUp);
     window.addEventListener('bs:datachange', onDataChange);
+    window.visualViewport?.addEventListener('resize', syncViewport);
+    window.visualViewport?.addEventListener('scroll', syncViewport);
+    syncViewport();
     switchTab(activeTab);
     /* The full USDA list arrives after first paint; until then search
        runs on the common foods, and anything open repaints with it. */
@@ -1040,6 +1060,9 @@ export default {
       root.removeEventListener('pointercancel', onUp);
     }
     window.removeEventListener('bs:datachange', onDataChange);
+    window.visualViewport?.removeEventListener('resize', syncViewport);
+    window.visualViewport?.removeEventListener('scroll', syncViewport);
+    document.documentElement.classList.remove('fd-lock');
     scanMod?.close();
     clearTimeout(undoTimer);
     root = null;
