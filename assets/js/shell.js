@@ -9,7 +9,7 @@
 
 import workout from '../../apps/workout/index.js?v=3d-oct18a';
 import finance from '../../apps/finance/index.js?v=3d-oct14d';
-import food from '../../apps/food/index.js?v=food-12';
+import food from '../../apps/food/index.js?v=food-13';
 import { toast } from './ui.js?v=3d-oct14d';
 import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=3d-oct14d';
 

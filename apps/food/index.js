@@ -39,6 +39,7 @@ const ICO = {
   bars:  '<path d="M3 20h18"/><path d="M6.5 20V12"/><path d="M12 20V5"/><path d="M17.5 20v-5.5"/>',
   list:  '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/>',
   plus:  '<path d="M12 5v14"/><path d="M5 12h14"/>',
+  grip:  '<path d="M5 8h14"/><path d="M5 12h14"/><path d="M5 16h14"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/>',
   scan:  '<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8"/><path d="M10.5 8v8"/><path d="M14 8v8"/><path d="M17 8v8"/>',
 };
@@ -866,10 +867,11 @@ function checkCount(d) {
 /* ── checklist sections ──
 
    An item's `at` is null (any time), a SLOTS key, or 'HH:MM'. The card
-   groups items under Morning, Afternoon, Evening, Night and Any time, in
+   groups items under Any time, Morning, Afternoon, Evening and Night, in
    that order. An exact time joins the part of the day it falls in and
-   shows its clock time; within a part, the untimed items come first,
-   then exact times in order. */
+   shows its clock time. Within a part, items keep the order of the stored
+   list, which is the order set by dragging in Edit; see `place` for where
+   a new one lands. */
 const PART_END = { morning: '12:00', afternoon: '17:00', evening: '21:00' };
 function partOf(at) {
   if (!at) return 'any';
@@ -877,7 +879,7 @@ function partOf(at) {
   if (at < '04:00') return 'night';
   return Object.keys(PART_END).find(k => at < PART_END[k]) || 'night';
 }
-const PARTS = [...SLOTS.map(s => ({ k: s.k, n: s.n })), { k: 'any', n: 'Any time' }];
+const PARTS = [{ k: 'any', n: 'Any time' }, ...SLOTS.map(s => ({ k: s.k, n: s.n }))];
 const exactAt = at => (at && !SLOTS.some(s => s.k === at) ? at : '');
 
 function checklistHtml() {
@@ -885,8 +887,7 @@ function checklistHtml() {
   if (!items.length) return `<button class="fd-chk-add" data-act="ck-quick">${icon('plus')}Checklist</button>`;
   const done = new Set(doneAll()[day] || []), n = items.filter(c => done.has(c.id)).length;
   const row = c => `<button class="fd-chk${done.has(c.id) ? ' on' : ''}" data-act="ck-tick" data-id="${c.id}" aria-pressed="${done.has(c.id)}"><span class="fd-chk-b"></span><span class="fd-chk-n">${esc(c.n)}</span>${exactAt(c.at) ? `<span class="fd-chk-t">${fmtTime(c.at)}</span>` : ''}</button>`;
-  const parts = PARTS.map(p => ({ ...p, items: items.filter(c => partOf(c.at) === p.k).sort((a, b) => exactAt(a.at).localeCompare(exactAt(b.at))) }))
-    .filter(p => p.items.length);
+  const parts = PARTS.map(p => ({ ...p, items: items.filter(c => partOf(c.at) === p.k) })).filter(p => p.items.length);
   const one = parts.length === 1 && parts[0].k === 'any';
   return `<div class="fd-card fd-chks">
     <div class="fd-card-h"><span>Checklist</span><span class="fd-card-n"><b class="${n === items.length ? 'ok' : ''}">${n}/${items.length}</b><button class="fd-lnk" data-act="ck-quick">Add</button><button class="fd-lnk" data-act="ck-open">Edit</button></span></div>
@@ -920,18 +921,65 @@ function daysLabel(days) {
   if (sameDays(days, [5, 6])) return 'Weekends';
   return days.map(w => WD_LONG[w].slice(0, 3)).join(', ');
 }
-const atLabel = at => (!at ? '' : SLOTS.find(s => s.k === at)?.n ?? fmtTime(at));
-const itemOrder = (a, b) => PARTS.findIndex(p => p.k === partOf(a.at)) - PARTS.findIndex(p => p.k === partOf(b.at))
-  || exactAt(a.at).localeCompare(exactAt(b.at));
 
 function listHtml() {
-  const items = checksAll().sort(itemOrder);
+  const items = checksAll();
+  const parts = PARTS.map(p => ({ ...p, items: items.filter(c => partOf(c.at) === p.k) })).filter(p => p.items.length);
   return `
     <div class="fd-sh-top"><div class="fd-sh-title">Checklist</div><button class="fd-x" data-act="close" aria-label="Close">&times;</button></div>
     <button class="fd-btn pri wide ck-addbtn" data-act="ck-new">${icon('plus')}Add item</button>
-    ${items.length ? `<div class="ck-list">${items.map(c => `<button class="ck-row" data-act="ck-edit" data-id="${c.id}">
-      <span class="ck-row-b"><span class="ck-row-n">${esc(c.n)}</span><span class="ck-row-s">${[daysLabel(c.days), atLabel(c.at)].filter(Boolean).join(' · ')}</span></span>
-      <span class="ck-chev">›</span></button>`).join('')}</div>` : ''}`;
+    <div class="ck-list">${parts.map(p => `<div class="fd-chk-h"><span>${p.n}</span></div><div class="ck-sec">${p.items.map(c => `<button class="ck-row" data-act="ck-edit" data-id="${c.id}">
+      <span class="ck-grip" aria-label="Drag to reorder">${icon('grip')}</span>
+      <span class="ck-row-b"><span class="ck-row-n">${esc(c.n)}</span><span class="ck-row-s">${[daysLabel(c.days), exactAt(c.at) ? fmtTime(c.at) : ''].filter(Boolean).join(' · ')}</span></span>
+      <span class="ck-chev">›</span></button>`).join('')}</div>`).join('')}</div>`;
+}
+
+/* ── drag to reorder ──
+
+   The ≡ handle on an Edit row drags it within its own part of the day;
+   rows swap as it passes their middle, and the new order is written back
+   into the slots that part held in the stored list, so other parts stay
+   exactly where they were. */
+let reorder = null;
+function startReorder(e, grip) {
+  const row = grip.closest('.ck-row');
+  reorder = { row, sec: row.parentElement, y: e.clientY };
+  row.classList.add('lift');
+  grip.setPointerCapture?.(e.pointerId);
+  e.preventDefault();
+}
+function moveReorder(e) {
+  const r = reorder;
+  let dy = e.clientY - r.y;
+  const prev = r.row.previousElementSibling, next = r.row.nextElementSibling;
+  if (dy > 0 && next && dy > next.offsetHeight / 2) { next.after(r.row); r.y += next.offsetHeight; dy -= next.offsetHeight; }
+  else if (dy < 0 && prev && -dy > prev.offsetHeight / 2) { prev.before(r.row); r.y -= prev.offsetHeight; dy += prev.offsetHeight; }
+  r.row.style.transform = `translateY(${dy}px)`;
+}
+function endReorder() {
+  const r = reorder;
+  reorder = null;
+  r.row.classList.remove('lift');
+  r.row.style.transform = '';
+  swallowClick = true;
+  setTimeout(() => { swallowClick = false; }, 0);
+  const ids = [...r.sec.children].map(x => x.dataset.id);
+  const items = checksAll(), byId = new Map(items.map(c => [c.id, c]));
+  const slots = items.map((c, i) => (ids.includes(c.id) ? i : -1)).filter(i => i >= 0);
+  slots.forEach((pos, k) => { items[pos] = byId.get(ids[k]); });
+  checksSave(items);
+  renderToday();
+}
+
+/* A new item, or one moved to another part of the day, goes last in its
+   part, or among exact times by its clock time. */
+function place(items, c) {
+  const part = partOf(c.at), t = exactAt(c.at);
+  const same = items.filter(x => partOf(x.at) === part);
+  const later = t && same.find(x => exactAt(x.at) > t);
+  if (later) items.splice(items.indexOf(later), 0, c);
+  else if (same.length) items.splice(items.indexOf(same.at(-1)) + 1, 0, c);
+  else items.push(c);
 }
 
 function formHtml() {
@@ -944,7 +992,7 @@ function formHtml() {
     ${d.days ? `<div class="ck-wds">${WD.map((l, w) => `<button class="${d.days.includes(w) ? 'sel' : ''}" data-act="ck-wd" data-w="${w}" aria-label="${WD_LONG[w]}" aria-pressed="${d.days.includes(w)}">${l}</button>`).join('')}</div>` : ''}
     <div class="fd-sec-l">Time</div>
     <div class="ck-times">
-      ${[PARTS.at(-1), ...PARTS.slice(0, -1)].map(p => {
+      ${PARTS.map(p => {
         const on = p.k === 'any' ? !d.at : d.at === p.k;
         return `<button class="${on ? 'sel' : ''}" data-act="ck-time" data-k="${p.k}">${p.n}</button>`;
       }).join('')}
@@ -1008,8 +1056,11 @@ function saveItem() {
   if (d.days && !d.days.length) { q('.ck-wds')?.classList.add('need'); return; }
   const items = checksAll();
   const c = d.id && items.find(x => x.id === d.id);
-  if (c) Object.assign(c, { n, days: d.days, at: d.at });
-  else items.push({ id: uid(), n, days: d.days, at: d.at, from: todayStr() });
+  if (c) {
+    const moved = partOf(c.at) !== partOf(d.at);
+    Object.assign(c, { n, days: d.days, at: d.at });
+    if (moved) { items.splice(items.indexOf(c), 1); place(items, c); }
+  } else place(items, { id: uid(), n, days: d.days, at: d.at, from: todayStr() });
   checksSave(items);
   leaveForm();
   renderToday();
@@ -1241,11 +1292,14 @@ function onChange(e) {
    moved under a vertical scroll would be a row deleted by scrolling.
    The click that ends a drag is swallowed so it never opens the sheet. */
 function onDown(e) {
+  const grip = e.target.closest('.ck-grip');
+  if (grip && e.button <= 0) { startReorder(e, grip); return; }
   const row = e.target.closest('.fd-row');
   if (!row || e.button > 0) return;
   swipe = { row, x: e.clientX, y: e.clientY, dx: 0, on: false };
 }
 function onMove(e) {
+  if (reorder) { moveReorder(e); return; }
   if (!swipe) return;
   const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
   if (!swipe.on) {
@@ -1260,6 +1314,7 @@ function onMove(e) {
   swipe.row.parentElement.classList.toggle('arm', swipe.dx < -SWIPE);
 }
 function onUp() {
+  if (reorder) { endReorder(); return; }
   if (!swipe) return;
   const s = swipe;
   swipe = null;
@@ -1317,7 +1372,7 @@ export default {
   id: 'food',
   name: 'Food',
   storagePrefix: 'food_',
-  styles: 'apps/food/food.css?v=food-9',
+  styles: 'apps/food/food.css?v=food-10',
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3v5a3 3 0 0 0 6 0V3"/><path d="M7 3v18"/><path d="M17 21V3c-2.2 0-4 2.5-4 7v3h4"/></svg>',
   mount(el) {
     root = el;

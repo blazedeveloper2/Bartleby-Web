@@ -392,3 +392,10 @@ html[data-theme="light"] .fd-when-t input{color-scheme:light}
 .ck-exact svg{width:14px;height:14px;flex-shrink:0}
 .ck-exact input{width:100%;min-width:0;background:none;border:none;outline:none;color:inherit;font-family:var(--mono);font-size:12.5px;color-scheme:dark;padding:0}
 html[data-theme="light"] .ck-exact input{color-scheme:light}
+.ck-list .fd-chk-h{padding-top:16px}
+.ck-sec .ck-row:first-child{border-top:none}
+.ck-row{position:relative;background:var(--bg-card)}
+.ck-row.lift{z-index:2;background:var(--bg-alt);box-shadow:0 8px 24px #0007;border-radius:var(--rs)}
+.ck-grip{display:flex;align-items:center;padding:8px 6px 8px 2px;margin:-8px 0;color:var(--text-3);touch-action:none;cursor:grab}
+.ck-grip svg{width:18px;height:18px}
+.ck-row.lift .ck-grip{cursor:grabbing;color:var(--fd)}
