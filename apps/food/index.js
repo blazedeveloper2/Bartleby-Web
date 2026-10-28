@@ -343,10 +343,12 @@ function renderToday() {
   if (!el) return;
   const list = entriesOn(day), st = dayStats(day);
   const isToday = day === todayStr();
+  /* Newest first, meals and the entries in them alike. The sort is stable,
+     so a line typed as "2 eggs, toast" still reads in the order typed. */
   const body = list.length
-    ? groups(list).map(g => `<section class="fd-grp">
+    ? groups(list).reverse().map(g => `<section class="fd-grp">
         <div class="fd-grp-h"><span>${mealName(g.m)}</span><span class="fd-grp-t">${fmtTime(g.t)}</span></div>
-        ${g.items.map(rowHtml).join('')}
+        ${g.items.slice().sort((a, b) => b.t.localeCompare(a.t)).map(rowHtml).join('')}
       </section>`).join('')
     : `<div class="fd-empty">
         <div class="fd-empty-t">${isToday ? 'Nothing logged yet today' : 'Nothing logged this day'}</div>
