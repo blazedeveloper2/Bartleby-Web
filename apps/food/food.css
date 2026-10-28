@@ -399,3 +399,5 @@ html[data-theme="light"] .ck-exact input{color-scheme:light}
 .ck-grip{display:flex;align-items:center;padding:8px 6px 8px 2px;margin:-8px 0;color:var(--text-3);touch-action:none;cursor:grab}
 .ck-grip svg{width:18px;height:18px}
 .ck-row.lift .ck-grip{cursor:grabbing;color:var(--fd)}
+.fd-emo{font-style:normal;font-size:13px;letter-spacing:0;margin-right:7px;vertical-align:-1px}
+.fd-grp-h span:first-child,.fd-chk-h span{display:inline-flex;align-items:center}

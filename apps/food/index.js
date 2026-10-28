@@ -52,12 +52,16 @@ const TABS = [
 ];
 
 const MEALS = [
-  { k:'b', n:'Breakfast' },
-  { k:'l', n:'Lunch' },
-  { k:'d', n:'Dinner' },
-  { k:'s', n:'Snack' },
+  { k:'b', n:'Breakfast', e:'🍳' },
+  { k:'l', n:'Lunch',     e:'🥪' },
+  { k:'d', n:'Dinner',    e:'🍽️' },
+  { k:'s', n:'Snack',     e:'🍎' },
 ];
 const mealName = k => (MEALS.find(m => m.k === k) || MEALS[3]).n;
+const mealEmoji = k => (MEALS.find(m => m.k === k) || MEALS[3]).e;
+/* Checklist parts of the day, keyed like PARTS */
+const PART_EMOJI = { any:'✨', morning:'🌅', afternoon:'☀️', evening:'🌆', night:'🌙' };
+const emo = e => `<i class="fd-emo" aria-hidden="true">${e}</i>`;
 
 /* A drag past this many px deletes the row on release */
 const SWIPE = 90;
@@ -352,7 +356,7 @@ function renderToday() {
      so a line typed as "2 eggs, toast" still reads in the order typed. */
   const body = list.length
     ? groups(list).reverse().map(g => `<section class="fd-grp">
-        <div class="fd-grp-h"><span>${mealName(g.m)}</span><span class="fd-grp-t">${g.items.some(e => !e.ap) ? fmtTime(g.items.find(e => !e.ap).t) : ''}</span></div>
+        <div class="fd-grp-h"><span>${emo(mealEmoji(g.m))}${mealName(g.m)}</span><span class="fd-grp-t">${g.items.some(e => !e.ap) ? fmtTime(g.items.find(e => !e.ap).t) : ''}</span></div>
         ${g.items.slice().sort((a, b) => b.t.localeCompare(a.t)).map(rowHtml).join('')}
       </section>`).join('')
     : `<div class="fd-empty">
@@ -893,7 +897,7 @@ function checklistHtml() {
     <div class="fd-card-h"><span>Checklist</span><span class="fd-card-n"><b class="${n === items.length ? 'ok' : ''}">${n}/${items.length}</b><button class="fd-lnk" data-act="ck-quick">Add</button><button class="fd-lnk" data-act="ck-open">Edit</button></span></div>
     ${parts.map(p => {
       const d = p.items.filter(c => done.has(c.id)).length;
-      return `${one ? '' : `<div class="fd-chk-h"><span>${p.n}</span><b class="${d === p.items.length ? 'ok' : ''}">${d}/${p.items.length}</b></div>`}${p.items.map(row).join('')}`;
+      return `${one ? '' : `<div class="fd-chk-h"><span>${emo(PART_EMOJI[p.k])}${p.n}</span><b class="${d === p.items.length ? 'ok' : ''}">${d}/${p.items.length}</b></div>`}${p.items.map(row).join('')}`;
     }).join('')}
   </div>`;
 }
@@ -928,7 +932,7 @@ function listHtml() {
   return `
     <div class="fd-sh-top"><div class="fd-sh-title">Checklist</div><button class="fd-x" data-act="close" aria-label="Close">&times;</button></div>
     <button class="fd-btn pri wide ck-addbtn" data-act="ck-new">${icon('plus')}Add item</button>
-    <div class="ck-list">${parts.map(p => `<div class="fd-chk-h"><span>${p.n}</span></div><div class="ck-sec">${p.items.map(c => `<button class="ck-row" data-act="ck-edit" data-id="${c.id}">
+    <div class="ck-list">${parts.map(p => `<div class="fd-chk-h"><span>${emo(PART_EMOJI[p.k])}${p.n}</span></div><div class="ck-sec">${p.items.map(c => `<button class="ck-row" data-act="ck-edit" data-id="${c.id}">
       <span class="ck-grip" aria-label="Drag to reorder">${icon('grip')}</span>
       <span class="ck-row-b"><span class="ck-row-n">${esc(c.n)}</span><span class="ck-row-s">${[daysLabel(c.days), exactAt(c.at) ? fmtTime(c.at) : ''].filter(Boolean).join(' · ')}</span></span>
       <span class="ck-chev">›</span></button>`).join('')}</div>`).join('')}</div>`;
@@ -1372,7 +1376,7 @@ export default {
   id: 'food',
   name: 'Food',
   storagePrefix: 'food_',
-  styles: 'apps/food/food.css?v=food-10',
+  styles: 'apps/food/food.css?v=food-11',
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3v5a3 3 0 0 0 6 0V3"/><path d="M7 3v18"/><path d="M17 21V3c-2.2 0-4 2.5-4 7v3h4"/></svg>',
   mount(el) {
     root = el;
