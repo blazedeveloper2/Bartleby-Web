@@ -25,6 +25,8 @@
      food_codes     scanned products by 13-digit barcode
      food_cal       calories layer on/off (painted by the shell)
      food_offauto   look new barcodes up without asking (ditto)
+     food_checks    checklist items, see CHECKLIST
+     food_done      checklist ticks by date
    ═══════════════════════════════════════════════════════════ */
 
 import { COMMON } from './data.js?v=food-1';
@@ -73,6 +75,9 @@ const codesAll  = () => load('food_codes', {});
 const codesSave = m => save('food_codes', m);
 const calLayer  = () => load('food_cal', false);
 const offAuto   = () => load('food_offauto', false);
+const checksAll = () => load('food_checks', []);
+const checksSave = l => save('food_checks', l);
+const doneAll   = () => load('food_done', {});
 
 /* ── state ── */
 let root = null;
@@ -353,7 +358,7 @@ function renderToday() {
       <div class="fd-day"><b>${dayLabel(day)}</b><span>${fmtDate(day)}</span></div>
       <button class="fd-arrow" data-act="day" data-d="1" aria-label="Next day"${isToday ? ' disabled' : ''}>›</button>
     </div>`;
-  el.innerHTML = summaryHtml(st) + body;
+  el.innerHTML = checklistHtml() + summaryHtml(st) + body;
   renderQuick();
 }
 
@@ -688,6 +693,7 @@ function renderSheet() {
   const el = q('#fd-sheet');
   if (!el || !sheet) return;
   if (sheet.kind === 'scan') { el.innerHTML = scanHtml(); return; }
+  if (sheet.kind === 'checks') { el.innerHTML = checksHtml(); return; }
   const e = entry(sheet.id);
   if (e) el.innerHTML = entryHtml(e);
 }
@@ -704,6 +710,7 @@ function sheetName(v) {
 
 function sheetAct(act, btn) {
   if (sheet?.kind === 'scan') { scanAct(act, btn); return; }
+  if (sheet?.kind === 'checks') { checksAct(act, btn); return; }
   const e = sheet && entry(sheet.id);
   if (!e) return;
   if (act === 'qty') {
@@ -741,6 +748,103 @@ function setGrams(v) {
   e.q = 1;
   persist();
   renderSheet();
+  renderToday();
+}
+
+/* ═══════════════════ CHECKLIST ═══════════════════
+
+   Things to tick off each day, beside what was eaten. An item runs every
+   day (`days: null`) or on the weekdays listed (0 = Monday), from the
+   day it was added (`from`), so it never shows up unticked on days that
+   came before it. Ticks are kept per date in food_done: a past day keeps
+   what was ticked on it, whatever the list looks like now. */
+const WD = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const WD_LONG = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const weekday = d => (new Date(d + 'T12:00:00').getDay() + 6) % 7;
+const checksOn = d => checksAll().filter(c => (!c.from || c.from <= d) && (!c.days || c.days.includes(weekday(d))));
+
+/* How many of a day's items were ticked, or null when it has none. */
+function checkCount(d) {
+  const items = checksOn(d);
+  if (!items.length) return null;
+  const done = new Set(doneAll()[d] || []);
+  return { n: items.length, done: items.filter(c => done.has(c.id)).length };
+}
+
+function checklistHtml() {
+  const items = checksOn(day);
+  if (!items.length) return `<button class="fd-chk-add" data-act="ck-open">${icon('plus')}Checklist</button>`;
+  const done = new Set(doneAll()[day] || []), n = items.filter(c => done.has(c.id)).length;
+  return `<div class="fd-card fd-chks">
+    <div class="fd-card-h"><span>Checklist</span><span class="fd-card-n"><b class="${n === items.length ? 'ok' : ''}">${n}/${items.length}</b><button class="fd-lnk" data-act="ck-open">Edit</button></span></div>
+    ${items.map(c => `<button class="fd-chk${done.has(c.id) ? ' on' : ''}" data-act="ck-tick" data-id="${c.id}" aria-pressed="${done.has(c.id)}"><span class="fd-chk-b"></span><span class="fd-chk-n">${esc(c.n)}</span></button>`).join('')}
+  </div>`;
+}
+
+/* Tick or untick an item on the day on screen. */
+function tick(id) {
+  const all = doneAll(), set = new Set(all[day] || []);
+  if (set.has(id)) set.delete(id); else set.add(id);
+  if (set.size) all[day] = [...set]; else delete all[day];
+  save('food_done', all);
+  renderToday();
+}
+
+function checksHtml() {
+  const items = checksAll();
+  const days = c => `<div class="ck-days">
+      <button class="fd-por${c.days ? '' : ' sel'}" data-act="ck-every" data-id="${c.id}">Every day</button>
+      ${WD.map((l, w) => `<button class="fd-por ck-wd${c.days?.includes(w) ? ' sel' : ''}" data-act="ck-day" data-id="${c.id}" data-w="${w}" aria-label="${WD_LONG[w]}">${l}</button>`).join('')}
+    </div>`;
+  return `
+    <div class="fd-sh-top"><div class="fd-sh-title">Checklist</div><button class="fd-x" data-act="close" aria-label="Close">&times;</button></div>
+    <div class="fd-own-new ck-new"><input class="fd-in-sm" id="ck-new" placeholder="Add an item" autocomplete="off" enterkeyhint="done" aria-label="New item"><button class="fd-btn" data-act="ck-add">Add</button></div>
+    ${items.map(c => `<div class="ck-item">
+      <div class="ck-top"><input class="fd-in-sm ck-name" data-id="${c.id}" value="${esc(c.n)}" aria-label="Name" autocomplete="off" enterkeyhint="done"><button class="fd-x sm" data-act="ck-del" data-id="${c.id}" aria-label="Remove ${esc(c.n)}">&times;</button></div>
+      ${days(c)}
+    </div>`).join('')}
+    <div class="fd-sh-foot"><button class="fd-btn pri" data-act="close">Done</button></div>`;
+}
+
+/* New items go on top, right under the field, where their days get set. */
+function checksAct(act, btn) {
+  const items = checksAll(), c = items.find(x => x.id === btn.dataset.id);
+  if (act === 'ck-add') {
+    const inp = q('#ck-new'), n = inp?.value.trim();
+    if (!n) { inp?.focus(); return; }
+    items.unshift({ id: uid(), n, days: null, from: todayStr() });
+    checksSave(items);
+    renderSheet();
+    renderToday();
+    q('#ck-new')?.focus();
+    return;
+  }
+  if (!c) return;
+  if (act === 'ck-every') c.days = null;
+  else if (act === 'ck-day') {
+    const w = +btn.dataset.w, set = new Set(c.days || []);
+    if (set.has(w)) set.delete(w); else set.add(w);
+    c.days = set.size && set.size < 7 ? [...set].sort((a, b) => a - b) : null;
+  } else if (act === 'ck-del') {
+    const i = items.indexOf(c);
+    items.splice(i, 1);
+    checksSave(items);
+    renderSheet();
+    renderToday();
+    showUndo(`Removed ${c.n}`, () => { const l = checksAll(); l.splice(Math.min(i, l.length), 0, c); checksSave(l); });
+    return;
+  } else return;
+  checksSave(items);
+  renderSheet();
+  renderToday();
+}
+
+/* Renames save as typed; the sheet is left alone so the caret stays. */
+function checkName(el) {
+  const items = checksAll(), c = items.find(x => x.id === el.dataset.id), n = el.value.trim();
+  if (!c || !n) return;
+  c.n = n;
+  checksSave(items);
   renderToday();
 }
 
@@ -783,12 +887,14 @@ function renderWeek() {
 
   const rows = stats.map(s => {
     const meals = new Set(entriesOn(s.d).map(mealOf));
+    const ck = s.future ? null : checkCount(s.d);
     const right = !s.n ? '' : !calOn ? `<span class="fd-wk-n">${s.n} ${s.n === 1 ? 'thing' : 'things'}</span>`
       : s.complete ? `<span class="fd-wk-k">${fmtK(s.kcal)}</span>`
       : `<span class="fd-wk-p">partial</span>`;
     return `<button class="fd-wk${s.d === t ? ' today' : ''}" data-act="goto" data-d="${s.d}"${s.future ? ' disabled' : ''}>
       <span class="fd-wk-d"><b>${new Date(s.d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' })}</b> ${+s.d.slice(8)}</span>
       <span class="fd-dots">${MEALS.map(m => `<i class="${meals.has(m.k) ? 'on' : ''}" title="${m.n}">${m.n[0]}</i>`).join('')}</span>
+      ${ck ? `<span class="fd-wk-c${ck.done === ck.n ? ' ok' : ''}">${ck.done}/${ck.n}</span>` : ''}
       ${right}
     </button>`;
   }).join('');
@@ -890,6 +996,8 @@ function onClick(e) {
   }
   const act = btn.dataset.act;
   if (act === 'tab') switchTab(btn.dataset.tab);
+  else if (act === 'ck-tick') tick(btn.dataset.id);
+  else if (act === 'ck-open') openSheet({ kind: 'checks' });
   else if (act === 'day') { day = shiftDay(day, +btn.dataset.d); if (day > todayStr()) day = todayStr(); renderToday(); }
   else if (act === 'week') { weekOff = Math.min(0, weekOff + +btn.dataset.d); renderWeek(); }
   else if (act === 'goto') { day = btn.dataset.d; switchTab('today'); }
@@ -912,7 +1020,8 @@ function onKeydown(e) {
   if (id === 'fd-in') { e.preventDefault(); commitLine(); }
   else if (id === 'fd-own-new') { e.preventDefault(); sheetAct('own-set', e.target); }
   else if (id === 'fd-grams') { e.preventDefault(); setGrams(e.target.value); }
-  else if (id === 'fd-name') e.target.blur();
+  else if (id === 'fd-name' || e.target.classList.contains('ck-name')) e.target.blur();
+  else if (id === 'ck-new') { e.preventDefault(); checksAct('ck-add', e.target); }
   else if (id === 'sc-name' || id === 'sc-sg1') { e.preventDefault(); saveFound(); }
   else if (id.startsWith('sc-')) { e.preventDefault(); saveLabel(); }
 }
@@ -925,6 +1034,7 @@ function onInput(e) {
     q('#sc-sgk').textContent = o && g > 0 ? `= ${fmtK(g * o.k100 / 100)} kcal` : '';
   }
   else if (id === 'fd-name') sheetName(e.target.value);
+  else if (e.target.classList.contains('ck-name')) checkName(e.target);
   else if (id === 'fd-find') {
     sheetQ = e.target.value;
     const ent = sheet?.kind === 'entry' && entry(sheet.id);
@@ -1026,7 +1136,7 @@ export default {
   id: 'food',
   name: 'Food',
   storagePrefix: 'food_',
-  styles: 'apps/food/food.css?v=food-4',
+  styles: 'apps/food/food.css?v=food-5',
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3v5a3 3 0 0 0 6 0V3"/><path d="M7 3v18"/><path d="M17 21V3c-2.2 0-4 2.5-4 7v3h4"/></svg>',
   mount(el) {
     root = el;
@@ -1073,14 +1183,16 @@ export default {
   },
   /* Settings → Danger Zone: what this app holds and how to clear it. */
   resetTargets() {
-    const n = logAll().length, c = Object.keys(codesAll()).length;
+    const n = logAll().length, c = Object.keys(codesAll()).length, k = checksAll().length;
     return [
       { id: 'log', n: 'Food journal', d: 'Every entry you have logged, on every day.', c: n, cl: `${n} ${n === 1 ? 'entry' : 'entries'}` },
+      { id: 'checks', n: 'Checklist', d: 'Your checklist items and every tick.', c: k, cl: `${k} ${k === 1 ? 'item' : 'items'}` },
       { id: 'codes', n: 'Scanned products', d: 'Barcodes saved from scans. Logged entries keep their numbers.', c, cl: `${c} ${c === 1 ? 'product' : 'products'}` },
     ];
   },
   applyReset(ids) {
     if (ids.includes('log')) { remove('food_log'); log = []; }
     if (ids.includes('codes')) remove('food_codes');
+    if (ids.includes('checks')) { remove('food_checks'); remove('food_done'); }
   },
 };

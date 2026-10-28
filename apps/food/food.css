@@ -328,3 +328,33 @@ html[data-theme="light"] .fd-in-sm{color-scheme:light}
 .fd-por.grams{display:inline-flex;align-items:center;gap:2px;padding:0 10px 0 4px;cursor:text}
 .fd-por.grams input{width:62px;background:none;border:none;outline:none;color:inherit;font-family:var(--mono);font-size:13px;padding:6px 4px;-webkit-appearance:none}
 .fd-por.grams input::placeholder{color:var(--text-3);font-family:var(--font)}
+
+/* ── Checklist ── */
+.fd-chk-add{display:inline-flex;align-items:center;gap:6px;margin:-4px 0 12px;padding:6px 2px;background:none;border:none;
+  color:var(--text-3);font-family:var(--font);font-size:12.5px;font-weight:600;cursor:pointer;transition:color .12s}
+.fd-chk-add svg{width:14px;height:14px}
+.fd-chk-add:hover{color:var(--fd)}
+.fd-chks{padding:12px 14px 4px}
+.fd-chks .fd-card-h{margin-bottom:6px}
+.fd-chks .fd-card-n{display:flex;align-items:center;gap:12px}
+.fd-chks .fd-card-n b{font-family:var(--mono);font-size:11px;color:var(--text-3);font-weight:600}
+.fd-chks .fd-card-n b.ok{color:var(--ink-green)}
+.fd-chks .fd-lnk{font-size:11px;letter-spacing:0;text-transform:none}
+.fd-chk{display:flex;align-items:center;gap:12px;width:100%;padding:12px 2px;background:none;border:none;border-top:1px solid var(--border);
+  color:var(--text);font-family:var(--font);font-size:14.5px;font-weight:600;text-align:left;cursor:pointer}
+.fd-chk-b{width:22px;height:22px;flex-shrink:0;border-radius:50%;border:2px solid var(--border-lt);position:relative;transition:background .15s,border-color .15s}
+.fd-chk.on .fd-chk-b{background:var(--fd);border-color:var(--fd)}
+.fd-chk.on .fd-chk-b::after{content:'';position:absolute;left:6px;top:2px;width:5px;height:10px;border:solid #1a1205;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.fd-chk-n{transition:color .15s}
+.fd-chk.on .fd-chk-n{color:var(--text-3)}
+.ck-new{margin:14px 0 4px}
+.ck-new .fd-in-sm{font-family:var(--font)}
+.ck-item{padding:12px 0;border-top:1px solid var(--border)}
+.ck-item:first-of-type{margin-top:10px}
+.ck-top{display:flex;align-items:center;gap:6px}
+.ck-name{font-weight:600}
+.ck-days{display:grid;grid-template-columns:auto repeat(7,minmax(0,1fr));gap:4px;margin-top:8px}
+.ck-days .fd-por{padding:6px 8px;text-align:center}
+.ck-days .ck-wd{padding:6px 0}
+.fd-wk-c{font-family:var(--mono);font-size:11px;color:var(--text-3)}
+.fd-wk-c.ok{color:var(--ink-green)}

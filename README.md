@@ -271,7 +271,9 @@ Live apps:
   the label, saved per barcode so the next scan is offline. Every counted
   entry shows its source and the math; a day with anything uncounted is
   marked partial and never totalled as if it were whole. **Week** shows the
-  calorie chart and eating patterns.
+  calorie chart and eating patterns. A **checklist** on Today holds things
+  to tick off (supplements, say), each set to every day or chosen weekdays,
+  with ticks kept per date and shown on Week.
 
 Archived (parked in `archive/`, not loaded by the shell — see
 `archive/README.md` to restore):
