@@ -863,18 +863,37 @@ function checkCount(d) {
   return { n: items.length, done: items.filter(c => done.has(c.id)).length };
 }
 
-/* An item's time of day: null (any time), a SLOTS key, or 'HH:MM'. The
-   card lists items in that order, any-time ones last. */
-const atKey = at => (!at ? '99' : SLOTS.find(s => s.k === at)?.t ?? at);
-const atLabel = at => (!at ? '' : SLOTS.find(s => s.k === at)?.n ?? fmtTime(at));
+/* ── checklist sections ──
+
+   An item's `at` is null (any time), a SLOTS key, or 'HH:MM'. The card
+   groups items under Morning, Afternoon, Evening, Night and Any time, in
+   that order. An exact time joins the part of the day it falls in and
+   shows its clock time; within a part, the untimed items come first,
+   then exact times in order. */
+const PART_END = { morning: '12:00', afternoon: '17:00', evening: '21:00' };
+function partOf(at) {
+  if (!at) return 'any';
+  if (SLOTS.some(s => s.k === at)) return at;
+  if (at < '04:00') return 'night';
+  return Object.keys(PART_END).find(k => at < PART_END[k]) || 'night';
+}
+const PARTS = [...SLOTS.map(s => ({ k: s.k, n: s.n })), { k: 'any', n: 'Any time' }];
+const exactAt = at => (at && !SLOTS.some(s => s.k === at) ? at : '');
 
 function checklistHtml() {
-  const items = checksOn(day).sort((a, b) => atKey(a.at).localeCompare(atKey(b.at)));
-  if (!items.length) return `<button class="fd-chk-add" data-act="ck-open">${icon('plus')}Checklist</button>`;
+  const items = checksOn(day);
+  if (!items.length) return `<button class="fd-chk-add" data-act="ck-quick">${icon('plus')}Checklist</button>`;
   const done = new Set(doneAll()[day] || []), n = items.filter(c => done.has(c.id)).length;
+  const row = c => `<button class="fd-chk${done.has(c.id) ? ' on' : ''}" data-act="ck-tick" data-id="${c.id}" aria-pressed="${done.has(c.id)}"><span class="fd-chk-b"></span><span class="fd-chk-n">${esc(c.n)}</span>${exactAt(c.at) ? `<span class="fd-chk-t">${fmtTime(c.at)}</span>` : ''}</button>`;
+  const parts = PARTS.map(p => ({ ...p, items: items.filter(c => partOf(c.at) === p.k).sort((a, b) => exactAt(a.at).localeCompare(exactAt(b.at))) }))
+    .filter(p => p.items.length);
+  const one = parts.length === 1 && parts[0].k === 'any';
   return `<div class="fd-card fd-chks">
-    <div class="fd-card-h"><span>Checklist</span><span class="fd-card-n"><b class="${n === items.length ? 'ok' : ''}">${n}/${items.length}</b><button class="fd-lnk" data-act="ck-open">Edit</button></span></div>
-    ${items.map(c => `<button class="fd-chk${done.has(c.id) ? ' on' : ''}" data-act="ck-tick" data-id="${c.id}" aria-pressed="${done.has(c.id)}"><span class="fd-chk-b"></span><span class="fd-chk-n">${esc(c.n)}</span>${c.at ? `<span class="fd-chk-t">${atLabel(c.at)}</span>` : ''}</button>`).join('')}
+    <div class="fd-card-h"><span>Checklist</span><span class="fd-card-n"><b class="${n === items.length ? 'ok' : ''}">${n}/${items.length}</b><button class="fd-lnk" data-act="ck-quick">Add</button><button class="fd-lnk" data-act="ck-open">Edit</button></span></div>
+    ${parts.map(p => {
+      const d = p.items.filter(c => done.has(c.id)).length;
+      return `${one ? '' : `<div class="fd-chk-h"><span>${p.n}</span><b class="${d === p.items.length ? 'ok' : ''}">${d}/${p.items.length}</b></div>`}${p.items.map(row).join('')}`;
+    }).join('')}
   </div>`;
 }
 
@@ -887,72 +906,112 @@ function tick(id) {
   renderToday();
 }
 
-function atRow(c) {
-  const exact = c.at && !SLOTS.some(s => s.k === c.at);
-  return `<div class="ck-at">
-      <button class="fd-por${c.at ? '' : ' sel'}" data-act="ck-at" data-id="${c.id}" data-k="">Any time</button>
-      ${SLOTS.map(s => `<button class="fd-por${c.at === s.k ? ' sel' : ''}" data-act="ck-at" data-id="${c.id}" data-k="${s.k}">${s.n}</button>`).join('')}
-      <label class="fd-por ck-time${exact ? ' sel' : ''}">${icon('clock')}<input class="ck-time-in" data-id="${c.id}" type="time" value="${exact ? c.at : ''}" aria-label="Exact time"></label>
+/* ── checklist editor ──
+
+   Two views in one sheet. The list shows every item with a one-line
+   summary ("Mon, Wed · Morning"); tapping one, or Add, opens a short form
+   (name, repeat, time) that changes nothing until Save. Add from the
+   Today card goes straight to the form and closes on Save. */
+const blankItem = () => ({ n: '', days: null, at: null });
+const sameDays = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+function daysLabel(days) {
+  if (!days) return 'Every day';
+  if (sameDays(days, [0, 1, 2, 3, 4])) return 'Weekdays';
+  if (sameDays(days, [5, 6])) return 'Weekends';
+  return days.map(w => WD_LONG[w].slice(0, 3)).join(', ');
+}
+const atLabel = at => (!at ? '' : SLOTS.find(s => s.k === at)?.n ?? fmtTime(at));
+const itemOrder = (a, b) => PARTS.findIndex(p => p.k === partOf(a.at)) - PARTS.findIndex(p => p.k === partOf(b.at))
+  || exactAt(a.at).localeCompare(exactAt(b.at));
+
+function listHtml() {
+  const items = checksAll().sort(itemOrder);
+  return `
+    <div class="fd-sh-top"><div class="fd-sh-title">Checklist</div><button class="fd-x" data-act="close" aria-label="Close">&times;</button></div>
+    <button class="fd-btn pri wide ck-addbtn" data-act="ck-new">${icon('plus')}Add item</button>
+    ${items.length ? `<div class="ck-list">${items.map(c => `<button class="ck-row" data-act="ck-edit" data-id="${c.id}">
+      <span class="ck-row-b"><span class="ck-row-n">${esc(c.n)}</span><span class="ck-row-s">${[daysLabel(c.days), atLabel(c.at)].filter(Boolean).join(' · ')}</span></span>
+      <span class="ck-chev">›</span></button>`).join('')}</div>` : ''}`;
+}
+
+function formHtml() {
+  const d = sheet.draft, exact = exactAt(d.at);
+  return `
+    <div class="fd-sh-top"><div class="fd-sh-title">${d.id ? 'Edit item' : 'New item'}</div><button class="fd-x" data-act="close" aria-label="Close">&times;</button></div>
+    <input class="fd-in-sm ck-form-n" id="ck-n" value="${esc(d.n)}" placeholder="e.g. Creatine" autocomplete="off" enterkeyhint="done" aria-label="Name">
+    <div class="fd-sec-l">Repeat</div>
+    <div class="fd-seg2"><button class="${d.days ? '' : 'sel'}" data-act="ck-rep" data-v="every">Every day</button><button class="${d.days ? 'sel' : ''}" data-act="ck-rep" data-v="days">Some days</button></div>
+    ${d.days ? `<div class="ck-wds">${WD.map((l, w) => `<button class="${d.days.includes(w) ? 'sel' : ''}" data-act="ck-wd" data-w="${w}" aria-label="${WD_LONG[w]}" aria-pressed="${d.days.includes(w)}">${l}</button>`).join('')}</div>` : ''}
+    <div class="fd-sec-l">Time</div>
+    <div class="ck-times">
+      ${[PARTS.at(-1), ...PARTS.slice(0, -1)].map(p => {
+        const on = p.k === 'any' ? !d.at : d.at === p.k;
+        return `<button class="${on ? 'sel' : ''}" data-act="ck-time" data-k="${p.k}">${p.n}</button>`;
+      }).join('')}
+      <label class="ck-exact${exact ? ' sel' : ''}">${icon('clock')}<input id="ck-exact" type="time" value="${exact}" aria-label="Exact time"></label>
+    </div>
+    <div class="fd-sh-foot">
+      ${d.id ? '<button class="fd-btn danger" data-act="ck-del">Delete</button>' : '<button class="fd-btn" data-act="ck-cancel">Cancel</button>'}
+      <button class="fd-btn pri" data-act="ck-save">Save</button>
     </div>`;
 }
 
 function checksHtml() {
-  const items = checksAll();
-  const days = c => `<div class="ck-days">
-      <button class="fd-por${c.days ? '' : ' sel'}" data-act="ck-every" data-id="${c.id}">Every day</button>
-      ${WD.map((l, w) => `<button class="fd-por ck-wd${c.days?.includes(w) ? ' sel' : ''}" data-act="ck-day" data-id="${c.id}" data-w="${w}" aria-label="${WD_LONG[w]}">${l}</button>`).join('')}
-    </div>`;
-  return `
-    <div class="fd-sh-top"><div class="fd-sh-title">Checklist</div><button class="fd-x" data-act="close" aria-label="Close">&times;</button></div>
-    <div class="fd-own-new ck-new"><input class="fd-in-sm" id="ck-new" placeholder="Add an item" autocomplete="off" enterkeyhint="done" aria-label="New item"><button class="fd-btn" data-act="ck-add">Add</button></div>
-    ${items.map(c => `<div class="ck-item">
-      <div class="ck-top"><input class="fd-in-sm ck-name" data-id="${c.id}" value="${esc(c.n)}" aria-label="Name" autocomplete="off" enterkeyhint="done"><button class="fd-x sm" data-act="ck-del" data-id="${c.id}" aria-label="Remove ${esc(c.n)}">&times;</button></div>
-      ${days(c)}
-      ${atRow(c)}
-    </div>`).join('')}
-    <div class="fd-sh-foot"><button class="fd-btn pri" data-act="close">Done</button></div>`;
+  return sheet.view === 'form' ? formHtml() : listHtml();
 }
 
-/* New items go on top, right under the field, where their days get set. */
+/* Open the form, fresh or on an existing item. */
+function openForm(id, from) {
+  const c = id && checksAll().find(x => x.id === id);
+  const draft = c ? { id: c.id, n: c.n, days: c.days ? [...c.days] : null, at: c.at || null } : blankItem();
+  if (sheet?.kind === 'checks') { Object.assign(sheet, { view: 'form', draft, from: from || sheet.from }); renderSheet(); }
+  else openSheet({ kind: 'checks', view: 'form', draft, from });
+  if (!c) q('#ck-n')?.focus();
+}
+
+/* Back to the list, or shut the sheet when the form was opened from Today. */
+function leaveForm() {
+  if (sheet.from === 'today') closeSheet();
+  else { sheet.view = 'list'; sheet.draft = null; renderSheet(); }
+}
+
 function checksAct(act, btn) {
-  const items = checksAll(), c = items.find(x => x.id === btn.dataset.id);
-  if (act === 'ck-add') {
-    const inp = q('#ck-new'), n = inp?.value.trim();
-    if (!n) { inp?.focus(); return; }
-    items.unshift({ id: uid(), n, days: null, from: todayStr() });
-    checksSave(items);
-    renderSheet();
-    renderToday();
-    q('#ck-new')?.focus();
-    return;
-  }
-  if (!c) return;
-  if (act === 'ck-every') c.days = null;
-  else if (act === 'ck-at') c.at = btn.dataset.k || null;
-  else if (act === 'ck-day') {
-    const w = +btn.dataset.w, set = new Set(c.days || []);
+  const d = sheet.draft;
+  if (d) d.n = q('#ck-n')?.value ?? d.n;
+  if (act === 'ck-new') { openForm(null); return; }
+  if (act === 'ck-edit') { openForm(btn.dataset.id); return; }
+  if (act === 'ck-cancel') { leaveForm(); return; }
+  if (!d) return;
+  if (act === 'ck-rep') d.days = btn.dataset.v === 'days' ? (d.days || []) : null;
+  else if (act === 'ck-wd') {
+    const w = +btn.dataset.w, set = new Set(d.days);
     if (set.has(w)) set.delete(w); else set.add(w);
-    c.days = set.size && set.size < 7 ? [...set].sort((a, b) => a - b) : null;
-  } else if (act === 'ck-del') {
-    const i = items.indexOf(c);
+    d.days = set.size === 7 ? null : [...set].sort((a, b) => a - b);
+  } else if (act === 'ck-time') d.at = btn.dataset.k === 'any' ? null : btn.dataset.k;
+  else if (act === 'ck-save') { saveItem(); return; }
+  else if (act === 'ck-del') {
+    const items = checksAll(), i = items.findIndex(x => x.id === d.id), c = items[i];
+    if (i < 0) return;
     items.splice(i, 1);
     checksSave(items);
-    renderSheet();
+    leaveForm();
     renderToday();
     showUndo(`Removed ${c.n}`, () => { const l = checksAll(); l.splice(Math.min(i, l.length), 0, c); checksSave(l); });
     return;
   } else return;
-  checksSave(items);
   renderSheet();
-  renderToday();
 }
 
-/* Renames save as typed; the sheet is left alone so the caret stays. */
-function checkName(el) {
-  const items = checksAll(), c = items.find(x => x.id === el.dataset.id), n = el.value.trim();
-  if (!c || !n) return;
-  c.n = n;
+function saveItem() {
+  const d = sheet.draft, n = (q('#ck-n')?.value || '').trim();
+  if (!n) { q('#ck-n')?.focus(); return; }
+  if (d.days && !d.days.length) { q('.ck-wds')?.classList.add('need'); return; }
+  const items = checksAll();
+  const c = d.id && items.find(x => x.id === d.id);
+  if (c) Object.assign(c, { n, days: d.days, at: d.at });
+  else items.push({ id: uid(), n, days: d.days, at: d.at, from: todayStr() });
   checksSave(items);
+  leaveForm();
   renderToday();
 }
 
@@ -1105,7 +1164,8 @@ function onClick(e) {
   const act = btn.dataset.act;
   if (act === 'tab') switchTab(btn.dataset.tab);
   else if (act === 'ck-tick') tick(btn.dataset.id);
-  else if (act === 'ck-open') openSheet({ kind: 'checks' });
+  else if (act === 'ck-open') openSheet({ kind: 'checks', view: 'list', from: 'list' });
+  else if (act === 'ck-quick') openForm(null, 'today');
   else if (act === 'day') { day = shiftDay(day, +btn.dataset.d); if (day > todayStr()) day = todayStr(); renderToday(); }
   else if (act === 'week') { weekOff = Math.min(0, weekOff + +btn.dataset.d); renderWeek(); }
   else if (act === 'goto') { day = btn.dataset.d; switchTab('today'); }
@@ -1130,8 +1190,8 @@ function onKeydown(e) {
   if (id === 'fd-in') { e.preventDefault(); commitLine(); }
   else if (id === 'fd-own-new') { e.preventDefault(); sheetAct('own-set', e.target); }
   else if (id === 'fd-grams') { e.preventDefault(); setGrams(e.target.value); }
-  else if (id === 'fd-name' || e.target.classList.contains('ck-name')) e.target.blur();
-  else if (id === 'ck-new') { e.preventDefault(); checksAct('ck-add', e.target); }
+  else if (id === 'fd-name') e.target.blur();
+  else if (id === 'ck-n') { e.preventDefault(); saveItem(); }
   else if (id === 'sc-name' || id === 'sc-sg1') { e.preventDefault(); saveFound(); }
   else if (id.startsWith('sc-')) { e.preventDefault(); saveLabel(); }
 }
@@ -1144,7 +1204,6 @@ function onInput(e) {
     q('#sc-sgk').textContent = o && g > 0 ? `= ${fmtK(g * o.k100 / 100)} kcal` : '';
   }
   else if (id === 'fd-name') sheetName(e.target.value);
-  else if (e.target.classList.contains('ck-name')) checkName(e.target);
   else if (id === 'fd-find') {
     sheetQ = e.target.value;
     const ent = sheet?.kind === 'entry' && entry(sheet.id);
@@ -1157,9 +1216,8 @@ function onInput(e) {
 
 function onChange(e) {
   if (e.target.id === 'fd-grams') { setGrams(e.target.value); return; }
-  if (e.target.classList.contains('ck-time-in')) {
-    const items = checksAll(), c = items.find(x => x.id === e.target.dataset.id);
-    if (c && e.target.value) { c.at = e.target.value; checksSave(items); renderSheet(); renderToday(); }
+  if (e.target.id === 'ck-exact') {
+    if (sheet?.draft && e.target.value) { sheet.draft.n = q('#ck-n')?.value ?? sheet.draft.n; sheet.draft.at = e.target.value; renderSheet(); }
     return;
   }
   if (e.target.id === 'fd-when-t') {
@@ -1259,7 +1317,7 @@ export default {
   id: 'food',
   name: 'Food',
   storagePrefix: 'food_',
-  styles: 'apps/food/food.css?v=food-7',
+  styles: 'apps/food/food.css?v=food-9',
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3v5a3 3 0 0 0 6 0V3"/><path d="M7 3v18"/><path d="M17 21V3c-2.2 0-4 2.5-4 7v3h4"/></svg>',
   mount(el) {
     root = el;
