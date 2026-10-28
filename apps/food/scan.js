@@ -102,14 +102,14 @@ export async function openScanner(cb) {
   el.innerHTML = `
     <video class="sc-video" playsinline muted autoplay></video>
     <div class="sc-shade"><div class="sc-frame"><i></i><i></i><i></i><i></i><b class="sc-line"></b></div></div>
-    <div class="sc-top"><span>Scan a barcode</span><button class="sc-x" data-sc="close" aria-label="Close">&times;</button></div>
-    <div class="sc-bot">
-      <div class="sc-msg"></div>
+    <div class="sc-top">
+      <div class="sc-head"><span>Scan a barcode</span><button class="sc-x" data-sc="close" aria-label="Close">&times;</button></div>
       <form class="sc-type" data-sc="form">
         <input class="sc-in" inputmode="numeric" pattern="[0-9]*" maxlength="14" placeholder="Barcode number" aria-label="Barcode number" autocomplete="off">
         <button class="sc-go" type="submit">Go</button>
       </form>
-    </div>`;
+    </div>
+    <div class="sc-bot"><div class="sc-msg"></div></div>`;
   document.body.appendChild(el);
   video = el.querySelector('video');
   el.addEventListener('click', e => { if (e.target.closest('[data-sc="close"]')) close(); });

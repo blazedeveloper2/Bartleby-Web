@@ -320,15 +320,7 @@ function rowHtml(e) {
 }
 
 function summaryHtml(st) {
-  if (!st.n) return '';
-  if (!calOn) {
-    const list = entriesOn(day);
-    return `<div class="fd-sum plain">
-      <span><b>${st.n}</b> ${st.n === 1 ? 'thing' : 'things'}</span><i></i>
-      <span><b>${st.meals}</b> ${st.meals === 1 ? 'sitting' : 'sittings'}</span><i></i>
-      <span>first at <b>${fmtTime(list[0].t)}</b></span>
-    </div>`;
-  }
+  if (!st.n || !calOn) return '';
   const status = st.complete
     ? '<span class="fd-st ok">Complete day</span>'
     : `<span class="fd-st part">${st.n - st.counted} not counted</span>`;
@@ -342,7 +334,7 @@ function summaryHtml(st) {
 }
 
 function renderToday() {
-  const el = q('#fp-today');
+  const head = q('#fd-today-head'), el = q('#fd-today-body');
   if (!el) return;
   const list = entriesOn(day), st = dayStats(day);
   const isToday = day === todayStr();
@@ -355,14 +347,13 @@ function renderToday() {
         <div class="fd-empty-t">${isToday ? 'Nothing logged yet today' : 'Nothing logged this day'}</div>
         <div class="fd-empty-s">Try <b>2 eggs, toast</b></div>
       </div>`;
-  el.innerHTML = `
+  head.innerHTML = `
     <div class="fd-daynav">
       <button class="fd-arrow" data-act="day" data-d="-1" aria-label="Previous day">‹</button>
       <div class="fd-day"><b>${dayLabel(day)}</b><span>${fmtDate(day)}</span></div>
       <button class="fd-arrow" data-act="day" data-d="1" aria-label="Next day"${isToday ? ' disabled' : ''}>›</button>
-    </div>
-    ${summaryHtml(st)}
-    ${body}`;
+    </div>`;
+  el.innerHTML = summaryHtml(st) + body;
   renderQuick();
 }
 
@@ -393,9 +384,9 @@ function renderSugs() {
   const lead = parseLine(inp.value.split(',').pop() || '').q;
   box.innerHTML = sugList.map((s, i) => {
     const k = s.cal ? kcalOf({ q: lead, cal: s.cal }) : null;
-    const meta = s.src === 'mine' ? `${s.c}×${calOn && s.cal ? ' · ' + esc(s.cal.pn) : ''}` : `USDA · ${esc(s.desc)} · ${esc(s.cal.pn)}`;
+    const meta = !calOn ? '' : s.src === 'mine' ? (s.cal ? esc(s.cal.pn) : '') : `USDA · ${esc(s.desc)} · ${esc(s.cal.pn)}`;
     return `<button class="fd-sug" data-act="sug" data-i="${i}">
-      <span class="fd-sug-b"><span class="fd-sug-n">${lead !== 1 ? `${fmtQ(lead)}× ` : ''}${esc(s.n)}</span><span class="fd-sug-m">${meta}</span></span>
+      <span class="fd-sug-b"><span class="fd-sug-n">${lead !== 1 ? `${fmtQ(lead)}× ` : ''}${esc(s.n)}</span>${meta ? `<span class="fd-sug-m">${meta}</span>` : ''}</span>
       ${calOn && k != null ? `<span class="fd-sug-k">${fmtK(k)}</span>` : ''}
     </button>`;
   }).join('');
@@ -446,7 +437,7 @@ function quickAdd(n) {
    to automatic. Whatever comes back is crowd-sourced, so it is shown
    for checking against the label before it is saved. */
 function startScan() {
-  import('./scan.js?v=food-2').then(S => { scanMod = S; S.openScanner(onCode); }).catch(() => showUndo('Scanner failed to load', null));
+  import('./scan.js?v=food-3').then(S => { scanMod = S; S.openScanner(onCode); }).catch(() => showUndo('Scanner failed to load', null));
 }
 
 function onCode(code) {
@@ -518,8 +509,7 @@ function editFound() {
 
 function scanHtml() {
   const s = sheet;
-  const head = `<div class="fd-grab"></div>
-    <div class="fd-sh-top"><div class="fd-sh-title">${s.st === 'found' ? 'Found it' : 'New barcode'}</div><button class="fd-x" data-act="close" aria-label="Close">&times;</button></div>
+  const head = `    <div class="fd-sh-top"><div class="fd-sh-title">${s.st === 'found' ? 'Found it' : 'New barcode'}</div><button class="fd-x" data-act="close" aria-label="Close">&times;</button></div>
     <div class="sc-code">${esc(s.code)}</div>`;
   if (s.st === 'ask') return head + `
     <button class="fd-btn pri wide" data-act="sc-look">Look up on Open Food Facts</button>
@@ -594,17 +584,15 @@ function closeSheet() {
 
 /* ── keyboard ──
 
-   iOS leaves fixed elements on the layout viewport, which the keyboard
-   covers, then scrolls the page to bring the focused field into view —
-   and draws the caret where the field was before that scroll. Pinning
-   the composer and the sheet to the visual viewport (--kb: keyboard
-   height, --vvh: visible height) keeps the field still under the caret.
-   The page behind an open sheet is locked for the same reason. */
+   iOS draws the caret where a field was before the keyboard moved it,
+   and a field pinned to the bottom of the screen always moves. So no
+   text field here is: the composer sits in the page under the date, and
+   the sheet opens from the top. --vvh (the height left above the
+   keyboard) only caps the sheet so its lower fields can scroll into view;
+   the page behind an open sheet is locked so it cannot scroll either. */
 function syncViewport() {
   const vv = window.visualViewport;
-  if (!vv || !root) return;
-  root.style.setProperty('--kb', Math.max(0, window.innerHeight - vv.height - vv.offsetTop) + 'px');
-  root.style.setProperty('--vvh', vv.height + 'px');
+  if (vv && root) root.style.setProperty('--vvh', vv.height + 'px');
 }
 
 function calHtml(e) {
@@ -678,7 +666,6 @@ function findHtml(e) {
 
 function entryHtml(e) {
   return `
-    <div class="fd-grab"></div>
     <div class="fd-sh-top">
       <input class="fd-sh-name" id="fd-name" value="${esc(e.n)}" aria-label="Name" autocomplete="off">
       <button class="fd-x" data-act="close" aria-label="Close">&times;</button>
@@ -883,7 +870,6 @@ function switchTab(k) {
   activeTab = k;
   root.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === k));
   root.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'fp-' + k));
-  q('#fd-compose').classList.toggle('off', k !== 'today');
   renderAll();
 }
 
@@ -1014,17 +1000,23 @@ function template() {
       </button>`).join('')}
     </div></nav>
     <div class="app-wrap">
-      ${TABS.map(t => `<div class="panel" id="fp-${t.k}"></div>`).join('')}
-    </div>
-    <div class="fd-compose" id="fd-compose"><div class="fd-compose-in">
-      <div class="fd-sugs" id="fd-sugs"></div>
-      <div class="fd-quick" id="fd-quick"></div>
-      <div class="fd-bar-in">
-        <button class="fd-scanbtn" data-act="scan" aria-label="Scan a barcode">${icon('scan')}</button>
-        <input id="fd-in" type="text" placeholder="What did you eat?" autocomplete="off" enterkeyhint="done" aria-label="What did you eat?">
-        <button class="fd-send" data-act="send" aria-label="Add">${icon('plus')}</button>
+      <div class="panel" id="fp-today">
+        <div id="fd-today-head"></div>
+        <div class="fd-compose">
+          <div class="fd-bar-wrap">
+            <div class="fd-bar-in">
+              <button class="fd-scanbtn" data-act="scan" aria-label="Scan a barcode">${icon('scan')}</button>
+              <input id="fd-in" type="text" placeholder="What did you eat?" autocomplete="off" enterkeyhint="done" aria-label="What did you eat?">
+              <button class="fd-send" data-act="send" aria-label="Add">${icon('plus')}</button>
+            </div>
+            <div class="fd-sugs" id="fd-sugs"></div>
+          </div>
+          <div class="fd-quick" id="fd-quick"></div>
+        </div>
+        <div id="fd-today-body"></div>
       </div>
-    </div></div>
+      ${TABS.filter(t => t.k !== 'today').map(t => `<div class="panel" id="fp-${t.k}"></div>`).join('')}
+    </div>
     <div class="fd-ov" id="fd-ov"><div class="fd-sheet" id="fd-sheet"></div></div>
     <div class="fd-toast" id="fd-toast"></div>
   </div>`;
@@ -1034,7 +1026,7 @@ export default {
   id: 'food',
   name: 'Food',
   storagePrefix: 'food_',
-  styles: 'apps/food/food.css?v=food-2',
+  styles: 'apps/food/food.css?v=food-4',
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3v5a3 3 0 0 0 6 0V3"/><path d="M7 3v18"/><path d="M17 21V3c-2.2 0-4 2.5-4 7v3h4"/></svg>',
   mount(el) {
     root = el;
@@ -1074,6 +1066,7 @@ export default {
     window.visualViewport?.removeEventListener('resize', syncViewport);
     window.visualViewport?.removeEventListener('scroll', syncViewport);
     document.documentElement.classList.remove('fd-lock');
+    root?.style.removeProperty('--vvh');
     scanMod?.close();
     clearTimeout(undoTimer);
     root = null;
