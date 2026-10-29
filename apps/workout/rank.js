@@ -876,7 +876,7 @@ function scoreAll(w, bodyweight, ref, r, reach, grip) {
      scoredReachable was already computed from it for the completion
      count; the average simply was not using it. It is now, so the letter
      answers one question with one set of lifts. The off-sheet weights are
-     kept, still listed, and still scored individually — they are history,
+     kept and still scored individually, but not listed — they are history,
      not input. */
   out.counted = out.lifts.filter(l => reach.has(l.name));
   out.scoredReachable = out.counted.length;
@@ -1546,14 +1546,16 @@ function repChip(l) {
 
 function liftsHTML(st) {
   if (!st.bodyweight) return '';
-  const rows = st.lifts.map(l => `
-    <div class="rk-lift${st.counted.includes(l) ? '' : ' off-sheet'}">
+  /* Only the sheet you can see — an off-sheet alternate is history, and
+     the Rank tab is no place to show it. */
+  const shown = st.lifts.filter(l => st.counted.includes(l));
+  const rows = shown.map(l => `
+    <div class="rk-lift">
       <div class="rk-lift-top">
         <div class="rk-lift-n">${l.name}${l.srcLabel
             ? `<span class="rk-lift-src ${l.src}" title="${l.note || ''}">${l.srcLabel}</span>`
             : (l.note ? `<span class="rk-lift-src info" title="${l.note}">i</span>` : '')}${repChip(l)}${l.pending
-            ? `<span class="rk-lift-src pend" title="No completed session at ${l.w} lbs yet${l.provenW ? ` — last trained at ${l.provenW} lbs` : ''}. This row is an estimate until there is one.">Untested</span>` : ''}${st.counted.includes(l)
-            ? '' : `<span class="rk-lift-src off" title="Not on your current sheet — the alternate movement is the one showing, so this weight is kept and scored but left out of the average.">off sheet</span>`}</div>
+            ? `<span class="rk-lift-src pend" title="No completed session at ${l.w} lbs yet${l.provenW ? ` — last trained at ${l.provenW} lbs` : ''}. This row is an estimate until there is one.">Untested</span>` : ''}</div>
         <div class="rk-lift-r" style="color:var(${l.rank.c})">${l.rank.l}</div>
       </div>
       ${bandTrack(l.pct, false)}
@@ -1584,7 +1586,7 @@ function liftsHTML(st) {
   return `<div class="pg-card">
     <div class="pg-card-head">
       <div class="pg-card-title">Every Lift</div>
-      <div class="pg-card-note">${st.liftCount}${st.grip ? ' + grip' : ''} in the score${st.offSheet ? ` · ${st.offSheet} off sheet` : ''}</div>
+      <div class="pg-card-note">${st.liftCount}${st.grip ? ' + grip' : ''} in the score</div>
     </div>
     <div class="rk-reps">
       <span class="rk-reps-l">Assume this many reps<span class="rk-reps-sub">when a lift has none counted</span></span>
@@ -1592,7 +1594,7 @@ function liftsHTML(st) {
     </div>
     ${repNote}
     ${basisNote}
-    ${st.lifts.length ? `<div class="rk-lift-list">${rows}</div>`
+    ${shown.length ? `<div class="rk-lift-list">${rows}</div>`
       : `<div class="pg-empty">No weights set on any scored lift yet.</div>`}
   </div>`;
 }
