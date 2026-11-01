@@ -9,14 +9,15 @@
 
 import workout from '../../apps/workout/index.js?v=3d-oct18a';
 import finance from '../../apps/finance/index.js?v=3d-oct14d';
-import food from '../../apps/food/index.js?v=food-14';
 import { toast } from './ui.js?v=3d-oct14d';
 import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=3d-oct14d';
 
 // Scripture is parked in archive/ for now — to bring it back, move
 // archive/apps/scripture and archive/assets/data back to their old paths,
-// then import it here and add it to APPS.
-const APPS = [workout, finance, food];
+// then import it here and add it to APPS. Food is parked the same way:
+// move archive/apps/food back to apps/food, import it, add it to APPS, and
+// restore its Settings rows (FOOD_PREFS) and its stylesheet in index.html.
+const APPS = [workout, finance];
 const ACTIVE_KEY = 'bartleby_active_app';
 // Each app declares its own storage prefix, so a new app joins the backup
 // and the storage breakdown by existing rather than by being listed twice.
@@ -172,9 +173,6 @@ function buildSettings() {
         <div class="sx-sec-lbl mt">Workout</div>
         <div class="sx-eq" id="sx-pref"></div>
 
-        <div class="sx-sec-lbl mt">Food</div>
-        <div class="sx-eq" id="sx-food"></div>
-
         ${SKILLED.length ? `<div id="sx-lv-sec"><div class="sx-sec-lbl mt">Calisthenics Level</div>
         <div class="sx-lv" id="sx-lv"></div></div>` : ''}
 
@@ -269,25 +267,13 @@ const PREFS = [
     subOff:'You open the next exercise yourself; Go on the rest timer still does it.',
     toastOn:'Auto-advance on', toastOff:'Auto-advance off' },
 ];
-/* The Food app's switches, painted and stored the same way. Defaults
-   must match where apps/food/index.js reads them (calLayer, offAuto). */
-const FOOD_PREFS = [
-  { id:'foodcal', key:'food_cal', def:false, name:'Calorie Tracking', on:'On', off:'Off',
-    subOn:'Calories and daily totals.',
-    subOff:'Just the journal.',
-    toastOn:'Calorie tracking on', toastOff:'Calorie tracking off' },
-  { id:'foodoff', key:'food_offauto', def:false, name:'Barcode Lookup', on:'Automatic', off:'Ask First',
-    subOn:'New barcodes look up on Open Food Facts.',
-    subOff:'Asks before looking up a new barcode.',
-    toastOn:'Barcodes look up automatically', toastOff:'Barcodes ask before looking up' },
-];
 const eqOn = eq => {
   const d = eq.def ?? true;
   try { return JSON.parse(localStorage.getItem(eq.key)) ?? d; } catch { return d; }
 };
 
 function pickEquip(id, v) {
-  const eq = [...EQUIP, ...PREFS, ...FOOD_PREFS].find(e => e.id === id);
+  const eq = [...EQUIP, ...PREFS].find(e => e.id === id);
   if (!eq || v === eqOn(eq)) return;
   localStorage.setItem(eq.key, JSON.stringify(v));
   syncSettings();
@@ -519,7 +505,6 @@ function syncSettings() {
   };
   el.querySelector('#sx-eq').innerHTML = shown.map(row).join('');
   el.querySelector('#sx-pref').innerHTML = PREFS.map(row).join('');
-  el.querySelector('#sx-food').innerHTML = FOOD_PREFS.map(row).join('');
   el.querySelector('#sx-eq-sec').hidden = !shown.length;
   paintPeople();
   paintLevels();                     // the bar toggle adds and removes ladders
@@ -587,7 +572,7 @@ function importBackup(e) {
     const keys = Object.keys(payload.data).filter(isBackupKey);
     if (!keys.length) { toast('Backup has no data'); return; }
     const when = payload.exportedAt ? new Date(payload.exportedAt).toLocaleString() : 'unknown date';
-    if (!confirm(`Import backup from ${when}?\n\nThis replaces all current workout, finance and food data on this device.`)) return;
+    if (!confirm(`Import backup from ${when}?\n\nThis replaces all current workout and finance data on this device.`)) return;
     keys.forEach(k => localStorage.setItem(k, payload.data[k]));
     toast('Backup imported — reloading');
     setTimeout(() => location.reload(), 600);

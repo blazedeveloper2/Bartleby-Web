@@ -262,19 +262,6 @@ Live apps:
   app, each gap in the history can also say roughly what came in: the change in
   your total plus what you logged as spent over the same stretch. That figure is
   labelled as the inference it is.
-- **Food** — a food journal that can also count calories. Type what you ate
-  (`2 eggs, toast, coffee` logs three entries) or scan a package's barcode;
-  meals come from the time of day. Calories are a layer you can switch on in
-  Settings; off, it is a plain food log with no suggestions but your own. Fresh foods come from USDA FoodData Central (all 7,793 SR Legacy
-  foods ship in `apps/food/foods.json`, searched on the device), packaged ones
-  from Open Food Facts (only the barcode is sent, and only when allowed) or
-  the label, saved per barcode so the next scan is offline. Every counted
-  entry shows its source and the math; a day with anything uncounted is
-  marked partial and never totalled as if it were whole. **Week** shows the
-  calorie chart and eating patterns. A **checklist** on Today holds things
-  to tick off (supplements, say), each set to every day or chosen weekdays,
-  with ticks kept per date and shown on Week.
-
 Archived (parked in `archive/`, not loaded by the shell — see
 `archive/README.md` to restore):
 
@@ -285,22 +272,32 @@ Archived (parked in `archive/`, not loaded by the shell — see
   **Saved** keeps the verses you starred, grouped in canon order, with your own
   note. Everything is offline: no key, no API, no network. Its generated KJV
   text and commentary data are archived alongside it.
+- **Food** — a food journal that can also count calories. Type what you ate
+  (`2 eggs, toast, coffee` logs three entries) or scan a package's barcode;
+  meals come from the time of day. Calories were a layer you could switch on in
+  Settings; off, it is a plain food log with no suggestions but your own. Fresh foods come from USDA FoodData Central (all 7,793 SR Legacy
+  foods ship in its `foods.json`, searched on the device), packaged ones
+  from Open Food Facts (only the barcode is sent, and only when allowed) or
+  the label, saved per barcode so the next scan is offline. Every counted
+  entry shows its source and the math; a day with anything uncounted is
+  marked partial and never totalled as if it were whole. **Week** shows the
+  calorie chart and eating patterns. A **checklist** on Today holds things
+  to tick off (supplements, say), each set to every day or chosen weekdays,
+  with ticks kept per date and shown on Week.
 
 **Settings** (gear, bottom of the sidebar) holds the theme picker, the
 equipment toggles, and backup. Pull-up bar and ab wheel default on; the
 barbell defaults off, and turning it on swaps the RDLs, the goblet squat and
 the hip thrust for their barbell versions, each scored on its own standard.
 The grip dynamometer defaults on and shows or hides the grip card.
-Food has Calorie Tracking (off) and Barcode Lookup (ask first).
 
 All data is stored locally in your browser (`localStorage`). Nothing is sent
 anywhere. Use **Settings → Export Backup** to save a `.json` file before
 switching devices, and **Import Backup** to restore it. Backups cover every
-`bp_` (workout), `fin_` (finance), `food_` (food) and `bs_` (suite settings,
-e.g. theme) key. The one exception to "nothing is sent": Food's barcode lookup
-sends the barcode number to Open Food Facts when you allow it.
-Scripture's `sc_` keys (stars and notes) stay in the browser untouched while
-the app is archived, but drop out of backups until it is restored.
+`bp_` (workout), `fin_` (finance) and `bs_` (suite settings, e.g. theme) key.
+Archived apps' keys — Scripture's `sc_` (stars and notes) and Food's `food_`
+(journal, checklist, saved barcodes) — stay in the browser untouched, but drop
+out of backups until the app is restored.
 
 ## Themes
 
@@ -340,10 +337,10 @@ Bartleby Web/
 │   ├── workout/              # index.js + data.js + rank.js + standards.js
 │   │                         #   + body.js + anthro.js + grip.js + checkup.js
 │   │                         #   + bodymap.js + howto.js + workout.css
-│   ├── finance/              # index.js + networth.js + data.js + finance.css
-│   └── food/                 # index.js + data.js + usda.js + scan.js + foods.json + food.css
+│   └── finance/              # index.js + networth.js + data.js + finance.css
 ├── archive/                  # parked apps, kept but not loaded by the shell
 │   ├── apps/scripture/       # index.js + bible.js + scripture.css
+│   ├── apps/food/            # index.js + data.js + usda.js + scan.js + foods.json + food.css
 │   └── assets/data/          # kjv/ (~4 MB) + commentary/ (~100 MB)
 ├── tools/howto/              # how the exercise how-tos were made + the checks
 │                             #   (README.md, check.mjs, vidcheck.py, ytsearch.py)
