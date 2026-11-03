@@ -431,71 +431,23 @@ button.mm-bump:active{transform:scale(.99)}
 .mm-bump.top{background:var(--blue-d);border:1px solid var(--sel-bd)}
 .mm-bump.top .mm-bump-k,.mm-bump.top .mm-bump-v{color:var(--blue)}
 
-/* ── Progress chart (progress.js) ──
-   One point per session at the current weight: the best set on the line,
-   the other sets as faint dots under it, the target range as a green band.
-   Every colour is a theme token, so it follows all four themes. */
-.pg{padding:18px 22px;border-bottom:1px solid var(--border)}
-.pg-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px}
-.pg-t{font-size:14px;font-weight:600;color:var(--text)}
-.pg-t>span{display:block;font-size:11px;font-weight:400;color:var(--text-3);margin-top:3px}
-.pg-delta{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:2px;padding:6px 10px;border-radius:var(--rs);
-  border:1px solid var(--border);background:var(--bg)}
-.pg-delta b{font-family:var(--mono);font-size:17px;font-weight:800;line-height:1;letter-spacing:-.5px;color:var(--text-2)}
-.pg-delta small{font-size:9.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--text-3)}
-.pg-delta.up{background:var(--green-d);border-color:var(--green)}.pg-delta.up b,.pg-delta.up small{color:var(--ink-green)}
-.pg-delta.down{background:var(--red-d);border-color:var(--red)}.pg-delta.down b,.pg-delta.down small{color:var(--ink-red)}
-.pg-delta.first{background:var(--blue-d);border-color:var(--sel-bd)}.pg-delta.first b{color:var(--blue)}
-
-.pg-note{margin:8px 0 4px;padding:10px 12px;border-radius:var(--rs);background:var(--amber-d);border:1px solid var(--amber);
-  font-size:12px;line-height:1.5;color:var(--text-2)}
-.pg-note b{display:block;color:var(--ink-amber);font-family:var(--mono);font-size:12px;margin-bottom:2px}
-.pg.pending .pg-svg{filter:grayscale(1);opacity:.55}
-
-.pg-svg{display:block;margin-top:6px;overflow:visible}
-.pg-grid{stroke:var(--border);stroke-width:1;stroke-dasharray:2 4}
-.pg-yl{font-family:var(--mono);font-size:10px;fill:var(--text-3);text-anchor:end}
-.pg-xl{font-family:var(--mono);font-size:10px;fill:var(--text-3)}
-.pg-band{fill:var(--green);opacity:.09}
-.pg-band-e{stroke:var(--green);stroke-width:1;stroke-dasharray:3 3;opacity:.45}
-.pg-key{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:6px;font-size:11px;color:var(--text-3)}
-.pg-key span{display:flex;align-items:center;gap:6px}
-.pg-key i{display:block;flex:none}
-.pg-key .k-best{width:9px;height:9px;border-radius:50%;border:2px solid var(--blue);background:var(--bg-card)}
-.pg-key .k-set{width:6px;height:6px;border-radius:50%;background:var(--text-3);opacity:.7}
-.pg-key .k-band{width:14px;height:9px;border-radius:2px;background:var(--green-d);border:1px dashed var(--green)}
-.pg-area{fill:url(#pg-fill)}
-.pg-line{fill:none;stroke:var(--blue);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;
-  stroke-dasharray:1;stroke-dashoffset:0;animation:pg-draw .7s cubic-bezier(.3,.7,.3,1) both}
-@keyframes pg-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
-.pg-set{fill:var(--text-3);opacity:.55}
-.pg-dot{fill:var(--bg-card);stroke:var(--blue);stroke-width:2.4}
-.pg-pt.now .pg-dot{fill:var(--blue)}
-.pg-halo{fill:var(--blue);opacity:.16;animation:pg-pulse 2.4s ease-in-out infinite}
-@keyframes pg-pulse{50%{opacity:.04}}
-.pg-v{font-family:var(--mono);font-size:10.5px;font-weight:700;fill:var(--text-2);text-anchor:middle}
-.pg-v.now{font-size:12.5px;fill:var(--text)}
-.pg-pt{cursor:default}
-.pg-pt:hover .pg-dot{stroke-width:3.2}
-@media (prefers-reduced-motion:reduce){.pg-line,.pg-halo{animation:none}}
-
-.pg-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
-.pg-stats>div{padding:8px 10px;border-radius:var(--rs);background:var(--bg);border:1px solid var(--border);min-width:0}
-.pg-stats span{display:block;font-size:9.5px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3)}
-.pg-stats b{display:block;margin-top:3px;font-family:var(--mono);font-size:14px;font-weight:700;color:var(--text);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
-.pg-stats b i{font-style:normal;color:var(--text-3);margin:0 2px}
-.pg-runs{margin-top:12px}
-.pg-runs-h{font-size:9.5px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);margin-bottom:6px}
-.pg-run{display:grid;grid-template-columns:auto auto 1fr;align-items:baseline;gap:10px;padding:7px 0;border-top:1px solid var(--border);font-size:12px}
-.pg-run b{font-family:var(--mono);color:var(--text-2);font-weight:700}
-.pg-run-r{font-family:var(--mono);color:var(--text)}
-.pg-run-d{color:var(--text-3);text-align:right;font-size:11px}
-
-.pg-empty .pg-ghost{color:var(--border-lt);margin:12px 0 8px}
-.pg-empty p{margin:0;font-size:12px;line-height:1.55;color:var(--text-3)}
-@media(max-width:480px){.wk .pg{padding:14px 16px}.pg-run{grid-template-columns:auto 1fr}.pg-run-d{grid-column:1/-1;text-align:left;margin-top:-4px}}
+/* ── Progress chart (progress.js) ── one line, best set per session */
+.xp{padding:16px 22px;border-bottom:1px solid var(--border)}
+.xp-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.xp-t{font-size:14px;font-weight:600;color:var(--text)}
+.xp-t>span{margin-left:8px;font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text-3)}
+.xp-delta{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text-3)}
+.xp-delta.up{color:var(--ink-green)}.xp-delta.down{color:var(--ink-red)}
+.xp-msg{margin:6px 0 0;font-size:12px;color:var(--text-3)}
+.xp.pending .xp-svg{opacity:.4}
+.xp-svg{display:block;margin-top:4px;overflow:visible}
+.xp-line{fill:none;stroke:var(--blue);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.xp-pt circle{fill:var(--bg-card);stroke:var(--blue);stroke-width:2}
+.xp-pt.now circle{fill:var(--blue)}
+.xp-pt text{font-family:var(--mono);font-size:11px;font-weight:600;fill:var(--text-2);text-anchor:middle}
+.xp-pt.now text{fill:var(--text);font-weight:700}
+.xp-x{font-family:var(--mono);font-size:10px;fill:var(--text-3)}
+@media(max-width:480px){.wk .xp{padding:12px 16px}}
 
 /* â”€â”€ Where this lift stands, right under the input that changes it â”€â”€ */
 .mm-rank{display:flex;align-items:center;gap:13px;padding:13px 20px;border-bottom:1px solid var(--border)}

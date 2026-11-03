@@ -17,7 +17,7 @@ import {
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip, exHistory,
 } from './rank.js?v=3d-nov03b';
-import { progressHTML } from './progress.js?v=3d-nov03b';
+import { progressHTML } from './progress.js?v=3d-nov03c';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
@@ -803,7 +803,7 @@ function mmProgHTML() {
     hist: exHistory(mmEx, tr.store === 'reps' ? mmEx.n : undefined),
     wv: tr.store === 'reps' ? tr.wv : undefined,
     loaded: !!tr.t.load,
-    unit: tr.t.unit, rng: tr.t.rng, per: isUnilateral(mmEx),
+    unit: tr.t.unit,
     W: n => added ? (n > 0 ? `+${fmtW(n)} lbs` : 'bodyweight') : `${fmtW(n)} lbs`,
     width,
   });
@@ -2034,7 +2034,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=3d-nov03b',
+  styles: 'apps/workout/workout.css?v=3d-nov03c',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
