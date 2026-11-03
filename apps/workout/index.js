@@ -15,8 +15,9 @@ import {
   isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, trayStats, icon,
   liftScores, standingOf, resEx, resKit, lvlOf, setLvl, resetTargets, applyReset,
   trackOf, exSets, setExSets, skillAdvice, lineReady,
-  rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip,
-} from './rank.js?v=3d-oct18a';
+  rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip, exHistory,
+} from './rank.js?v=3d-nov03b';
+import { progressHTML } from './progress.js?v=3d-nov03b';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
@@ -26,7 +27,7 @@ import { restBand, BANDS, fmtRest } from './rest.js?v=3d-oct14d';
 import * as rest from './timer.js?v=3d-oct14d';
 import * as timing from './sessions.js?v=3d-oct18a';
 import { HOWTO } from './howto.js?v=3d-oct14h';
-import * as anatomy from './anatomy.js?v=3d-oct18a';
+import * as anatomy from './anatomy.js?v=3d-nov03b';
 import { animHTML, playAnim } from './pose.js?v=3d-nov03a';
 import { standingsFor } from './anthro.js?v=3d-oct14d';
 import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=3d-oct14d';
@@ -773,7 +774,39 @@ function paintMMStanding(keepBoxes = false) {
   const reps = q('#mm-reps'), verdict = q('#mm-verdict');
   if (verdict && (keepBoxes || reps.contains(document.activeElement))) { verdict.innerHTML = mmVerdictHTML(); paintSetNow(); }
   else reps.innerHTML = mmRepsHTML();
+  paintProg();
   q('#mm-lvl').innerHTML = mmLvlHTML();
+}
+
+/* Drawn at the width it is shown at, so its text stays the size of the
+   rest of the card. The lab is hidden the first time it paints, so the
+   width is a guess until it opens; progRO redraws it at the real one,
+   and again whenever the card changes width. */
+function paintProg() {
+  const box = q('#mm-prog');
+  if (!box) return;
+  box.innerHTML = mmProgHTML();
+  box.dataset.w = box.clientWidth;
+}
+let progRO = null;
+
+/* The progress chart (progress.js): every session's sets at the current
+   weight, drawn as wide as the card. Nothing in it takes focus, so it is
+   rebuilt on every save. */
+function mmProgHTML() {
+  const tr = mmTrack();
+  if (!tr || tr.t.unit === '-') return '';
+  /* the box spans the card; the chart sits inside .pg's side padding */
+  const width = (q('#mm-prog')?.clientWidth || Math.min(560, innerWidth - 20)) - (innerWidth <= 480 ? 32 : 44);
+  const added = tr.t.load === 'added';
+  return progressHTML({
+    hist: exHistory(mmEx, tr.store === 'reps' ? mmEx.n : undefined),
+    wv: tr.store === 'reps' ? tr.wv : undefined,
+    loaded: !!tr.t.load,
+    unit: tr.t.unit, rng: tr.t.rng, per: isUnilateral(mmEx),
+    W: n => added ? (n > 0 ? `+${fmtW(n)} lbs` : 'bodyweight') : `${fmtW(n)} lbs`,
+    width,
+  });
 }
 
 /* Offered on any lift with a history, because the moment you need it is the
@@ -1937,6 +1970,7 @@ function template() {
           <div class="mm-wt-box"><input class="mm-wt-in" id="mm-wt" type="number" step="2.5" min="0" inputmode="decimal" placeholder="—"><span class="mm-wt-u">lbs</span></div>
         </div>
         <div id="mm-reps"></div>
+        <div id="mm-prog"></div>
         <div id="mm-rank"></div>
         <section class="mm-howto" id="mm-howto"></section>
         <section class="mm-anatomy">
@@ -2000,7 +2034,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=3d-oct16u',
+  styles: 'apps/workout/workout.css?v=3d-nov03b',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
@@ -2017,6 +2051,11 @@ export default {
     root.addEventListener('pointerout', onOut);
     window.addEventListener('bs:datachange', onExternalChange);
     rest.mount(q('#rest-bar'));
+    progRO = new ResizeObserver(() => {
+      const box = q('#mm-prog');
+      if (mmEx && box?.clientWidth && Math.abs(box.clientWidth - (+box.dataset.w || 0)) > 4) paintProg();
+    });
+    progRO.observe(q('#mm-prog'));
     clearInterval(clockTick); clockTick = setInterval(paintClocks, 1000);
     anatomy.init({
       loadMV, layer: () => q('#ax'),
@@ -2038,6 +2077,7 @@ export default {
     }
     window.removeEventListener('bs:datachange', onExternalChange);
     rest.unmount();
+    progRO?.disconnect(); progRO = null;
     clearInterval(clockTick); clockTick = null;
     anatomy.close(true);
     root = null;

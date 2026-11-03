@@ -161,6 +161,7 @@ export function setExSets(ex, sets) {
   if (!clean.some(n => n !== null)) delete m[xsKey(ex)];
   else m[xsKey(ex)] = { s: clean, d: todayStr() };
   save('bp_xsets', m);
+  histNote(xsKey(ex), clean, null);
 }
 
 /* A ladder step's `up` read as a test: "3×30s in a straight line" is three
@@ -278,8 +279,43 @@ export function setExReps(name, sets, w) {
   if (!clean.some(n => n !== null) || !ok) delete m[name];
   else m[name] = { s: clean, w, d: todayStr() };
   xrepsSv(m);
+  histNote(name, ok ? clean : [], w);
 }
 export const exReps = name => xrepsAll()[name] || null;
+
+/* ═══════════════════ REP HISTORY ═══════════════════
+
+   bp_rephist  { [key]: [{ d:'YYYY-MM-DD', w:50|null, s:[12,10] }, …] }
+
+   bp_xreps and bp_xsets keep one count per exercise — the latest — which
+   is all scoring and the verdict strip need. The progress chart in the
+   lab needs every session, so each save also lands here: one entry per
+   day, today's replaced as the boxes change, and removed if they are
+   emptied. Keyed the same way bp_xsets is (name, plus the dose on a
+   practice day), and `w` is the weight the sets were done at — null for
+   bodyweight — so the chart can start again when the weight changes. */
+const histAll = () => load('bp_rephist', {});
+function histNote(key, sets, w) {
+  const m = histAll(), d = todayStr();
+  const l = (m[key] || []).filter(e => e.d !== d);
+  if ((sets || []).some(n => n > 0)) l.push({ d, w: w ?? null, s: sets });
+  l.sort((a, b) => a.d.localeCompare(b.d));
+  if (l.length) m[key] = l; else delete m[key];
+  save('bp_rephist', m);
+}
+
+/* Every counted session of an exercise, oldest first. The latest count in
+   bp_xreps / bp_xsets is folded in when the history has no entry for its
+   day, so counts from before the history existed still show as a point. */
+export function exHistory(ex, key = xsKey(ex)) {
+  const l = [...(histAll()[key] || [])];
+  const has = d => l.some(e => e.d === d);
+  const r = xrepsAll()[ex.n], x = exSets(ex);
+  if (r && r.d && !has(r.d)) l.push({ d: r.d, w: r.w ?? null, s: r.s });
+  if (x && x.d && !has(x.d)) l.push({ d: x.d, w: null, s: x.s });
+  return l.filter(e => Array.isArray(e.s) && e.s.some(n => n > 0))
+          .sort((a, b) => a.d.localeCompare(b.d));
+}
 
 /* How many reps to read one lift at, and how much that number is worth.
    `logged` is the flag every label on the tab hangs off: it is the
@@ -1356,6 +1392,8 @@ const RESETS = [
     d:'Only the dates. Anything still true at your current numbers re-earns itself on the next render — to genuinely re-lock a milestone, clear what earned it as well.' },
   { id:'xs',  key:'bp_xsets', n:'Counted holds & bodyweight reps', u:'exercise',
     d:'The seconds and reps typed into bodyweight exercises. The move-up check on every skill ladder reads these, so clearing them sends each one back to "not counted". The levels themselves are left alone.' },
+  { id:'rh',  key:'bp_rephist', n:'Rep history', u:'exercise',
+    d:"Every session's counted sets, which the progress chart in the exercise lab draws. Nothing is scored from it — the latest count of each exercise stays, so each chart starts again from one point." },
   { id:'grip', key:'bp_grip', n:'Grip readings', u:'reading',
     d:'Every dynamometer reading. The grip letter on the Rank tab is read off the latest, so it goes back to empty. Nothing else is scored from these.' },
   { id:'chk', key:'bp_chk', n:'Checkmarks', u:'ticked', p:'ticked',
@@ -1370,6 +1408,7 @@ const resetCount = {
   bw:  () => load('bp_bw', []).length,
   ach: () => Object.keys(achAll()).length,
   xs:  () => Object.keys(xsetsAll()).length,
+  rh:  () => Object.keys(load('bp_rephist', {})).length,
   grip: () => load('bp_grip', []).length,
   chk: () => Object.values(load('bp_chk', {})).filter(Boolean).length,
   time: timeCount,
