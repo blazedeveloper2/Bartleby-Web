@@ -27,7 +27,7 @@ import * as rest from './timer.js?v=3d-oct14d';
 import * as timing from './sessions.js?v=3d-oct18a';
 import { HOWTO } from './howto.js?v=3d-oct14h';
 import * as anatomy from './anatomy.js?v=3d-oct18a';
-import { animHTML, playAnim } from './pose.js?v=3d-oct18a';
+import { animHTML, playAnim } from './pose.js?v=3d-nov03a';
 import { standingsFor } from './anthro.js?v=3d-oct14d';
 import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=3d-oct14d';
 import {
@@ -896,7 +896,7 @@ function warm3D() {
   warmed = true;
   const go = () => {
     loadMV().then(m => m.warm()).catch(() => {});
-    import('./stage.js?v=3d-oct18a').then(S => S.ready()).catch(() => {});
+    import('./stage.js?v=3d-nov03a').then(S => S.ready()).catch(() => {});
   };
   if ('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 2500 });
   else setTimeout(go, 1200);

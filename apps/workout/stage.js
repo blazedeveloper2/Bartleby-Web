@@ -1193,7 +1193,7 @@ export function mount(box, name, { onStep, onFrame, still = false, free = false 
     r.domElement.style.width = w + 'px';
     r.domElement.style.height = h + 'px';
     stage.aim(w / h);
-    dirty = true;
+    mark();
   };
   const ro = new ResizeObserver(size);
   ro.observe(box);
@@ -1208,23 +1208,31 @@ export function mount(box, name, { onStep, onFrame, still = false, free = false 
     if (!still) { const s = stage.tl.step(clock); onStep?.(s.i, s.u); onFrame?.(((clock % total) + total) % total); }
     dirty = false;
   };
-  const tick = now => {
-    raf = requestAnimationFrame(tick);
+  /* The loop only runs while something moves: playing, a camera glide,
+     auto-turn or a drag. Paused and still, it stops asking for frames
+     (a phone's battery thanks it), and anything that changes the view
+     wakes it for the frames it needs. */
+  function wake() { if (!raf) raf = requestAnimationFrame(tick); }
+  function mark() { dirty = true; wake(); }
+  function tick(now) {
+    raf = 0;
     if (!visible) { last = 0; return; }
     const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
-    if (!paused) { clock += dt * speed; dirty = true; }
+    if (!paused) { clock += dt * speed; mark(); }
     /* a camera move asked for by a button eases there rather than cutting */
     if (glide) {
       const k = Math.min(1, (now - glide.t0) / 450), e = k * k * (3 - 2 * k);
       stage.az = glide.az0 + (glide.az - glide.az0) * e;
       stage.el = glide.el0 + (glide.el - glide.el0) * e;
       stage.zoom = glide.z0 + (glide.z - glide.z0) * e;
-      stage.aim(); dirty = true;
+      stage.aim(); mark();
       if (k >= 1) glide = null;
-    } else if (spin && !drag) { stage.az += dt * 24; stage.aim(); dirty = true; }
+    } else if (spin && !drag) { stage.az += dt * 24; stage.aim(); mark(); }
     last = now;
     if (dirty) frame();
-  };
+    if (!paused || glide || spin || drag || pinch) wake();
+    else last = 0;
+  }
 
   /* One finger or the mouse turns the camera; two fingers pinch to zoom,
      and so do ctrl+wheel and a trackpad pinch (which browsers send as
@@ -1237,7 +1245,7 @@ export function mount(box, name, { onStep, onFrame, still = false, free = false 
   const zoomTo = z => {
     z = Math.max(ZMIN, Math.min(ZMAX, z));
     if (glide) { glide.z = z; return; }      // a camera move under way takes the new zoom with it
-    stage.zoom = z; stage.aim(); dirty = true; box.classList.add('turned');
+    stage.zoom = z; stage.aim(); mark(); box.classList.add('turned');
   };
   const spread = () => { const [a, b] = [...ptrs.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
   /* one finger: sideways turns, up and down scrolls the page (drag.js) */
@@ -1257,7 +1265,7 @@ export function mount(box, name, { onStep, onFrame, still = false, free = false 
     stage.az = drag.az - (e.clientX - drag.x) * 0.45;
     stage.el = Math.max(-4, Math.min(ELMAX, drag.el + (e.clientY - drag.y) * 0.3));
     box.classList.add('turned');
-    stage.aim(); dirty = true;
+    stage.aim(); mark();
   };
   const up = e => {
     ptrs.delete(e.pointerId);
@@ -1270,12 +1278,13 @@ export function mount(box, name, { onStep, onFrame, still = false, free = false 
     e.preventDefault();
     zoomTo((stage.zoom || 1) * Math.exp(e.deltaY * 0.01));
   };
-  const reset = () => { glide = null; stage.az = stage.az0; stage.el = stage.el0; stage.zoom = 1; stage.aim(); dirty = true; };
+  const reset = () => { glide = null; stage.az = stage.az0; stage.el = stage.el0; stage.zoom = 1; stage.aim(); mark(); };
   /* the short way round to a heading, so "Front" from 350° turns 100°, not 260° */
   const glideTo = (az, el, z = stage.zoom || 1) => {
     const from = stage.az, to = from + ((((az - from) % 360) + 540) % 360 - 180);
     glide = { t0: performance.now(), az0: from, el0: stage.el, z0: stage.zoom || 1, az: to, el: Math.max(-4, Math.min(ELMAX, el)), z: Math.max(ZMIN, Math.min(ZMAX, z)) };
     box.classList.add('turned');
+    wake();
   };
   cv.addEventListener('pointerdown', down);
   cv.addEventListener('pointermove', move);
@@ -1284,28 +1293,28 @@ export function mount(box, name, { onStep, onFrame, still = false, free = false 
   cv.addEventListener('wheel', wheel, { passive: false });
   cv.addEventListener('dblclick', reset);
 
-  const io = new IntersectionObserver(es => { visible = es[0]?.isIntersecting ?? true; });
+  const io = new IntersectionObserver(es => { visible = es[0]?.isIntersecting ?? true; if (visible) wake(); });
   io.observe(box);
 
   frame();
-  raf = requestAnimationFrame(tick);
+  wake();
   return {
     total,
     az0: stage.az0, el0: stage.el0,
-    pause(on) { paused = on; last = 0; },
+    pause(on) { paused = on; last = 0; wake(); },
     get paused() { return paused; },
     get time() { return ((clock % total) + total) % total; },
-    seek(t) { clock = t; dirty = true; },
+    seek(t) { clock = t; mark(); },
     speed(x) { speed = x; },
-    spin(on) { spin = on; },
+    spin(on) { spin = on; wake(); },
     /* the working muscles painted on, or a plain body */
-    muscles(on) { const u = stage.body.uniforms?.uMusOn; if (u) { u.value = on ? 1 : 0; dirty = true; } },
+    muscles(on) { const u = stage.body.uniforms?.uMusOn; if (u) { u.value = on ? 1 : 0; mark(); } },
     view(az, el, z) { glideTo(az, el, z); },
     zoom(k) { zoomTo((glide ? glide.z : stage.zoom || 1) * k); },
     reset() { glideTo(stage.az0, stage.el0, 1); },
     /* where the camera is, to carry between the card and the viewer */
     get camera() { return { az: stage.az, el: stage.el, zoom: stage.zoom || 1 }; },
-    set camera(c) { glide = null; stage.az = c.az; stage.el = c.el; stage.zoom = c.zoom; stage.aim(); dirty = true; },
+    set camera(c) { glide = null; stage.az = c.az; stage.el = c.el; stage.zoom = c.zoom; stage.aim(); mark(); },
     stop() {
       cancelAnimationFrame(raf);
       ro.disconnect(); io.disconnect();

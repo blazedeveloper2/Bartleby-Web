@@ -60,13 +60,16 @@ export function playAnim(fig, name) {
   const pp = fig.querySelector('.rp-pp');
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const bar = fillBar([...fig.querySelectorAll('.rp-seg')]);
-  let handle = null, stopped = false, paused = false, viewer = null;
+  /* It waits on the play button rather than starting by itself: a 3D
+     rep drawn every frame is a steady drain on a phone's battery. */
+  let handle = null, stopped = false, paused = !still, viewer = null;
   if (still) { fig.classList.add('still'); pp.hidden = true; }
   const showPaused = () => {
     fig.classList.toggle('paused', paused);
     pp.setAttribute('aria-pressed', String(paused));
     pp.setAttribute('aria-label', paused ? 'Play animation' : 'Pause animation');
   };
+  showPaused();
   pp.addEventListener('click', () => {
     paused = !paused;
     showPaused();
@@ -77,7 +80,7 @@ export function playAnim(fig, name) {
   /* The card and the viewer share one WebGL canvas, so the card's rep
      stops while the viewer is open and picks up where the viewer left
      it: the same moment of the rep, the same camera. */
-  const start = carry => import('./stage.js?v=3d-oct18a')
+  const start = carry => import('./stage.js?v=3d-nov03a')
     .then(S => S.ready().then(() => S))
     .then(S => {
       if (stopped || viewer) return S;
@@ -92,7 +95,7 @@ export function playAnim(fig, name) {
   const fs = fig.querySelector('.rp-fs');
   fs.addEventListener('click', () => ready.then(S => {
     if (!S || stopped || viewer) return;
-    const carry = handle && { time: handle.time, camera: handle.camera };
+    const carry = handle && { time: handle.time, camera: handle.camera, paused };
     handle?.stop(); handle = null;
     viewer = openViewer(S, name, m, carry, still, back => {
       viewer = null;
@@ -193,7 +196,7 @@ function openViewer(S, name, m, carry, reduced, onClose) {
     pp.setAttribute('aria-pressed', String(on));
     pp.setAttribute('aria-label', on ? 'Play' : 'Pause');
   };
-  setPaused(reduced);
+  setPaused(reduced || !!carry?.paused);   // paused on the card stays paused here
   const phaseOf = t => { let i = 0; while (i + 1 < starts.length && starts[i + 1] <= t + 1e-6) i++; return i; };
   const stepPhase = d => {
     const t = h.time, i = phaseOf(t);
