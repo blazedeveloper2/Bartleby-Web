@@ -44,34 +44,3 @@ strength standards. Saturday sessions already logged stay in `bp_log` under
 
 Paste the object in `SATURDAY` back into `EDRIN` as its last entry (index 4,
 right after Friday), so old Saturday logs line up with it again.
-
-## Food (archived 2026-10-31)
-
-The whole app, moved here unchanged:
-
-- `apps/food/` — `index.js` + `data.js` + `usda.js` + `scan.js` +
-  `foods.json` (USDA SR Legacy, searched on the device) + `food.css`
-- `apps/food/settings.js` — its two Settings rows (Calorie Tracking,
-  Barcode Lookup), cut from `assets/js/shell.js`
-
-`scan.js` still points at `../../assets/vendor/zxing`, which stayed live, so
-that path only lines up again once the app is back in `apps/food`.
-
-The journal, checklist, saved barcodes and both switches (`food_` keys) are
-untouched in the browser — they just aren't shown, and drop out of Settings
-backups until the app is restored.
-
-### To restore
-
-1. Move `archive/apps/food` back to `apps/food`.
-2. In `assets/js/shell.js`: re-add
-   `import food from '../../apps/food/index.js?v=food-14';`, put `food` back
-   in the `APPS` array, paste `FOOD_PREFS` from `settings.js` back after
-   `PREFS`, add it to the list in `pickEquip`, and put the Food section
-   (`<div class="sx-sec-lbl mt">Food</div><div class="sx-eq" id="sx-food"></div>`)
-   back after Workout in Settings, painted in `syncSettings` with
-   `el.querySelector('#sx-food').innerHTML = FOOD_PREFS.map(row).join('');`.
-   Delete `settings.js` once it's pasted back.
-3. Re-add `<link rel="stylesheet" href="apps/food/food.css?v=food-11">` in
-   `index.html` and bump the `shell.js?v=` tag there.
-4. Restore the Food entries in the root `README.md`.
