@@ -775,6 +775,28 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 .rk-score-l{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-3);margin-top:6px}
 .rk-up{margin-top:12px;font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-3)}
 .rk-up b{color:var(--text)}
+/* the score over time, under the bar */
+.rk-tr{margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.rk-tr-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;min-height:14px;
+  font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-3)}
+.rk-tr-v{color:var(--text);letter-spacing:.5px}
+.rk-tr-v.up{color:var(--ink-green)}.rk-tr-v.down{color:var(--ink-red)}.rk-tr-v.quiet{color:var(--text-3);letter-spacing:1.2px}
+.rk-tr-svg{display:block;height:auto;margin-top:6px;overflow:visible;touch-action:pan-y;outline:none;-webkit-tap-highlight-color:transparent}
+.rk-tr-svg[tabindex]{cursor:crosshair}
+.rk-tr-svg:focus-visible{outline:1px solid var(--rc);outline-offset:4px}
+.rk-tr-zone{opacity:.09}
+.rk-tr-b{stroke:var(--border);stroke-width:1;stroke-dasharray:3 3}
+.rk-tr-l{font-family:var(--mono);font-size:10px;font-weight:700;fill:var(--text-3);text-anchor:end}
+.rk-tr-line{fill:none;stroke:var(--rc);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.rk-tr-pt{fill:var(--rc)}
+.rk-tr-now{fill:var(--rc);stroke:var(--bg-card);stroke-width:2}
+.rk-tr-n{font-family:var(--mono);font-size:11px;font-weight:600;fill:var(--text-2)}
+.rk-tr-n.now{fill:var(--text);font-weight:700}
+.rk-tr-x{font-family:var(--mono);font-size:10px;fill:var(--text-3)}
+.rk-tr-hair{stroke:var(--text-3);stroke-width:1;opacity:0;pointer-events:none}
+.rk-tr-hov{fill:var(--bg-card);stroke:var(--rc);stroke-width:2;opacity:0;pointer-events:none}
+.rk-tr.hover .rk-tr-hair,.rk-tr.hover .rk-tr-hov{opacity:1}
+.rk-tr.hover .rk-tr-n{opacity:.35}
 
 /* â”€â”€ percentile band track: widths are to scale, so it's obvious how wide
       "average" is and how narrow "elite" is â”€â”€ */

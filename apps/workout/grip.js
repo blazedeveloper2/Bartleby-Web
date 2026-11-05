@@ -146,8 +146,10 @@ export const bestOf = e => Math.max(num(e.r) ? e.r : 0, num(e.l) ? e.l : 0);
 
 /* Everything the card shows. `age` may be null, in which case the peak row
    is used and `aged` says so. */
-export function gripStanding(age) {
-  const log = gripAll();
+/* `asOf` reads the log as it stood on that day, for the Rank tab's score
+   history; without it, everything logged. */
+export function gripStanding(age, asOf) {
+  const log = asOf ? gripAll().filter(e => e.d <= asOf) : gripAll();
   if (!log.length) return { log, last: null };
   const last = log[log.length - 1], kg = bestOf(last);
   const { row, lbl, aged } = rowFor(age);

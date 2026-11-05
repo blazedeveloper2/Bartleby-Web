@@ -44,7 +44,7 @@ import { load, save, remove, todayStr, dateStr } from './store.js?v=3d-oct14d';
    wants a weight goes through weighed(). */
 import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=3d-oct14d';
 import { TIME_RESET, timeCount } from './sessions.js?v=3d-oct18a';
-import { gripOn, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_HOW } from './grip.js?v=3d-oct14d';
+import { gripOn, gripAll, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_HOW } from './grip.js?v=3d-nov05b';
 
 /* ── storage ── */
 /* Sorted on the way in as well as on the way out: everything here reads
@@ -846,20 +846,19 @@ function reachableLifts() {
    beside: a letter from a squeeze alone would be a grip score, which is
    what the grip card already is. Never in `lifts`, so the Every Lift list,
    the Program tab colours and the per-lift tier-ups stay lifts. */
-function gripEntry() {
+function gripEntry(asOf) {
   if (!gripOn()) return null;
-  const g = gripStanding(prof().age);
+  const g = gripStanding(prof().age, asOf);
   if (!g.last) return null;
   return { name: 'Grip Strength', grip: true, pct: g.pct, rank: rankFor(g.pct), ratio: 0 };
 }
 
-function scoreAll(w, bodyweight, ref, r, reach, grip) {
+function scoreAll(w, bodyweight, ref, r, reach, grip, xr = xrepsAll()) {
   const out = { lifts: [], counted: [], overall: 0, rank: rankFor(0),
                 scored: 0, scoredReachable: 0, totalScorable: reach.size,
                 offSheet: 0, loggedReps: 0, liftCount: 0, grip: null };
   if (!bodyweight) return out;
 
-  const xr = xrepsAll();
   Object.keys(LIFTS).forEach(name => {
     const wv = w[name];
     if (!(wv > 0)) return;
@@ -960,6 +959,81 @@ export function strength() {
   /* Untested weights including unscored movements and the no-bodyweight
      case, which the pending count on the Progression card still needs. */
   out.pendingAll = Object.keys(w).filter(n => w[n] > 0 && (pw[n] || 0) < w[n]);
+  return out;
+}
+
+/* ═══════════════════ SCORE HISTORY ═══════════════════
+
+   The hero's score, day by day, for the chart under it. Nothing new is
+   stored: every input to the score already keeps its own dated log, so
+   each past day is scored by reading those logs as they stood that day
+   and running the same scoreAll the hero runs.
+
+     weights      bp_pr replayed to that day. Voided claims count for
+                  nothing, as everywhere else. Before a lift's first entry
+                  it had that entry's `from` (0 for a baseline: not set up
+                  yet); a lift with no entries at all predates the log and
+                  carries today's weight throughout, as provenMap reads it.
+     bodyweight   the last weigh-in on or before that day — and no score
+                  before the first one, exactly as the hero has none.
+     lean mass    the last tape on or before it, paired with that weight.
+     reps         the last counted session (bp_rephist) on or before it.
+     grip         the last reading on or before it.
+
+   Two things are read as they are today rather than as they were: the
+   rep dial and which lifts are on the sheet. Both are settings rather
+   than logs, and scoring the past with today's rules is what makes the
+   line comparable end to end — an older snapshot would have been scored
+   against whatever the standards said back then.
+
+   One point per day that something was logged. The last is always today
+   and is the hero's own number, so the two can never disagree. */
+function scoreHistory(st) {
+  if (!st.counted.length) return [];
+  const today = todayStr();
+  const lastOn = (l, d) => { let o = null; for (const e of l) { if (e.d > d) break; o = e; } return o; };
+
+  const bwAll = load('bp_bw', []);
+  const W = sortByDate(weighed(bwAll)), T = sortByDate(taped(bwAll));
+  if (!W.length) return [];
+  const h = prof().h, r = reps(), w = wts(), reach = reachableLifts();
+
+  const pr = sortByDate(prAll()).filter(e => e.k !== 'void');
+  const byLift = {};
+  pr.forEach(e => (byLift[e.ex] ||= []).push(e));
+
+  /* every counted session per lift, with the latest count folded in the
+     way exHistory folds it, for counts from before the history existed */
+  const hist = histAll(), xr = xrepsAll(), repsOf = {};
+  Object.keys(LIFTS).forEach(n => {
+    const l = (hist[n] || []).filter(e => Array.isArray(e.s));
+    const x = xr[n];
+    if (x && x.d && Array.isArray(x.s) && !l.some(e => e.d === x.d)) l.push(x);
+    if (l.length) repsOf[n] = sortByDate(l);
+  });
+  const grips = gripOn() ? gripAll() : [];
+
+  const days = new Set([today]);
+  [pr, W, T, grips, ...Object.values(repsOf)].forEach(l => l.forEach(e => days.add(e.d)));
+
+  const out = [];
+  [...days].filter(d => d >= W[0].d && d < today).sort().forEach(d => {
+    const wd = {};
+    Object.keys(LIFTS).forEach(n => {
+      const l = byLift[n];
+      if (!l) { if (w[n] > 0) wd[n] = w[n]; return; }
+      const e = lastOn(l, d);
+      wd[n] = e ? e.to : (l[0].from || 0);
+    });
+    const bw = lastOn(W, d).w;
+    const t = lastOn(T, d), bf = t ? navyBF(t.wa, t.nk, h) : null;
+    const ref = scoringRef(bf !== null ? bw * (1 - bf / 100) : null) ?? bw;
+    const xd = {};
+    Object.keys(repsOf).forEach(n => { const e = lastOn(repsOf[n], d); if (e) xd[n] = e; });
+    const sc = scoreAll(wd, bw, ref, r, reach, gripEntry(d), xd);
+    if (sc.counted.length) out.push({ d, s: sc.overall });
+  });
+  out.push({ d: today, s: st.overall });
   return out;
 }
 
@@ -1515,7 +1589,7 @@ export function verseHTML() {
 /* The hero is the letter, the rank, the score and how far the next rank
    is, and nothing else: read at a glance, like a game's rank screen.
    What the numbers mean lives in the rows below and in tooltips. */
-function heroHTML(st) {
+function heroHTML(st, tr) {
   const unranked = line => `<div class="rk-hero" style="--rc:var(--text-3)"><span class="rk-scan"></span>
     <div class="rk-hero-row"><div class="rk-badge"><span class="rk-letter">?</span></div>
       <div class="rk-hero-txt"><div class="rk-name">Unranked</div><div class="rk-sub">${line}</div></div></div>
@@ -1568,7 +1642,122 @@ function heroHTML(st) {
     <div class="rk-up">${nx
       ? `Next <b style="color:var(${nx.c})">${nx.l}</b> · ${(nx.min - st.overall).toFixed(1)} pts`
       : '<b>Max rank</b>'}</div>
+    ${tr ? trendHTML(tr) : ''}
   </div>`;
+}
+
+/* ── the score over time, under the bar ──
+
+   One line, the hero's number day by day (scoreHistory), over faint
+   stripes for the letters it passes through — the same colours as the
+   bar above, so "when did I make C" reads straight off it. Numbers on
+   the first and latest point only; the rest are under the pointer, a
+   finger, or the arrow keys, in the line above the chart. */
+function trendOf(pts, width) {
+  if (!pts.length) return null;
+  const Wd = Math.max(240, Math.round(width)), H = 104;
+  const L = 2, R = 18, T = 20, B = 18;
+  const iw = Wd - L - R, ih = H - T - B;
+
+  const vals = pts.map(p => p.s);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (hi - lo < 6) { const m = (hi + lo) / 2; lo = m - 3; hi = m + 3; }
+  const pad = (hi - lo) * 0.15;
+  lo = Math.max(0, lo - pad); hi = Math.min(100, hi + pad);
+  const y = v => T + ih - (v - lo) / (hi - lo) * ih;
+
+  const t0 = dOf(pts[0].d).getTime(), t1 = dOf(pts[pts.length - 1].d).getTime();
+  const x = ds => t1 === t0 ? L + iw / 2 : L + (dOf(ds).getTime() - t0) / (t1 - t0) * iw;
+  return { pts, Wd, H, L, R, T, B, iw, ih, lo, hi, y,
+           xs: pts.map(p => x(p.d)), ys: pts.map(p => y(p.s)) };
+}
+
+const trendDay = (g, i) => i === g.pts.length - 1 ? 'Today' : fmtD(g.pts[i].d);
+const signed = v => `${v > 0 ? '+' : v < 0 ? '−' : '±'}${Math.abs(v).toFixed(1)}`;
+
+function trendHTML(g) {
+  const { pts, Wd, H, L, iw, lo, hi, y, xs, ys } = g, n = pts.length;
+  const f = v => v.toFixed(1);
+
+  const zones = BANDS.filter(b => b.to > lo && b.from < hi).map(b => {
+    const top = y(Math.min(b.to, hi)), bot = y(Math.max(b.from, lo));
+    return `<rect class="rk-tr-zone" x="${L}" y="${f(top)}" width="${f(iw)}" height="${f(bot - top)}" style="fill:var(${b.c})"/>
+      ${bot - top >= 11 ? `<text class="rk-tr-l" x="${Wd}" y="${f((top + bot) / 2 + 3.5)}">${b.l}</text>` : ''}`;
+  }).join('');
+  const edges = BANDS.map(b => b.from).filter(v => v > lo && v < hi)
+    .map(v => `<line class="rk-tr-b" x1="${L}" x2="${f(L + iw)}" y1="${f(y(v))}" y2="${f(y(v))}"/>`).join('');
+
+  const line = xs.map((a, i) => `${i ? 'L' : 'M'}${f(a)},${f(ys[i])}`).join('');
+  const roomy = n > 1 && iw / (n - 1) > 9;
+  const dots = roomy ? xs.slice(0, -1).map((a, i) => `<circle class="rk-tr-pt" cx="${f(a)}" cy="${f(ys[i])}" r="2.5"/>`).join('') : '';
+  /* a value sits above its point, or under it when the point is near the top */
+  const val = (i, cls, anchor) => {
+    const up = ys[i] - 9 > 9;
+    return `<text class="rk-tr-n ${cls}" x="${f(xs[i])}" y="${f(up ? ys[i] - 9 : ys[i] + 17)}" text-anchor="${anchor}">${f(pts[i].s)}</text>`;
+  };
+  const last = n - 1;
+  const labels = (n > 1 ? val(0, '', 'start') : '') + val(last, 'now', n > 1 ? 'end' : 'middle');
+  const dates = n > 1
+    ? `<text class="rk-tr-x" x="${L}" y="${H - 3}" text-anchor="start">${fmtD(pts[0].d)}</text>
+       <text class="rk-tr-x" x="${f(L + iw)}" y="${H - 3}" text-anchor="end">Today</text>`
+    : `<text class="rk-tr-x" x="${f(xs[0])}" y="${H - 3}" text-anchor="middle">Today</text>`;
+
+  const delta = pts[last].s - pts[0].s;
+  const head = n > 1
+    ? `<span class="rk-tr-k">Since ${fmtD(pts[0].d)}</span><span class="rk-tr-v ${delta >= 0.05 ? 'up' : delta <= -0.05 ? 'down' : ''}">${signed(delta)} pts</span>`
+    : `<span class="rk-tr-k">Progress</span><span class="rk-tr-v quiet">Builds as you log</span>`;
+
+  return `<div class="rk-tr">
+    <div class="rk-tr-head">${head}</div>
+    <svg class="rk-tr-svg" viewBox="0 0 ${Wd} ${H}" width="100%" ${n > 1 ? 'tabindex="0"' : ''} role="img"
+      aria-label="Score over time: ${pts.map(p => `${fmtD(p.d)} ${f(p.s)}`).join(', ')}">
+      ${zones}${edges}
+      ${n > 1 ? `<path class="rk-tr-line" d="${line}"/>` : ''}${dots}
+      <line class="rk-tr-hair" x1="0" x2="0" y1="${g.T - 6}" y2="${f(g.T + g.ih)}"/>
+      <circle class="rk-tr-now" cx="${f(xs[last])}" cy="${f(ys[last])}" r="4.5"/>
+      <circle class="rk-tr-hov" cx="0" cy="0" r="4.5"/>
+      ${labels}${dates}
+    </svg>
+  </div>`;
+}
+
+/* The readout: the line above the chart trades "since …" for the day and
+   score under the pointer. A finger keeps its reading after it lifts —
+   the point of tapping is to read it — and lets go when focus moves on. */
+function wireTrend(p, g) {
+  const box = p.querySelector('.rk-tr');
+  if (!box || !g || g.pts.length < 2) return;
+  const svg = box.querySelector('svg'), hair = box.querySelector('.rk-tr-hair'),
+        dot = box.querySelector('.rk-tr-hov'), head = box.querySelector('.rk-tr-head');
+  const rest = head.innerHTML;
+  let at = -1;
+  const show = i => {
+    at = i;
+    hair.setAttribute('x1', g.xs[i]); hair.setAttribute('x2', g.xs[i]);
+    dot.setAttribute('cx', g.xs[i]); dot.setAttribute('cy', g.ys[i]);
+    const s = g.pts[i].s, rk = rankFor(s);
+    head.innerHTML = `<span class="rk-tr-k">${trendDay(g, i)}</span>
+      <span class="rk-tr-v"><b style="color:var(${rk.c})">${rk.l}</b> ${s.toFixed(1)}</span>`;
+    box.classList.add('hover');
+  };
+  const hide = () => { at = -1; head.innerHTML = rest; box.classList.remove('hover'); };
+  const near = e => {
+    const r = svg.getBoundingClientRect(), vx = (e.clientX - r.left) / r.width * g.Wd;
+    let b = 0;
+    g.xs.forEach((xv, i) => { if (Math.abs(xv - vx) < Math.abs(g.xs[b] - vx)) b = i; });
+    return b;
+  };
+  svg.addEventListener('pointermove', e => show(near(e)));
+  svg.addEventListener('pointerdown', e => show(near(e)));
+  svg.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') hide(); });
+  svg.addEventListener('focus', () => { if (at < 0) show(g.pts.length - 1); });
+  svg.addEventListener('blur', hide);
+  svg.addEventListener('keydown', e => {
+    const k = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
+    if (!k) return;
+    e.preventDefault();
+    show(Math.max(0, Math.min(g.pts.length - 1, (at < 0 ? g.pts.length - 1 : at) + k)));
+  });
 }
 
 /* The chip on each row saying where its rep count came from, which is the
@@ -2055,14 +2244,18 @@ export function renderRank(root) {
   const p = root.querySelector('#p-rank');
   if (!p) return;
   const st = strength(), s = stats();
+  /* the chart sits inside the hero's 16px padding */
+  const tr = st.bodyweight && st.counted.length
+    ? trendOf(scoreHistory(st), (p.clientWidth || Math.min(560, innerWidth - 24)) - 32) : null;
 
-  let h = heroHTML(st);
+  let h = heroHTML(st, tr);
   h += liftsHTML(st);
   h += gripHTML();
   h += progressionHTML(s, st);
   p.innerHTML = h;
   tickCounts(p);
   slideMarkers(p);
+  wireTrend(p, tr);
 }
 
 export function renderStreak(root) {
