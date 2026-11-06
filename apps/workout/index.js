@@ -16,7 +16,7 @@ import {
   liftScores, standingOf, resEx, resKit, lvlOf, setLvl, resetTargets, applyReset,
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip, exHistory,
-} from './rank.js?v=3d-nov05b';
+} from './rank.js?v=3d-nov06a';
 import { progressHTML } from './progress.js?v=3d-nov03c';
 
 /* Which movements have a published standard, so the rep boxes only appear

@@ -1119,16 +1119,28 @@ function coverage(log) {
    days you trained, and handing five days to one Sunday because five cards
    got ticked that afternoon is exactly the kind of number this file refuses
    to print — so a makeup bridges the gap and does nothing else. Miss Monday,
-   double up Tuesday, and the streak reads 4 → 5, not 4 → 6 and not 0 → 1. */
+   double up Tuesday, and the streak reads 4 → 5, not 4 → 6 and not 0 → 1.
+
+   Turning up is not the same as doing the day's work. Every scheduled day
+   asks for its own card, so a day whose card never got done that week
+   breaks the run even if you trained something else on it. Miss Monday,
+   do only Monday's card on Tuesday, and Tuesday's card is the one that was
+   skipped: one session cannot cover Monday and count as Tuesday's too. The
+   run starts again from that Tuesday, since you did train. Today is still
+   open, so its card can wait until tomorrow. */
 function streaksFrom(hits, firstDate, cover) {
   const today = todayStr();
   if (!firstDate) return { streak:0, best:0 };
   let cur = 0, best = 0;
   eachDate(firstDate, today, (ds, d) => {
     if (!schedOn(ds, d.getDay())) return;
-    if (hits.has(ds)) { cur++; best = Math.max(best, cur); return; }
-    if (cover(ds, d.getDay())) return;        // made up later the same week
-    if (ds !== today) cur = 0;
+    if (!cover(ds, d.getDay()) && ds !== today) {   // this day's card never got done
+      cur = hits.has(ds) ? 1 : 0;
+      best = Math.max(best, cur);
+      return;
+    }
+    if (hits.has(ds)) { cur++; best = Math.max(best, cur); }
+    // otherwise made up elsewhere in the week, or today and still open
   });
   return { streak: cur, best };
 }
