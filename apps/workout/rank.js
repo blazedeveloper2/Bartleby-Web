@@ -1940,7 +1940,11 @@ function heatmapHTML(s) {
          is credited once, to the day that asked for it. streaksFrom already
          skips unscheduled dates for the same reason. */
       else if (!sched)                           cls = 'rest',   tip = `${fmtD(ds)} · rest day`;
-      else if (s.hits.has(ds)) {
+      /* Green means the day's own card got done, the same test streaksFrom
+         uses. A session on the date is not enough: do Monday's card on
+         Tuesday and skip Tuesday's, and that one session would otherwise
+         paint Monday (made up) and Tuesday (trained on) both. */
+      else if (cov === 'done') {
         cls = 'hit';
         tip = `${fmtD(ds)} · ${s.log.filter(e => e.d === ds).map(e => PROGRAM[e.di]?.label).join(', ') || 'session'}`;
       }
@@ -1949,7 +1953,11 @@ function heatmapHTML(s) {
          day would. */
       else if (made)                             cls = 'hit',    tip = `${fmtD(ds)} · ${label}`;
       else if (ds === today)                     cls = 'open',   tip = `Today · ${label}`;
-      else if (s.firstDate && ds >= s.firstDate) cls = 'miss',   tip = `${fmtD(ds)} · missed`;
+      else if (s.firstDate && ds >= s.firstDate) {
+        const other = s.log.filter(e => e.d === ds).map(e => PROGRAM[e.di]?.label).filter(Boolean);
+        cls = 'miss';
+        tip = `${fmtD(ds)} · ${label} missed${other.length ? ` (trained ${other.join(', ')} instead)` : ''}`;
+      }
       else                                       cls = 'pre',    tip = fmtD(ds);
       if (ds === today) cls += ' today';
       const di = DI_OF_DOW[d.getDay()];
