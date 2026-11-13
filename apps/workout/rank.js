@@ -153,15 +153,20 @@ export function trackOf(ex) {
    dose when it is not Saturday's: five practice holds on a Wednesday are
    not a failed attempt at Saturday's three, and must not overwrite them. */
 const xsetsAll = () => load('bp_xsets', {});
-const xsKey = ex => (ex.dose && ex.dose !== 's') ? `${ex.n}·${ex.dose}` : ex.n;
+export const xsKey = ex => (ex.dose && ex.dose !== 's') ? `${ex.n}·${ex.dose}` : ex.n;
 export const exSets = ex => xsetsAll()[xsKey(ex)] || null;
-export function setExSets(ex, sets) {
+/* `w` is the working weight of a loaded lift counted here — one with
+   nothing for a count to feed, like a '4×F' calf raise — so its progress
+   chart knows what the sets were done at. It goes to the history only;
+   bp_xsets keeps the shape it always had. */
+export function setExSets(ex, sets, w = null) {
   const m = xsetsAll();
   const clean = (sets || []).map(n => (Number.isFinite(+n) && +n > 0 ? Math.round(+n) : null));
+  keepPrior(xsKey(ex), m[xsKey(ex)], true);
   if (!clean.some(n => n !== null)) delete m[xsKey(ex)];
   else m[xsKey(ex)] = { s: clean, d: todayStr() };
   save('bp_xsets', m);
-  histNote(xsKey(ex), clean, null);
+  histNote(xsKey(ex), clean, w > 0 ? w : null, true);
 }
 
 /* A ladder step's `up` read as a test: "3×30s in a straight line" is three
@@ -276,6 +281,7 @@ export function setExReps(name, sets, w) {
   /* An 'added' lift is counted at bodyweight too — nothing on the belt is
      a weight of zero, not the absence of one. */
   const ok = w > 0 || (w === 0 && LIFTS[name]?.mode === 'added');
+  keepPrior(name, m[name], false);
   if (!clean.some(n => n !== null) || !ok) delete m[name];
   else m[name] = { s: clean, w, d: todayStr() };
   xrepsSv(m);
@@ -293,15 +299,69 @@ export const exReps = name => xrepsAll()[name] || null;
    day, today's replaced as the boxes change, and removed if they are
    emptied. Keyed the same way bp_xsets is (name, plus the dose on a
    practice day), and `w` is the weight the sets were done at — null for
-   bodyweight — so the chart can start again when the weight changes. */
+   bodyweight — so the chart can start again when the weight changes.
+
+   One entry per day PER WEIGHT for counted reps. bp_xreps is one record
+   per lift and the lab empties its boxes when the weight changes (a count
+   at 50 is not a count at 55), so the first set at the new weight used to
+   replace the morning's sets at the old one here too, and they were gone.
+   Now only today's entry at the same weight is replaced; the sets at the
+   old weight stay as their own entry — the chart starts over at the new
+   weight the way it always did, and the old sets are still there to read.
+
+   Sets counted in bp_xsets keep one entry per day, as before: those boxes
+   do not empty on a weight change, so what they hold is the whole day.
+   Their entries carry `x:1` to say which store wrote them; an older entry
+   without it is told apart by its weight — before `x`, an xsets entry
+   never had one, and an xreps entry always did. */
 const histAll = () => load('bp_rephist', {});
-function histNote(key, sets, w) {
-  const m = histAll(), d = todayStr();
-  const l = (m[key] || []).filter(e => e.d !== d);
-  if ((sets || []).some(n => n > 0)) l.push({ d, w: w ?? null, s: sets });
+const fromSets = e => !!e.x || e.w === null || e.w === undefined;
+/* A count from before the history existed lives only in the latest-record
+   store, and today's first set is about to overwrite it. Copy it into the
+   history first, so the session it came from is still there tomorrow as
+   the numbers to beat and as a point on the chart — exHistory already
+   folded it in from the store, so the chart draws exactly what it did. */
+function keepPrior(key, rec, isSets) {
+  if (!rec || !rec.d || rec.d >= todayStr() || !Array.isArray(rec.s) || !rec.s.some(n => n > 0)) return;
+  const m = histAll(), l = m[key] || [];
+  if (l.some(e => e.d === rec.d)) return;
+  l.push(isSets ? { d: rec.d, w: null, s: rec.s, x: 1 } : { d: rec.d, w: rec.w ?? null, s: rec.s });
+  l.sort((a, b) => a.d.localeCompare(b.d));
+  m[key] = l;
+  save('bp_rephist', m);
+}
+function histNote(key, sets, w, isSets = false) {
+  const m = histAll(), d = todayStr(), wv = w ?? null;
+  const l = (m[key] || []).filter(e => e.d !== d
+    || (isSets ? !fromSets(e) : fromSets(e) || e.w !== wv));
+  if ((sets || []).some(n => n > 0)) l.push(isSets ? { d, w: wv, s: sets, x: 1 } : { d, w: wv, s: sets });
   l.sort((a, b) => a.d.localeCompare(b.d));
   if (l.length) m[key] = l; else delete m[key];
   save('bp_rephist', m);
+}
+
+/* One day's count of a lift at one weight, from the history — the sets at
+   a weight you changed away from and back to on the same day. */
+export function dayCount(key, d, w) {
+  const l = (histAll()[key] || []).filter(e => e.d === d && !fromSets(e) && e.w === w && Array.isArray(e.s));
+  return l.length ? l[l.length - 1] : null;
+}
+
+/* The last session before today, for the numbers to beat. `latest` is the
+   store's own record (bp_xreps or bp_xsets), folded in for a count from
+   before the history existed, the way exHistory folds it; `isSets` keeps
+   to that store's own entries, as reading the record alone always did.
+   On a day with entries at more than one weight, the one at `w` is
+   preferred, else the last written — what the store held that night. */
+export function lastCount(key, latest, isSets, w) {
+  const d = todayStr();
+  const l = (histAll()[key] || []).filter(e => e.d < d && fromSets(e) === isSets
+    && Array.isArray(e.s) && e.s.some(n => n > 0));
+  if (latest && latest.d && latest.d < d && Array.isArray(latest.s) && !l.some(e => e.d === latest.d)) l.push(latest);
+  if (!l.length) return null;
+  const top = l.reduce((a, e) => (e.d > a ? e.d : a), '');
+  const day = l.filter(e => e.d === top);
+  return (w !== undefined && day.find(e => (e.w ?? null) === w)) || day[day.length - 1];
 }
 
 /* Every counted session of an exercise, oldest first. The latest count in
@@ -313,8 +373,13 @@ export function exHistory(ex, key = xsKey(ex)) {
   const r = xrepsAll()[ex.n], x = exSets(ex);
   if (r && r.d && !has(r.d)) l.push({ d: r.d, w: r.w ?? null, s: r.s });
   if (x && x.d && !has(x.d)) l.push({ d: x.d, w: null, s: x.s });
-  return l.filter(e => Array.isArray(e.s) && e.s.some(n => n > 0))
-          .sort((a, b) => a.d.localeCompare(b.d));
+  /* One point a day, the last one written that day — what the history held
+     when it kept one entry a day — so the chart draws what it always drew.
+     The earlier entries of a day that changed weight are kept for the lab's
+     boxes (dayCount, lastCount), not for the line. */
+  const ok = l.filter(e => Array.isArray(e.s) && e.s.some(n => n > 0))
+              .sort((a, b) => a.d.localeCompare(b.d));
+  return ok.filter((e, i) => i === ok.length - 1 || ok[i + 1].d !== e.d);
 }
 
 /* How many reps to read one lift at, and how much that number is worth.
@@ -625,6 +690,11 @@ export function achievements(cs, st) {
   const held = latch(cs, st.proven);
   return { ids: new Set([...Object.keys(held), ...now]), now, at: held };
 }
+/* The latch the Awards grid used to run as a side effect of being
+   repainted after every change, for when it is not on screen to repaint:
+   a milestone is dated the day it was reached, not the day you next
+   looked. Same reads as achievements(), without the drawing. */
+export const latchAwards = () => { latch(); };
 
 /* ═══════════════════ DATES ═══════════════════ */
 const dOf = ds => new Date(ds + 'T00:00:00');
@@ -636,6 +706,42 @@ function eachDate(fromStr, toStr, fn) {
 }
 const fmtD = ds => dOf(ds).toLocaleDateString('en-US', { month:'short', day:'numeric' });
 const fmtN = n => n.toLocaleString('en-US');
+
+/* ═══════════════════ CHECKMARKS ═══════════════════
+
+   bp_chk  { 'di.si.ei': 'YYYY-MM-DD' }   — the day each tick was made
+
+   A tick used to be a plain `true` that lived until Clear All, so last
+   week's ticks sat on this week's cards and read as work already done:
+   the rest after a last set never started, auto-advance never fired, and
+   the day never logged. A tick now carries its date and lapses when the
+   week turns over (Monday, the same week every streak and tile counts
+   in). Readers get only the live ones, as `true`, so nothing downstream
+   had to learn the new shape.
+
+   A `true` from before this is read as made today and written back that
+   way once, so the card looks exactly as it did and those ticks lapse at
+   the next Monday rather than vanishing now. */
+const wkFrom = () => dateStr(weekStart(new Date()));
+export function chkAll() {
+  const raw = load('bp_chk', {}), from = wkFrom(), out = {};
+  let legacy = false;
+  Object.keys(raw).forEach(k => {
+    if (raw[k] === true) { raw[k] = todayStr(); legacy = true; }
+    if (typeof raw[k] === 'string' && raw[k] >= from) out[k] = true;
+  });
+  if (legacy) save('bp_chk', raw);
+  return out;
+}
+/* Takes the same { key: bool } map chkAll hands out. A tick that was
+   already live keeps the day it was made; a new one is made today. */
+export function chkSave(c) {
+  const raw = load('bp_chk', {}), from = wkFrom(), out = {};
+  Object.keys(c).forEach(k => {
+    if (c[k]) out[k] = typeof raw[k] === 'string' && raw[k] >= from ? raw[k] : todayStr();
+  });
+  save('bp_chk', out);
+}
 
 /* How many sets the program PRESCRIBES for this exercise — the leading
    number, exactly as written, never doubled. This is the count of times
@@ -1496,7 +1602,7 @@ const resetCount = {
   xs:  () => Object.keys(xsetsAll()).length,
   rh:  () => Object.keys(load('bp_rephist', {})).length,
   grip: () => load('bp_grip', []).length,
-  chk: () => Object.values(load('bp_chk', {})).filter(Boolean).length,
+  chk: () => Object.keys(chkAll()).length,
   time: timeCount,
 };
 

@@ -29,7 +29,11 @@ const txAll  = () => load('fin_tx', []);
 /* No `editing` flag: whether this is an edit is a question about the
    date in the draft, and asking the data is one fewer thing to keep in
    sync than remembering the answer. */
+/* An empty `date` follows today, whichever day that turns out to be — a
+   date fixed when the form was drawn goes stale overnight in an installed
+   app left resumed in memory. Picking a day, or editing a snapshot, pins it. */
 let draft = { amt: '', date: '', note: '' };
+const blankDraft = () => ({ amt: '', date: '', note: '' });
 let calOpen = false, calView = '';
 let range = 'all';
 
@@ -45,6 +49,9 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 const abs2 = n => Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const money  = n => (n < 0 ? '-$' : '$') + abs2(n);
 const signed = n => (n < 0 ? '-$' : '+$') + abs2(n);
+/* Totals are kept to the cent: 100.505 typed is $100.51, not a third
+   decimal every delta then carries. Stored values are never rewritten. */
+const cents = n => Math.round(n * 100) / 100;
 
 /* Axis ticks and the small delta boxes need the magnitude, not the cents. */
 function compact(n) {
@@ -299,7 +306,10 @@ function formHTML(all) {
   /* Saving over a day you already logged is an edit, not a collision — but
      it should never be a surprise, so the stored figure stays on screen
      next to the one about to replace it. */
-  const clash = hit && String(hit.amt) !== draft.amt.trim();
+  /* Compared as amounts, not as text — "100.50" typed over a stored 100.5
+     is the same figure and nothing to warn about. */
+  const typed = parseFloat(draft.amt);
+  const clash = hit && !(Number.isFinite(typed) && cents(typed) === cents(hit.amt));
 
   return `<div class="fx-form ${hit ? 'editing' : ''}">
     <div class="fx-form-title"><span>${hit ? 'Edit Snapshot' : all.length ? 'New Snapshot' : 'Your First Total'}</span>${hit ? '<span class="fx-editing-tag">Editing</span>' : ''}</div>
@@ -417,9 +427,9 @@ function capture(root) {
 
 function saveSnapshot(root) {
   capture(root);
-  const val = parseFloat(draft.amt);
+  const val = cents(parseFloat(draft.amt));
   if (!Number.isFinite(val)) { toast('Enter your total'); return; }
-  const d = draftDate();
+  const d = draftDate();   // resolved now, not when the form was drawn
   const note = draft.note.trim();
   const list = nwAll();
   const i = list.findIndex(e => e.d === d);
@@ -427,7 +437,7 @@ function saveSnapshot(root) {
   if (existed) list[i] = { ...list[i], amt: val, note };
   else list.push({ d, amt: val, note });
   nwSave(list);
-  draft = { amt: '', date: todayStr(), note: '' };
+  draft = blankDraft();
   calOpen = false;
   paint(root);
   toast(existed ? `Updated ${fmtShort(d)} — ${money(val)}` : `Logged ${money(val)}`);
@@ -449,7 +459,7 @@ function delSnapshot(root, d) {
   if (!e) return;
   if (!confirm(`Delete the ${fmtFull(e.d)} snapshot of ${money(e.amt)}?`)) return;
   nwSave(nwAll().filter(x => x.d !== d));
-  if (draft.date === d) draft = { amt: '', date: todayStr(), note: '' };
+  if (draftDate() === d) draft = blankDraft();
   paint(root);
   toast('Snapshot deleted');
 }
@@ -459,7 +469,7 @@ function delSnapshot(root, d) {
 export function nwClick(a, root) {
   switch (a.act) {
     case 'nw-save':       saveSnapshot(root); break;
-    case 'nw-clear':      capture(root); draft = { amt: '', date: todayStr(), note: '' }; calOpen = false; paint(root); break;
+    case 'nw-clear':      capture(root); draft = blankDraft(); calOpen = false; paint(root); break;
     case 'nw-edit':       editSnapshot(root, a.d); break;
     case 'nw-del':        delSnapshot(root, a.d); break;
     case 'nw-range':      range = a.k; paint(root); break;
@@ -492,7 +502,7 @@ export function nwKeydown(e, root) {
 }
 
 export function nwReset() {
-  draft = { amt: '', date: todayStr(), note: '' };
+  draft = blankDraft();
   calOpen = false;
   calView = todayStr().slice(0, 7);
   range = 'all';

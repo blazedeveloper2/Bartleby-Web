@@ -8,9 +8,9 @@
    ═══════════════════════════════════════════════════════════ */
 
 import { DEFAULT_CATS, PALETTE } from './data.js?v=3d-oct14d';
-import { load, save, todayStr } from '../../assets/js/storage.js?v=3d-oct14d';
+import { load, save, remove, todayStr } from '../../assets/js/storage.js?v=3d-oct14d';
 import { toast } from '../../assets/js/ui.js?v=3d-oct14d';
-import { renderNetWorth, nwClick, nwKeydown, nwReset } from './networth.js?v=3d-oct14d';
+import { renderNetWorth, nwClick, nwKeydown, nwReset } from './networth.js?v=3d-nov13f';
 
 /* ── tab bar ──
 
@@ -54,9 +54,22 @@ const catsSave = l => save('fin_cats', l);
 let root = null;
 let activeTab = 'add';
 let editId = null, viewId = null;
+/* The tab an edit was opened from, so Cancel can hand you back to it. */
+let editFrom = '';
 let addingCat = false, managingCats = false, editCat = null;
 let selCat = null, newCatColor = PALETTE[0];
+/* An empty `date` means "today, whichever day that is" — not today's date
+   frozen at the moment the form was drawn. An installed PWA can sit
+   resumed in memory overnight, and a date captured at mount would log the
+   first expense of the morning on yesterday. Only a day you picked on the
+   calendar (or an expense you are editing) pins it. */
 let draft = { amt: '', date: '', note: '' };
+const blankDraft = () => ({ amt: '', date: '', note: '' });
+/* The day the panels were last drawn for — see onResume(). */
+let dayKey = '';
+/* The last delete, held for the Undo button on its toast. */
+let undoDel = null, undoTimer = null;
+const UNDO_MS = 4500;
 let noteSugs = [];
 let calOpen = false, calView = '';
 let histMonth = 'all', histCat = 'all', histDay = '', histQ = '';
@@ -75,6 +88,13 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':
 const fmtMoney  = n => '$' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtMoneyC = n => '$' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const catColor = name => (getCats().find(c => c.name === name) || {}).color || '#8b92a8';
+/* name → colour, read once per render. catColor() parses and sorts the
+   whole category list from storage, which is fine for one lookup and
+   wasteful for every row of a long History. */
+const catMap = () => { const m = {}; getCats().forEach(c => { m[c.name] = c.color; }); return m; };
+/* Money is stored in cents' worth of precision — 4.999 typed into a number
+   field is $5.00, not a third decimal that every total then carries. */
+const cents = n => Math.round(n * 100) / 100;
 
 function fmtDateShort(d) {
   const o = { month: 'short', day: 'numeric' };
@@ -100,8 +120,8 @@ function byCategory(list) {
 const CAL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
 
 /* ═══════════════════ tx row (note primary, category secondary) ═══════════════════ */
-function txRow(t) {
-  const color = catColor(t.cat);
+function txRow(t, cm = catMap()) {
+  const color = cm[t.cat] || '#8b92a8';
   const primary = t.note ? esc(t.note.split('\n')[0]) : esc(t.cat);
   const secondary = t.note ? `<div class="tx-sub">${esc(t.cat)}</div>` : '';
   return `<div class="tx-row" data-act="view-tx" data-id="${t.id}">
@@ -123,7 +143,7 @@ function calGrid(view) {
   const [y, m] = view.split('-').map(Number);
   const startDow = new Date(y, m - 1, 1).getDay();
   const days = new Date(y, m, 0).getDate();
-  const sel = draft.date, today = todayStr();
+  const sel = draft.date || todayStr(), today = todayStr();
   const head = `<div class="cal-head">
     <button class="cal-nav" data-act="cal-shift" data-d="-12" title="Prev year">«</button>
     <button class="cal-nav" data-act="cal-shift" data-d="-1" title="Prev month">‹</button>
@@ -158,6 +178,17 @@ function renderAdd() {
     const style = on ? `background:${c.color}26;border-color:${c.color};box-shadow:0 0 0 1px ${c.color}` : '';
     return `<button class="fx-cat ${on ? 'sel' : ''}" data-act="pick-cat" data-cat="${esc(c.name)}" data-color="${c.color}" style="${style}"><span class="fx-dot" style="background:${c.color}"></span>${esc(c.name)}${on ? '<span class="fx-check">✓</span>' : ''}</button>`;
   }).join('');
+
+  /* Deleting a category leaves its label on the expenses that used it. Edit
+     one of those and there is no chip for that label, so nothing showed as
+     selected and keeping it was impossible. Offer the old label as a chip
+     of its own for as long as the edit is open, so saving can keep it. */
+  const orphan = (editing && !managingCats) ? (all.find(t => t.id === editId) || {}).cat : null;
+  const orphanChip = (orphan && !cats.some(c => c.name === orphan)) ? (() => {
+    const on = selCat === orphan, col = '#8b92a8';
+    const style = on ? `background:${col}26;border-color:${col};box-shadow:0 0 0 1px ${col}` : '';
+    return `<button class="fx-cat ${on ? 'sel' : ''}" data-act="pick-cat" data-cat="${esc(orphan)}" data-color="${col}" style="${style}" title="No longer a category — kept on this expense"><span class="fx-dot" style="background:${col}"></span>${esc(orphan)}${on ? '<span class="fx-check">✓</span>' : ''}</button>`;
+  })() : '';
 
   const catExtra = managingCats
     ? ''
@@ -196,7 +227,7 @@ function renderAdd() {
       <div class="fx-amount-wrap"><span class="fx-cur">$</span><input class="fx-amount" id="fx-amount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" value="${draft.amt}"></div>
 
       <div class="fx-lbl fx-lbl-row"><span>Category</span><button class="fx-manage" data-act="cat-manage">${managingCats ? 'Done' : 'Manage'}</button></div>
-      <div class="fx-cats">${chips}${catExtra}</div>
+      <div class="fx-cats">${orphanChip}${chips}${catExtra}</div>
       ${manageHint}${newCatBlock}${editCatBlock}
 
       <div class="fx-field fx-field-b"><div class="fx-lbl">Date</div><button class="fx-datebtn ${calOpen ? 'open' : ''}" data-act="cal-toggle"><span>${fmtDateBtn(date)}</span>${CAL_SVG}</button></div>
@@ -217,9 +248,9 @@ function renderAdd() {
     </div>`;
 
     // Today's expenses
-    const todayList = today.slice().reverse();
+    const todayList = today.slice().reverse(), cm = catMap();
     h += `<div class="day-card"><div class="day-top"><div class="day-top-l"><span class="day-badge" style="background:var(--green)">Today</span><span class="day-title">${todayList.length} ${todayList.length===1?'Expense':'Expenses'}</span></div>${todayList.length?`<span class="day-prog">${fmtMoneyC(sum(todayList))}</span>`:''}</div>`;
-    h += todayList.length ? `<div class="tx-list">${todayList.map(txRow).join('')}</div>` : `<div class="fx-empty" style="padding:26px 16px">Nothing logged today yet.</div>`;
+    h += todayList.length ? `<div class="tx-list">${todayList.map(t => txRow(t, cm)).join('')}</div>` : `<div class="fx-empty" style="padding:26px 16px">Nothing logged today yet.</div>`;
     h += `</div>`;
   }
 
@@ -286,6 +317,20 @@ function pickNoteSug(i) {
   if (!s || !el) return;
   el.value = s.note;
   draft.note = s.note;
+  /* A past note usually means a past purchase, so the rest of it comes
+     along — but only into what is still blank. Whatever you already chose
+     or typed outranks a guess from history. The category is the one used
+     last time (if it still exists); the amount only when every past entry
+     under this note cost the same, since an average would be a number you
+     never actually paid. */
+  const k = s.note.trim().toLowerCase();
+  const past = txAll().filter(t => (t.note || '').trim().toLowerCase() === k);
+  if (past.length) {
+    const last = past.reduce((a, t) => (t.d >= a.d ? t : a));
+    if (!selCat && !managingCats && getCats().some(c => c.name === last.cat)) pickCat(last.cat);
+    const amt = q('#fx-amount');
+    if (amt && amt.value === '' && past.every(t => t.amt === past[0].amt)) { amt.value = String(past[0].amt); draft.amt = amt.value; }
+  }
   hideNoteSugs();
   sizeNote();
   el.focus();
@@ -358,10 +403,10 @@ function editCatDelete() {
 }
 
 function saveTx() {
-  const val = parseFloat(q('#fx-amount').value);
+  const val = cents(parseFloat(q('#fx-amount').value));
   if (!selCat) { toast('Pick a category'); return; }
   if (isNaN(val) || val <= 0) { toast('Enter an amount'); return; }
-  const date = draft.date || todayStr();
+  const date = draft.date || todayStr();   // resolved now, not when the form was drawn
   const note = (q('#fx-note').value || '').trim();
 
   const list = txAll();
@@ -369,14 +414,14 @@ function saveTx() {
     const i = list.findIndex(t => t.id === editId);
     if (i >= 0) list[i] = { ...list[i], d: date, cat: selCat, amt: val, note };
     txSave(list);
-    editId = null; calOpen = false; draft = { amt: '', date: todayStr(), note: '' };
-    renderAll(); switchTab('history');
+    editId = null; editFrom = ''; calOpen = false; draft = blankDraft();
+    renderAll(false); switchTab('history');
     toast('Updated');
   } else {
     list.push({ id: uid(), d: date, cat: selCat, amt: val, note });
     txSave(list);
-    calOpen = false; draft = { amt: '', date: todayStr(), note: '' };  // reset to today; keep category for fast repeat
-    renderAll();
+    calOpen = false; draft = blankDraft();  // reset to today; keep category for fast repeat
+    renderAll(false);
     toast(`Logged ${fmtMoney(val)}`);
     q('#fx-amount')?.focus();
   }
@@ -384,19 +429,61 @@ function saveTx() {
 
 function editTx(id) {
   const t = txAll().find(x => x.id === id); if (!t) return;
-  editId = id; selCat = t.cat; addingCat = false; managingCats = false; calOpen = false;
+  /* switchTab first: leaving Add mid-edit drops that edit, and this one
+     has not started yet. */
+  const from = activeTab;
+  switchTab('add');
+  editId = id; editFrom = from; selCat = t.cat; addingCat = false; managingCats = false; calOpen = false;
   draft = { amt: String(t.amt), date: t.d, note: t.note || '' };
-  switchTab('add'); renderAdd();
+  renderAdd();
   setTimeout(() => q('#fx-amount')?.focus(), 40);
 }
-function cancelEdit() { editId = null; selCat = null; calOpen = false; draft = { amt: '', date: todayStr(), note: '' }; renderAdd(); }
+/* An edit only lives on the Add tab. Walking away from it used to leave
+   the form saying "Update Expense" with the stats hidden, waiting for the
+   next thing typed there to overwrite an old entry by surprise — so
+   leaving the tab drops the edit, exactly as Cancel would. */
+function dropEdit() { editId = null; editFrom = ''; selCat = null; calOpen = false; draft = blankDraft(); hideNoteSugs(); renderAdd(); }
+function cancelEdit() {
+  const back = editFrom;
+  dropEdit();
+  if (back === 'history') switchTab('history');   // hand you back where the edit began
+}
 function delTx(id) {
-  const t = txAll().find(x => x.id === id); if (!t) return;
+  const list = txAll(), i = list.findIndex(x => x.id === id), t = list[i]; if (!t) return;
   if (!confirm(`Delete ${fmtMoney(t.amt)} — ${t.cat}?`)) return;
-  txSave(txAll().filter(x => x.id !== id));
-  if (editId === id) { editId = null; draft = { amt: '', date: todayStr(), note: '' }; }
+  txSave(list.filter(x => x.id !== id));
+  const wasEditing = editId === id;
+  if (wasEditing) { editId = null; editFrom = ''; draft = blankDraft(); }
+  renderAll(!wasEditing);
+  showUndo(`Deleted ${fmtMoney(t.amt)} — ${t.cat}`, { t, i });
+}
+
+/* ═══════════════════ UNDO TOAST ═══════════════════
+   The suite's toast has no button, and an undo you cannot tap is not one.
+   The confirm() stays — this is the way back from a yes you didn't mean.
+   The expense goes back where it was in the log, under its old id, so the
+   Today list and History order come back exactly as they were. */
+function showUndo(msg, del) {
+  undoDel = del;
+  const el = q('#fx-toast'); if (!el) return;
+  el.innerHTML = `<span>${esc(msg)}</span><button data-act="undo-del">Undo</button>`;
+  el.classList.add('on');
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(hideUndo, UNDO_MS);
+}
+function hideUndo() {
+  clearTimeout(undoTimer); undoTimer = null; undoDel = null;
+  q('#fx-toast')?.classList.remove('on');
+}
+function runUndo() {
+  const u = undoDel; hideUndo();
+  if (!u) return;
+  const list = txAll();
+  if (list.some(x => x.id === u.t.id)) return;   // already back
+  list.splice(Math.min(u.i, list.length), 0, u.t);
+  txSave(list);
   renderAll();
-  toast('Deleted');
+  toast('Restored');
 }
 
 /* ═══════════════════ DETAIL MODAL ═══════════════════ */
@@ -475,13 +562,53 @@ function histCalHTML(all) {
 function renderHistory() {
   const all = txAll();
   const months = [...new Set(all.map(t => t.d.slice(0, 7)))].sort().reverse();
-  const cats = getCats().filter(c => all.some(t => t.cat === c.name));
+  /* Every label an expense actually carries — including ones whose category
+     was deleted, which keep their label (see editCatDelete) and would
+     otherwise be impossible to filter to. Same order the chips use. */
+  const used = new Set(all.map(t => t.cat));
+  const cats = [...used].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 
   const monthOpts = ['<option value="all">All time</option>']
     .concat(months.map(m => `<option value="${m}" ${m === histMonth ? 'selected' : ''}>${monthLabel(m)}</option>`)).join('');
   const catOpts = ['<option value="all">All categories</option>']
-    .concat(cats.map(c => `<option value="${esc(c.name)}" ${c.name === histCat ? 'selected' : ''}>${esc(c.name)}</option>`)).join('');
+    .concat(cats.map(c => `<option value="${esc(c)}" ${c === histCat ? 'selected' : ''}>${esc(c)}</option>`)).join('');
 
+  /* A single day is a different question from a month, so the controls say
+     which one you're looking at rather than leaving both half-applied. */
+  const h = `<div class="fx-filters">
+      <select class="fx-select" id="hist-month" ${histDay ? 'disabled' : ''}>${monthOpts}</select>
+      <select class="fx-select" id="hist-cat">${catOpts}</select>
+      <button class="fx-calbtn ${histCalOpen ? 'on' : ''}" data-act="hist-cal" title="Pick a day">${CAL_SVG}</button>
+    </div>
+    <div class="fx-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="hist-q" type="search" placeholder="Search notes" value="${esc(histQ)}" autocomplete="off">
+      ${histQ ? HIST_Q_X : ''}
+    </div>
+    ${histCalOpen ? histCalHTML(all) : ''}
+    ${histDay ? `<div class="fx-dayon">
+        <div><div class="fx-dayon-l">Showing one day</div><div class="fx-dayon-d">${fmtDateLong(histDay)}</div></div>
+        <button class="fx-dayon-x" data-act="hist-day-clear">Show the month</button>
+      </div>` : ''}`;
+  q('#fp-history').innerHTML = h + `<div id="hist-res">${histResultsHTML(all)}</div>`;
+}
+
+const HIST_Q_X = '<button class="fx-search-x" data-act="hist-q-clear" title="Clear search">&times;</button>';
+
+/* Typing in the search box repaints only what it changes: the results, and
+   whether the clear button shows. Rebuilding the whole tab threw the input
+   away on every key, and handing focus and the caret back by hand fought
+   iOS autocorrect, which was mid-word in the element that just vanished. */
+function renderHistoryResults() {
+  const res = q('#hist-res'), box = q('#fp-history .fx-search');
+  if (!res || !box) { renderHistory(); return; }
+  res.innerHTML = histResultsHTML(txAll());
+  const x = box.querySelector('.fx-search-x');
+  if (histQ && !x) box.insertAdjacentHTML('beforeend', HIST_Q_X);
+  else if (!histQ && x) x.remove();
+}
+
+function histResultsHTML(all) {
   let filtered = all.slice();
   if (histDay)             filtered = filtered.filter(t => t.d === histDay);
   else if (histMonth !== 'all') filtered = filtered.filter(t => t.d.startsWith(histMonth));
@@ -491,26 +618,8 @@ function renderHistory() {
     (t.note || '').toLowerCase().includes(qq) || t.cat.toLowerCase().includes(qq));
   filtered.sort((a, b) => b.d.localeCompare(a.d));
 
-  /* A single day is a different question from a month, so the controls say
-     which one you're looking at rather than leaving both half-applied. */
-  let h = `<div class="fx-filters">
-      <select class="fx-select" id="hist-month" ${histDay ? 'disabled' : ''}>${monthOpts}</select>
-      <select class="fx-select" id="hist-cat">${catOpts}</select>
-      <button class="fx-calbtn ${histCalOpen ? 'on' : ''}" data-act="hist-cal" title="Pick a day">${CAL_SVG}</button>
-    </div>
-    <div class="fx-search">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input id="hist-q" type="search" placeholder="Search notes" value="${esc(histQ)}" autocomplete="off">
-      ${histQ ? '<button class="fx-search-x" data-act="hist-q-clear" title="Clear search">&times;</button>' : ''}
-    </div>
-    ${histCalOpen ? histCalHTML(all) : ''}
-    ${histDay ? `<div class="fx-dayon">
-        <div><div class="fx-dayon-l">Showing one day</div><div class="fx-dayon-d">${fmtDateLong(histDay)}</div></div>
-        <button class="fx-dayon-x" data-act="hist-day-clear">Show the month</button>
-      </div>` : ''}`;
-
   const label = histDay ? fmtDateLong(histDay) : null;
-  h += `<div class="fx-stats">
+  let h = `<div class="fx-stats">
     <div class="fx-stat accent"><div class="fx-stat-v">${fmtMoneyC(sum(filtered))}</div><div class="fx-stat-l">${label ? 'Spent That Day' : 'Total'}</div></div>
     <div class="fx-stat"><div class="fx-stat-v">${filtered.length}</div><div class="fx-stat-l">Purchases</div></div>
     <div class="fx-stat"><div class="fx-stat-v">${filtered.length ? fmtMoneyC(sum(filtered) / filtered.length) : '$0'}</div><div class="fx-stat-l">Avg / Buy</div></div>
@@ -521,21 +630,19 @@ function renderHistory() {
               : qq         ? `No notes or categories match “${esc(histQ.trim())}”${histDay ? ` on ${label}` : histMonth !== 'all' ? ` in ${monthLabel(histMonth)}` : ''}.`
               : histDay    ? `Nothing logged on ${label}.`
               :              'Nothing matches these filters.';
-    h += `<div class="fx-empty">${why}</div>`;
-    q('#fp-history').innerHTML = h;
-    return;
+    return h + `<div class="fx-empty">${why}</div>`;
   }
 
   /* Every day carries its own total. That is the number you actually want
      when scanning back through a month, and it costs one row to show. */
-  const dayTotals = {};
-  filtered.forEach(t => { dayTotals[t.d] = (dayTotals[t.d] || 0) + t.amt; });
+  const dayTotals = {}, dayCounts = {}, cm = catMap();
+  filtered.forEach(t => { dayTotals[t.d] = (dayTotals[t.d] || 0) + t.amt; dayCounts[t.d] = (dayCounts[t.d] || 0) + 1; });
 
   h += `<div class="day-card"><div class="tx-list">`;
   let lastDate = null;
   filtered.forEach(t => {
     if (t.d !== lastDate) {
-      const n = filtered.filter(x => x.d === t.d).length;
+      const n = dayCounts[t.d];
       /* tapping the header narrows to that one day — the fastest path to
          "what did I spend on this day" is the day already on screen */
       h += `<div class="tx-group ${histDay ? 'solo' : ''}" ${histDay ? '' : `data-act="hist-day-pick" data-d="${t.d}"`}>
@@ -544,10 +651,9 @@ function renderHistory() {
       </div>`;
       lastDate = t.d;
     }
-    h += txRow(t);
+    h += txRow(t, cm);
   });
-  h += `</div></div>`;
-  q('#fp-history').innerHTML = h;
+  return h + `</div></div>`;
 }
 
 /* ═══════════════════ INSIGHTS TAB ═══════════════════ */
@@ -561,19 +667,25 @@ function donutSVG(segs, total) {
   }).join('');
   return `<svg viewBox="0 0 160 160"><g transform="rotate(-90 ${cx} ${cy})"><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--border)" stroke-width="${sw}"/>${arcs}</g></svg>`;
 }
+/* Bars in an SVG stretched to the card, month labels in HTML under it —
+   the same split as the Net Worth chart (see networth.js). Inside the
+   stretched SVG the labels were squashed to slivers on a phone, and the
+   colours were Midnight's hex baked in, so on Daylight an empty month drew
+   as a dark slab. The fills are classes now (finance.css), on the theme's
+   own tokens; on Midnight they resolve to exactly the old colours. */
 function trendSVG(months) {
   const max = Math.max(...months.map(m => m.total), 1);
-  const W = 600, H = 200, PADL = 6, PADR = 6, PADT = 12, PADB = 26;
-  const innerW = W - PADL - PADR, innerH = H - PADT - PADB, n = months.length, slot = innerW / n, bw = slot * 0.58;
-  let bars = '';
+  const W = 600, H = 174, PADL = 6, PADR = 6, PADT = 12;
+  const innerW = W - PADL - PADR, innerH = H - PADT, n = months.length, slot = innerW / n, bw = slot * 0.58;
+  let bars = '', labels = '';
   months.forEach((m, i) => {
     const x = PADL + slot * i + (slot - bw) / 2, hgt = (m.total / max) * innerH, y = PADT + innerH - hgt;
     const hot = insMode === 'month' && m.ym === insMonth;
-    const fill = hot ? '#22c55e' : (m.total ? '#22c55e88' : '#1c2030');
-    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(hgt,1).toFixed(1)}" rx="3" fill="${fill}" style="cursor:pointer" data-act="ins-bar" data-ym="${m.ym}"><title>${monthLabel(m.ym)}: ${fmtMoney(m.total)}</title></rect>`;
-    bars += `<text x="${(x + bw/2).toFixed(1)}" y="${H - 8}" text-anchor="middle" fill="#4a5068" font-family="JetBrains Mono, monospace" font-size="9">${m.short}</text>`;
+    const cls = hot ? 'hot' : (m.total ? 'has' : 'nil');
+    bars += `<rect class="fx-tb ${cls}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(hgt,1).toFixed(1)}" rx="3" style="cursor:pointer" data-act="ins-bar" data-ym="${m.ym}"><title>${monthLabel(m.ym)}: ${fmtMoney(m.total)}</title></rect>`;
+    labels += `<span style="left:${((x + bw / 2) / W * 100).toFixed(2)}%">${m.short}</span>`;
   });
-  return `<svg class="fx-chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bars}</svg>`;
+  return `<div class="fx-trend"><svg class="fx-chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bars}</svg><div class="fx-trend-x">${labels}</div></div>`;
 }
 function last12() {
   const all = txAll(), out = [];
@@ -663,6 +775,7 @@ function noteDetailHTML(g, color) {
       ${every ? `<div><span>Cadence</span><b>about every ${every} day${every === 1 ? '' : 's'}</b></div>` : ''}
       ${cats.length > 1 ? `<div><span>Categories</span><b>${cats.map(([n, v]) => `${esc(n)} ${fmtMoney(v)}`).join(' · ')}</b></div>` : ''}
     </div>
+    <button class="fx-leg-go fx-nt-go" data-act="ins-see-note" data-q="${esc(g.label)}">See these expenses ›</button>
   </div>`;
 }
 
@@ -759,7 +872,7 @@ function renderInsights() {
     }).join('');
     h += `<div class="fx-donut-card"><div class="fx-donut-wrap">
       <div class="fx-donut">${donutSVG(segs, total)}<div class="fx-donut-mid" id="fx-donut-mid" data-total="${fmtMoneyC(total)}"><div class="fx-donut-total" id="fx-donut-total">${fmtMoneyC(total)}</div><div class="fx-donut-sub" id="fx-donut-sub">Spent</div></div></div>
-      <div class="fx-legend">${legend}</div>
+      <div class="fx-legend">${legend}<button class="fx-leg-go" id="fx-leg-go" data-act="ins-see-cat" hidden></button></div>
     </div></div>`;
   } else {
     h += `<div class="fx-donut-card"><div class="fx-empty">No spending in this period.</div></div>`;
@@ -786,6 +899,28 @@ function donutHover(name) {
   sub.textContent = name;
   fitDonutTotal();
   root.querySelectorAll('.fx-arc').forEach(a => a.classList.toggle('hot', a.dataset.name === name));
+  /* The donut answers "how much"; the next question is "on what", and the
+     answer is a History filter away. Shown once a category has been picked,
+     and left up when the pointer drifts off the ring — it names its
+     category, so it can't be mistaken for the total in the middle. History
+     filters by month, not year, so a Year or All Time view opens the
+     category's full list and says so. */
+  const go = q('#fx-leg-go');
+  if (go) {
+    go.dataset.name = name;
+    go.textContent = insMode === 'month' ? `See ${name} in ${monthLabel(insMonth)} ›` : `See all ${name} expenses ›`;
+    go.hidden = false;
+  }
+}
+
+/* Open History on exactly one question, clearing whatever it was last
+   filtered to so nothing left over narrows the answer. */
+function openHistory({ month = 'all', cat = 'all', search = '' }) {
+  histMonth = month; histCat = cat; histQ = search;
+  histDay = ''; histCalOpen = false; histCalView = '';
+  renderHistory();
+  switchTab('history');
+  window.scrollTo({ top: 0, behavior: 'instant' });
 }
 function donutReset() {
   const mid = q('#fx-donut-mid'); if (!mid) return;
@@ -797,13 +932,19 @@ function donutReset() {
 
 /* ═══════════════════ TABS + EVENTS ═══════════════════ */
 function switchTab(tab) {
+  if (editId !== null && activeTab === 'add' && tab !== 'add') dropEdit();
   activeTab = tab;
   root.querySelectorAll('.fin .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   root.querySelectorAll('.fin .panel').forEach(p => p.classList.remove('active'));
   q('#fp-' + tab).classList.add('active');
   if (tab === 'insights') fitDonutTotal(); // hidden panels measure 0, so fit once visible
 }
-function renderAll() { renderAdd(); renderHistory(); renderInsights(); renderNetWorth(root); }
+/* Read the Add form back before repainting it, the way renderNetWorth()
+   does for its own: renaming a category, deleting an expense or a theme
+   change used to wipe a half-typed amount and note. The one caller that
+   must not read back is a save or delete that has just cleared the draft
+   on purpose — the fields still hold the old values — so it passes false. */
+function renderAll(keep = true) { if (keep) captureDraft(); renderAdd(); renderHistory(); renderInsights(); renderNetWorth(root); }
 
 function onClick(e) {
   if (e.target.id === 'fx-modal') { closeModal(); return; }
@@ -817,6 +958,9 @@ function onClick(e) {
     case 'hist-day-pick': histPickDay(a.d); break;
     case 'hist-day-clear':histClearDay(); break;
     case 'hist-q-clear':  histQ = ''; renderHistory(); break;
+    case 'undo-del':      runUndo(); break;
+    case 'ins-see-cat':   openHistory({ month: insMode === 'month' ? insMonth : 'all', cat: a.name }); break;
+    case 'ins-see-note':  openHistory({ search: a.q }); break;
     case 'hist-cal':      histToggleCal(); break;
     case 'hist-cal-shift':histCalShift(+a.d); break;
     case 'pick-cat':      pickCat(a.cat); break;
@@ -832,7 +976,7 @@ function onClick(e) {
     case 'cal-toggle':    captureDraft(); calOpen = !calOpen; if (calOpen) calView = (draft.date || todayStr()).slice(0,7); renderAdd(); break;
     case 'cal-shift':     captureDraft(); calView = shiftMonth(calView, +a.d); renderAdd(); break;
     case 'cal-pick':      captureDraft(); draft.date = a.d; calOpen = false; renderAdd(); break;
-    case 'cal-today':     captureDraft(); draft.date = todayStr(); calView = curMonth(); calOpen = false; renderAdd(); break;
+    case 'cal-today':     captureDraft(); draft.date = editId !== null ? todayStr() : ''; calView = curMonth(); calOpen = false; renderAdd(); break;  // "today" keeps following the day, except on an edit
     case 'note-sug':      pickNoteSug(a.i); break;
     case 'save-tx':       saveTx(); break;
     case 'cancel-edit':   cancelEdit(); break;
@@ -900,12 +1044,8 @@ function onInput(e) {
   if (e.target.id === 'fx-note') { sizeNote(); renderNoteSugs(); }
   else if (e.target.id === 'fx-color') updateNewColor(e.target.value);
   else if (e.target.id === 'hist-q') {
-    /* The panel re-renders on every keystroke, which throws the input away
-       mid-word — so the focus and caret have to be handed back by hand. */
     histQ = e.target.value;
-    renderHistory();
-    const el = q('#hist-q');
-    if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    renderHistoryResults();   // the input itself is left alone — see there
   }
 }
 function onOver(e) { const arc = e.target.closest?.('.fx-arc'); if (arc && root.contains(arc)) donutHover(arc.dataset.name); }
@@ -914,6 +1054,25 @@ function onOut(e) { const arc = e.target.closest?.('.fx-arc'); if (!arc) return;
 /* The trend chart and the net worth line bake the palette into their SVG,
    so a theme change has to repaint them — CSS alone can't reach inside. */
 function onDataChange() { if (root) renderAll(); }
+
+/* Resuming the installed app the next morning brings back yesterday's
+   page: the Today and This Month figures, the Insights month and anything
+   still meant to be "today" were all worked out when it was drawn. When
+   the day has turned over since, move whatever was still on the old today
+   (or its month, or its year) forward and repaint. Anything you picked
+   yourself is a different day from the old today and stays put. The form
+   dates themselves follow on their own — see `draft` above. */
+function onResume() {
+  if (!root || document.visibilityState === 'hidden') return;
+  const now = todayStr(), was = dayKey;
+  if (now === was) return;
+  dayKey = now;
+  const wasM = was.slice(0, 7), wasY = was.slice(0, 4);
+  if (insMonth === wasM) insMonth = curMonth();
+  if (insYear === wasY) insYear = curYear();
+  if (calOpen && !draft.date && calView === wasM) calView = curMonth();
+  renderAll();
+}
 
 /* ═══════════════════ TEMPLATE + LIFECYCLE ═══════════════════ */
 function template() {
@@ -927,6 +1086,7 @@ function template() {
       ${TABS.map((t, i) => `<div class="panel${i ? '' : ' active'}" id="fp-${t.k}"></div>`).join('')}
     </div>
     <div class="fx-ov" id="fx-modal"><div class="fx-ov-card" id="fx-modal-body"></div></div>
+    <div class="fx-toast" id="fx-toast"></div>
   </div>`;
 }
 
@@ -934,15 +1094,16 @@ export default {
   id: 'finance',
   name: 'Finance',
   storagePrefix: 'fin_',
-  styles: 'apps/finance/finance.css?v=3d-oct14d',
+  styles: 'apps/finance/finance.css?v=3d-nov13f',
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
   mount(el) {
     root = el;
     /* activeTab survives a remount, so returning to the app puts you back
        on the tab you left rather than on Add. */
-    editId = null; viewId = null; addingCat = false; managingCats = false; editCat = null;
+    editId = null; editFrom = ''; viewId = null; addingCat = false; managingCats = false; editCat = null;
     selCat = null; newCatColor = PALETTE[0]; calOpen = false; calView = curMonth();
-    draft = { amt: '', date: todayStr(), note: '' };
+    draft = blankDraft();
+    dayKey = todayStr(); undoDel = null; clearTimeout(undoTimer);
     noteSugs = [];
     histMonth = 'all'; histCat = 'all'; histDay = ''; histQ = ''; histCalOpen = false; histCalView = '';
     insMode = 'month'; insMonth = curMonth(); insYear = curYear(); insPickOpen = false;
@@ -957,6 +1118,9 @@ export default {
     root.addEventListener('mouseover', onOver);
     root.addEventListener('mouseout', onOut);
     window.addEventListener('bs:datachange', onDataChange);
+    document.addEventListener('visibilitychange', onResume);
+    window.addEventListener('pageshow', onResume);
+    window.addEventListener('focus', onResume);
     renderAll();
     switchTab(activeTab);
   },
@@ -970,6 +1134,38 @@ export default {
       root.removeEventListener('mouseout', onOut);
     }
     window.removeEventListener('bs:datachange', onDataChange);
+    document.removeEventListener('visibilitychange', onResume);
+    window.removeEventListener('pageshow', onResume);
+    window.removeEventListener('focus', onResume);
+    clearTimeout(undoTimer); undoTimer = null; undoDel = null;
     root = null;
+  },
+  /* Settings → Danger Zone: what this app holds and how to clear it. The
+     shell owns the confirmation and broadcasts bs:datachange afterwards,
+     which repaints a mounted app through onDataChange. */
+  resetTargets() {
+    const n = txAll().length, k = load('fin_cats', null)?.length || 0, w = load('fin_nw', []).length;
+    return [
+      { id: 'tx', n: 'Expenses', d: 'Every expense you have logged, on every day. History, Insights and the "came in" figures on Net Worth all count from these.', c: n, cl: `${n} ${n === 1 ? 'expense' : 'expenses'}` },
+      { id: 'cats', n: 'Custom categories', d: 'Your category list — added, renamed, recoloured or deleted — back to the eight defaults. Expenses keep the labels they were logged under.', c: k, cl: `${k} ${k === 1 ? 'category' : 'categories'}` },
+      { id: 'nw', n: 'Net worth snapshots', d: 'Every total logged on the Net Worth tab, and the line drawn through them.', c: w, cl: `${w} ${w === 1 ? 'snapshot' : 'snapshots'}` },
+    ];
+  },
+  applyReset(ids) {
+    if (ids.includes('tx')) {
+      remove('fin_tx');
+      /* nothing left to edit, view or bring back — dropEdit() also repaints
+         the form blank, so the repaint after the reset can't read the old
+         entry's figures back out of its fields */
+      if (root) { if (editId !== null) dropEdit(); hideUndo(); closeModal(); }
+      editId = null; editFrom = ''; undoDel = null;
+    }
+    if (ids.includes('cats')) {
+      remove('fin_cats');
+      if (selCat && !DEFAULT_CATS.some(c => c.name === selCat)) selCat = null;
+      managingCats = false; editCat = null; addingCat = false;
+    }
+    if (ids.includes('nw')) remove('fin_nw');
+    if (histCat !== 'all' && !txAll().some(t => t.cat === histCat)) histCat = 'all';
   },
 };

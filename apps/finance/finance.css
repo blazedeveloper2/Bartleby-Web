@@ -52,6 +52,11 @@
 .fx-opt{color:var(--text-3);text-transform:none;letter-spacing:0}
 .fx-manage{background:none;border:none;color:var(--text-3);font-family:var(--font);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;padding:2px 4px;transition:color .12s}
 .fx-manage:hover{color:var(--green)}
+/* A 10px word is a 16px-tall target. The hit area grows without the word
+   moving: up into the amount box's 16px margin, down only as far as the
+   8px gap above the chips, so it never steals a tap meant for one. */
+.fx-manage{position:relative}
+.fx-manage::before{content:'';position:absolute;top:-16px;bottom:-8px;left:-10px;right:-10px}
 
 .fx-cats{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px}
 .fx-cat{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;background:var(--bg);border:1px solid var(--border);color:var(--text-2);font-family:var(--font);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .13s}
@@ -73,6 +78,10 @@
 .fx-sw{width:26px;height:26px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:transform .1s;padding:0}
 .fx-sw:hover{transform:scale(1.12)}
 .fx-sw.sel{border-color:var(--text)}
+/* Grown to meet its neighbours halfway across the 7px gap and no further —
+   any bigger and a tap between two swatches would land on the wrong one. */
+.fx-sw{position:relative}
+.fx-sw::before{content:'';position:absolute;inset:-5.5px}
 /* full-spectrum color wheel */
 .fx-color-wrap{width:30px;height:30px;border-radius:50%;padding:3px;display:inline-flex;flex-shrink:0;cursor:pointer;background:conic-gradient(from 0deg,#ef4444,#f59e0b,#eab308,#22c55e,#06b6d4,#3b82f6,#8b5cf6,#f472b6,#ef4444);transition:transform .1s}
 .fx-color-wrap:hover{transform:scale(1.1)}
@@ -107,6 +116,10 @@
 .cal-head{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px}
 .cal-nav{width:28px;height:28px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-2);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s;flex-shrink:0}
 .cal-nav:hover{color:var(--text);border-color:var(--border-lt)}
+/* 28px drawn, ~40px tall to the finger. Sideways only half the 6px gap,
+   so « and ‹ split the space between them instead of overlapping. */
+.cal-nav{position:relative}
+.cal-nav::before{content:'';position:absolute;top:-7px;bottom:-7px;left:-4px;right:-4px}
 .cal-title{flex:1;text-align:center;font-size:13.5px;font-weight:700;letter-spacing:.3px}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
 .cal-dow{text-align:center;font-size:9px;font-weight:700;letter-spacing:.5px;color:var(--text-3);padding:2px 0 4px}
@@ -210,6 +223,7 @@
 .fx-search-x{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:26px;height:26px;border:none;
   border-radius:6px;background:none;color:var(--text-3);font-size:17px;line-height:1;cursor:pointer;transition:all .13s}
 .fx-search-x:hover{color:var(--text);background:var(--bg-alt)}
+.fx-search-x::before{content:'';position:absolute;inset:-7px}
 .fx-select{flex:1;min-width:0;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--rs);padding:9px 11px;color:var(--text);font-family:var(--font);font-size:13px;font-weight:500;outline:none;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234a5068' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
 .fx-select:focus{border-color:var(--green)}
 
@@ -298,6 +312,22 @@
 .fx-chart-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:14px 14px 8px;margin-bottom:14px}
 .fx-chart-title{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-3);margin-bottom:14px}
 .fx-chart-svg{width:100%;height:200px;display:block;overflow:visible}
+/* 12-month trend: bars stretched in the SVG, labels as HTML under it (see
+   trendSVG). 174 + 26 is the old 200px, so the card keeps its height. */
+.fx-trend .fx-chart-svg{height:174px}
+.fx-tb.hot{fill:var(--green)}
+.fx-tb.has{fill:var(--green);fill-opacity:.533}
+.fx-tb.nil{fill:var(--border)}
+.fx-trend-x{position:relative;height:26px}
+.fx-trend-x span{position:absolute;top:11px;transform:translateX(-50%);font-family:var(--mono);font-size:9px;line-height:1;color:var(--text-3);white-space:nowrap}
+
+/* "See expenses" — the step from a figure in Insights to the rows behind it */
+.fx-leg-go{display:block;width:100%;margin-top:6px;background:none;border:1px dashed var(--border-lt);border-radius:6px;
+  padding:9px 8px;color:var(--text-2);font-family:var(--font);font-size:12px;font-weight:600;text-align:center;cursor:pointer;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:all .12s}
+.fx-leg-go[hidden]{display:none}
+.fx-leg-go:hover{color:var(--green);border-color:var(--green)}
+.fx-nt-go{margin-top:10px}
 
 .fx-empty{padding:48px 16px;text-align:center;color:var(--text-3);font-size:13px;line-height:1.6}
 
@@ -318,6 +348,17 @@
 .fx-ov-row b{font-size:13.5px;font-weight:600;color:var(--text);text-align:right}
 .fx-ov-note{white-space:pre-line;overflow-wrap:anywhere}
 .fx-ov-actions{display:flex;gap:8px;padding:14px 20px 20px}
+
+/* ── Undo toast — the shared toast has no button (same shape as Food's) ── */
+.fx-toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));z-index:320;
+  display:flex;align-items:center;gap:14px;padding:8px 8px 8px 16px;background:var(--bg-alt);border:1px solid var(--border-lt);
+  border-radius:var(--r);font-size:13px;font-weight:500;box-shadow:0 8px 40px #0006;max-width:calc(100vw - 32px);
+  transform:translateX(-50%) translateY(16px);opacity:0;pointer-events:none;transition:all .25s cubic-bezier(.22,.68,0,1.1)}
+.fx-toast.on{opacity:1;transform:translateX(-50%);pointer-events:auto}
+.fx-toast span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fx-toast button{flex-shrink:0;background:none;border:none;color:var(--green);font-family:var(--font);font-size:13px;font-weight:700;padding:10px 12px;border-radius:6px;cursor:pointer}
+.fx-toast button:hover{background:var(--bg-hover)}
+@media (min-width:821px){.fx-toast{margin-left:110px}}
 
 @media(max-width:480px){
   .fin .app-wrap{padding:16px 12px 100px}
@@ -412,6 +453,13 @@
   color:var(--text-3);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s;padding:0;flex-shrink:0}
 .nw-h-del svg{width:14px;height:14px}
 .nw-h-del:hover{color:var(--red);border-color:#ef444440;background:var(--red-d)}
+/* 42px to the finger, taken from the row's own padding and the 12px gap
+   beside it. The row opens an edit and this deletes, but there is no
+   overlap to fight over: one delegated handler takes the innermost
+   data-act, which over this area is always the bin — and delete still
+   asks before it does anything. */
+.nw-h-del{position:relative}
+.nw-h-del::before{content:'';position:absolute;inset:-7px}
 .nw-h-note{font-size:12px;color:var(--text-2);margin-top:7px;line-height:1.5;overflow-wrap:anywhere}
 /* The one thing neither dataset can say alone. Set apart so it reads as
    an inference about the gap, not another figure you typed in. */

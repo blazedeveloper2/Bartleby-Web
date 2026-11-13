@@ -47,9 +47,11 @@ export function unmount() {
 
 /* { s: seconds, ex: the line under the clock, next: 'Set 2 of 3' or the
      next exercise, why: band name, go: the exercise Go opens,
-     slot: [di, si, ei] — where that exercise is } */
-export function start({ s, ex, next, why, slot, go }) {
-  save(KEY, { end: Date.now() + s * 1000, dur: s, ex, next, why, slot, go });
+     slot: [di, si, ei] — where that exercise is,
+     of: whose rest this is and base: its band's seconds — so a ±15s can
+     be remembered against that exercise (index.js, remembered rest) } */
+export function start({ s, ex, next, why, slot, go, of, base }) {
+  save(KEY, { end: Date.now() + s * 1000, dur: s, ex, next, why, slot, go, of, base });
   rang = false;
   unlock();
   run();

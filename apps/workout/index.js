@@ -6,28 +6,29 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER } from './data.js?v=3d-oct18a';
+import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER, GYM_STEP } from './data.js?v=3d-oct18a';
 import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=3d-oct14d';
 import { toast } from '../../assets/js/ui.js?v=3d-oct14d';
-import { pctColor, ord, LIFTS } from './standards.js?v=3d-oct14d';
+import { pctColor, ord, LIFTS, DB_LADDER, onLadder } from './standards.js?v=3d-oct14d';
 import {
   setsOf, setCountOf, isUnilateral, syncDay, logWeight, delSession, addSession, isManual, toggleHmEdit, setReps, snapshot,
   isLoggedToday, celebrationHTML, renderRank, renderStreak, renderAwards, trayStats, icon,
   liftScores, standingOf, resEx, resKit, lvlOf, setLvl, resetTargets, applyReset,
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip, exHistory,
-} from './rank.js?v=3d-nov06b';
-import { progressHTML } from './progress.js?v=3d-nov03c';
+  chkAll, chkSave, lastCount, dayCount, latchAwards, xsKey,
+} from './rank.js?v=3d-nov13x';
+import { progressHTML } from './progress.js?v=3d-nov13w';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
 import { MUSCLE_SVG } from './bodymap.js?v=3d-oct14d';
 import { restBand, BANDS, fmtRest } from './rest.js?v=3d-oct14d';
-import * as rest from './timer.js?v=3d-oct14d';
+import * as rest from './timer.js?v=3d-nov13w';
 import * as timing from './sessions.js?v=3d-oct18a';
 import { HOWTO } from './howto.js?v=3d-oct14h';
-import * as anatomy from './anatomy.js?v=3d-nov03b';
+import * as anatomy from './anatomy.js?v=3d-nov13w';
 import { animHTML, playAnim } from './pose.js?v=3d-nov03a';
 import { standingsFor } from './anthro.js?v=3d-oct14d';
 import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=3d-nov05b';
@@ -38,9 +39,11 @@ import {
   snapshot as bodySnap, advise, project,
 } from './body.js?v=3d-oct14d';
 
-/* ── namespaced storage ── */
-const chks = () => load('bp_chk', {});
-const sChk = c => save('bp_chk', c);
+/* ── namespaced storage ──
+   Checkmarks carry the day they were made and lapse at the week's turn
+   (CHECKMARKS in rank.js); these hand out and take only the live ones. */
+const chks = () => chkAll();
+const sChk = c => chkSave(c);
 const wts  = () => load('bp_wt', {});
 const sWt  = w => save('bp_wt', w);
 const ek   = (d, s, e) => `${d}.${s}.${e}`;
@@ -74,10 +77,21 @@ const TABS = [
 const SIDE = TABS.filter(t => t.side);
 
 /* The three panels that used to be one. Everything that could change a
-   letter, a streak or a badge repaints all of them, which is what the
-   single renderRank already did for the same thirteen sections — so this
-   costs what it always cost, and no tab can go stale behind your back. */
-const renderScore = () => { renderRank(root); renderStreak(root); renderAwards(root); };
+   letter, a streak or a badge used to repaint all three, hidden or not —
+   and every logged set is such a change, so each one re-scored every
+   lift for every day of history (scoreHistory, for Rank's trend) behind
+   a tab nobody was looking at. Now only the one on screen repaints:
+   switchTab repaints every extra and Rank on arrival anyway, so a hidden
+   one cannot show stale numbers. The one thing the hidden Awards grid did
+   that mattered is latch a milestone on the day it was reached, so that
+   still happens; and an open tray's tiles follow too. */
+const renderScore = () => {
+  if (activeTab === 'rank') renderRank(root);
+  else if (activeTab === 'streak') renderStreak(root);
+  else if (activeTab === 'awards') renderAwards(root);
+  if (activeTab !== 'awards') latchAwards();
+  if (trayOpen()) renderTray();
+};
 
 /* ── module state ── */
 let root = null;
@@ -108,6 +122,8 @@ function renderProg() {
      Unscored movements (bodyweight core work) and lifts with no weight
      set aren't in the map and stay the default text colour. */
   const sc = liftScores();
+  const tdi = todayDi();
+  progStale = false;
   /* Before the first day card: the verse is what you read on the way in. */
   let h = verseHTML();
   WEEK_ORDER.forEach((di, pos) => {
@@ -117,12 +133,12 @@ function renderProg() {
     const comp = dn === tot && tot > 0;
     const xpH = comp && isLoggedToday(di) ? `<span class="day-xp logged">Logged</span>` : '';
     const tmH = dayClockHTML(di);
-    h += `<div class="day-card" data-day="${di}">
+    h += `<div class="day-card${di === tdi ? ' today' : ''}" data-day="${di}">
       <div class="day-top">
         <div class="day-top-l">
           <span class="day-idx">${pad(pos + 1)}</span><span class="day-sep">//</span>
           <span class="day-badge ${day.day}">${day.day}</span>
-          <span class="day-title">${day.label}</span>
+          <span class="day-title">${day.label}</span>${di === tdi ? '<span class="day-today">Today</span>' : ''}
         </div>
         <div class="day-top-r">${tmH}${xpH}<span class="day-prog ${comp?'done':''}">${dn}/${tot}</span></div>
       </div>
@@ -131,27 +147,55 @@ function renderProg() {
     let exN = 0;                                   // numbering runs across the whole day
     day.sections.forEach((sec, si) => {
       if (sec.tag) h += `<div class="sec-lbl">${sec.tag}</div>`;
-      sec.ex.forEach((rawEx, ei) => {
-        const ex = resEx(rawEx);
-        const k = ek(di,si,ei), on = ch[k] || false;
-        const wv = w[ex.n];
-        /* A passed skill step says so on the row, so the way up does not
-           depend on opening every exercise to look for it. */
-        const wtH = ex.line && lineReady(ex.line) ? `<span class="ex-up" title="Your count passes this step — open it to move up">Move up</span>`
-                  : wv && trackOf(ex).load ? `<span class="ex-wt">${wv}</span>` : '';
-        const bH  = ex.b ? `<span class="bench-tag ${ex.bc||''}">${ex.b}</span>` : '';
-        const dn = doneToday(ex), nS = setCountOf(ex);
-        const dH  = dn ? `<span class="ex-done${dn >= nS ? ' full' : ''}" title="Sets logged today">${Math.min(dn, nS)}/${nS}</span>` : '';
-        const l   = sc.get(ex.n);
-        const nA  = l ? ` style="color:${pctColor(l.pct)}" title="${l.rank.l} · ${ord(l.pct)} percentile at your ${sc.basisWord}"` : '';
-        h += `<div class="ex-row ${on?'off':''}" data-act="row" data-di="${di}" data-si="${si}" data-ei="${ei}"><span class="ex-rail"></span><div class="ex-chk ${on?'on':''}" data-act="chk" data-k="${k}"></div><span class="ex-idx">${pad(++exN)}</span><div class="ex-body"><div class="ex-name"${nA}>${ex.n}</div><div class="ex-detail"><span class="ex-musc">${ex.m}</span></div>${ex.nt ? `<div class="ex-note">${ex.nt}</div>` : ''}</div><div class="ex-right">${wtH}${dH}<span class="ex-sets">${ex.s}</span>${bH}</div></div>`;
-      });
+      sec.ex.forEach((rawEx, ei) => { h += rowHTML(di, si, ei, resEx(rawEx), ++exN, ch, w, sc); });
     });
     h += `</div></div>`;
   });
   if (Object.values(ch).some(Boolean)) h += `<div class="clear-bar"><button class="clear-btn" data-act="clear">Clear All Checkmarks</button></div>`;
   p.innerHTML = h;
 }
+
+/* One exercise row. Its own function so a logged set can repaint just the
+   rows it changed (paintExRows) instead of the whole tab. */
+function rowHTML(di, si, ei, ex, n, ch, w, sc) {
+  const k = ek(di,si,ei), on = ch[k] || false;
+  const wv = w[ex.n];
+  /* A passed skill step says so on the row, so the way up does not
+     depend on opening every exercise to look for it. */
+  const wtH = ex.line && lineReady(ex.line) ? `<span class="ex-up" title="Your count passes this step — open it to move up">Move up</span>`
+            : wv && trackOf(ex).load ? `<span class="ex-wt">${wv}</span>` : '';
+  const bH  = ex.b ? `<span class="bench-tag ${ex.bc||''}">${ex.b}</span>` : '';
+  const dn = doneToday(ex), nS = setCountOf(ex);
+  const dH  = dn ? `<span class="ex-done${dn >= nS ? ' full' : ''}" title="Sets logged today">${Math.min(dn, nS)}/${nS}</span>` : '';
+  const l   = sc.get(ex.n);
+  const nA  = l ? ` style="color:${pctColor(l.pct)}" title="${l.rank.l} · ${ord(l.pct)} percentile at your ${sc.basisWord}"` : '';
+  return `<div class="ex-row ${on?'off':''}" data-act="row" data-di="${di}" data-si="${si}" data-ei="${ei}"><span class="ex-rail"></span><div class="ex-chk ${on?'on':''}" data-act="chk" data-k="${k}"></div><span class="ex-idx">${pad(n)}</span><div class="ex-body"><div class="ex-name"${nA}>${ex.n}</div><div class="ex-detail"><span class="ex-musc">${ex.m}</span></div>${ex.nt ? `<div class="ex-note">${ex.nt}</div>` : ''}</div><div class="ex-right">${wtH}${dH}<span class="ex-sets">${ex.s}</span>${bH}</div></div>`;
+}
+
+/* What a logged set can change on the Program tab: that exercise's rows
+   (the sets-done count and the name's tint — the same exercise can sit on
+   more than one day) and the "Move up" on every row of its ladder. Those
+   rows are rebuilt and nothing else; a full renderProg() per set rebuilt
+   every card and restarted their entrance animations. Off the Program tab
+   nothing is painted at all, and the tab is rebuilt on the way back. */
+let progStale = false;
+function paintExRows(ex) {
+  if (!ex) return;
+  if (activeTab !== 'program') { progStale = true; return; }
+  const ch = chks(), w = wts(), sc = liftScores();
+  root.querySelectorAll('#p-program .ex-row').forEach(row => {
+    const di = +row.dataset.di, si = +row.dataset.si, ei = +row.dataset.ei;
+    const raw = PROGRAM[di]?.sections[si]?.ex[ei];
+    if (!raw) return;
+    const e = resEx(raw);
+    if (e.n !== ex.n && !(ex.line && e.line === ex.line)) return;
+    row.outerHTML = rowHTML(di, si, ei, e, +row.querySelector('.ex-idx').textContent, ch, w, sc);
+  });
+}
+
+/* The program day that falls on today's weekday, or -1 on a rest day. */
+const DOW_KEY = ['sun','mon','tue','wed','thu','fri','sat'];
+const todayDi = () => PROGRAM.findIndex(d => d.day === DOW_KEY[new Date().getDay()]);
 
 const pad = n => String(n).padStart(2, '0');
 
@@ -399,18 +443,36 @@ function mmTrack() {
     const wv = t.load === 'added' ? (set > 0 ? set : 0) : set;
     if ((LIFT_NAMES.has(mmEx.n) || t.rng) && (wv > 0 || t.load === 'added')) {
       /* A count taken at another weight was true of a different lift, so
-         it is neither today's set nor a number to beat. */
-      const rec = exReps(mmEx.n);
-      return { t, n, wv, store: 'reps', rec: rec && (rec.w || 0) === wv ? rec : null, lbl: 'Reps per set' };
+         it is neither today's set nor a number to beat. Sets done earlier
+         today at this weight, before a change away and back, are still
+         today's: the history keeps them (dayCount). */
+      const raw = exReps(mmEx.n);
+      const rec = raw && (raw.w || 0) === wv ? raw : dayCount(mmEx.n, todayStr(), wv);
+      const prev = lastCount(mmEx.n, raw, false, wv);
+      return { t, n, wv, store: 'reps', rec,
+               prev: prev && (prev.w || 0) === wv ? prev : null, lbl: 'Reps per set' };
     }
   }
-  return { t, n, store: 'sets', rec: exSets(mmEx),
+  /* A loaded lift with nothing for a count to feed — a '4×F' calf raise,
+     unscored and with no range — is counted here for good, at a weight.
+     It used to be saved without one, so its chart read "0 lbs" and never
+     started over when the weight changed. `own` marks it; a scored lift
+     only lands here while it has no weight, so it has none to give. */
+  const own = !!t.load && t.unit !== '-' && !LIFT_NAMES.has(mmEx.n) && !t.rng;
+  const set = own ? wts()[mmEx.n] : undefined;
+  const rec = exSets(mmEx);
+  return { t, n, store: 'sets', rec, prev: lastCount(xsKey(mmEx), rec, true), own,
+           wv: own ? (set > 0 ? set : null) : undefined,
            lbl: t.unit === 's' ? 'Seconds per set' : t.unit === '-' ? 'Sets' : 'Reps per set' };
 }
 
-/* Today's values, and the last session's as the numbers to beat. */
+/* Today's values, and the last session's as the numbers to beat. The last
+   session is read from the history rather than the store, because the
+   store holds one record and the first set logged today replaces it — so
+   the numbers to beat used to vanish from sets two and three the moment
+   set one went in. */
 const todayVals = tr => (tr.rec && tr.rec.d === todayStr() ? tr.rec.s : []);
-const lastVals  = tr => (tr.rec && tr.rec.d !== todayStr() ? tr.rec.s : []);
+const lastVals  = tr => (tr.prev ? tr.prev.s : []);
 /* The set you are on: the first one not logged today. */
 const curSet = (vals, n) => { for (let i = 0; i < n; i++) if (!(vals[i] > 0)) return i; return n; };
 
@@ -448,9 +510,10 @@ function mmRepsHTML() {
     ? `<button class="mm-sets-clr" data-act="mm-sets-clear" title="Empties today's boxes to log them again. The last count keeps scoring until you enter the first new one, so closing without typing loses nothing.">Clear sets</button>` : '';
   const hint = !tick && last.some(v => v > 0)
     ? `<div class="mm-sets-last">Grey numbers are last session's — the ones to beat.</div>` : '';
+  const same = tick ? '' : `<button type="button" class="mm-same" id="mm-same" data-act="mm-same"${sameAttrs(cur, last, secs)}</button>`;
   return `<div class="mm-reps-row">
     <div class="mm-reps-head"><div class="mm-reps-lbl">${tr.lbl}${sub ? `<span>${sub}</span>` : ''}</div>
-      <div class="mm-reps-tools"><span class="mm-set-now${cur >= tr.n ? ' done' : ''}" id="mm-set-now">${setNowTxt(cur, tr.n)}</span>${clr}</div></div>
+      <div class="mm-reps-tools">${same}<span class="mm-set-now${cur >= tr.n ? ' done' : ''}" id="mm-set-now">${setNowTxt(cur, tr.n)}</span>${clr}</div></div>
     <div class="mm-sets">${boxes}</div>
     ${hint}
     <div id="mm-verdict">${mmVerdictHTML(tr)}</div>
@@ -458,6 +521,48 @@ function mmRepsHTML() {
 }
 
 const setNowTxt = (cur, n) => (cur >= n ? `All ${n} done` : `Set ${cur + 1} of ${n}`);
+
+/* ── same as last ──
+
+   The faded number in the box you are on is last session's, and matching
+   it is the commonest thing to type there. One tap puts it in and logs it
+   exactly as typing it would — the same change handler, so the rest timer,
+   the session clock and auto-advance all follow as usual. Typing over the
+   hint still works as it always did; this is only a shortcut beside it.
+   Hidden while there is no last number for the box you are on. */
+const sameAttrs = (i, last, secs) => {
+  const v = last[i] > 0 ? last[i] : 0;
+  return v
+    ? ` data-set="${i}" title="Fill set ${i + 1} with last session's ${v}${secs ? 's' : ''} and log it" aria-label="Same as last: ${v}${secs ? ' seconds' : ''}">Same · ${v}${secs ? 's' : ''}`
+    : ' hidden>';
+};
+/* Repainted with the marker. The box it fills is the first empty one on
+   screen, which after Clear sets is not what storage says yet. */
+function paintSame() {
+  const tr = mmTrack(), btn = q('#mm-same');
+  if (!tr || !btn) return;
+  const boxes = [...root.querySelectorAll('.mm-set-in')];
+  const i = boxes.findIndex(el => el.value === '');
+  const v = i >= 0 ? lastVals(tr)[i] : 0;
+  btn.hidden = !(v > 0);
+  if (!(v > 0)) return;
+  const secs = tr.t.unit === 's';
+  btn.dataset.set = i;
+  btn.textContent = `Same · ${v}${secs ? 's' : ''}`;
+  btn.title = `Fill set ${i + 1} with last session's ${v}${secs ? 's' : ''} and log it`;
+  btn.setAttribute('aria-label', `Same as last: ${v}${secs ? ' seconds' : ''}`);
+}
+function fillSame() {
+  const tr = mmTrack();
+  if (!tr) return;
+  const boxes = [...root.querySelectorAll('.mm-set-in')];
+  const box = boxes.find(el => el.value === '');
+  const v = box ? lastVals(tr)[+box.dataset.set] : 0;
+  if (!(v > 0)) return;
+  box.value = v;
+  setMMReps(box);                    // the path a typed number takes on change
+  paintSame();
+}
 
 /* Moves the "you are here" marker without rebuilding the boxes, which
    would take focus out of the one you are about to type in. */
@@ -468,6 +573,7 @@ function paintSetNow() {
   pill.textContent = setNowTxt(cur, tr.n);
   pill.classList.toggle('done', cur >= tr.n);
   root.querySelectorAll('.mm-sets .mm-set').forEach((el, i) => el.classList.toggle('cur', i === cur));
+  paintSame();
 }
 
 /* ── the verdict strip ──
@@ -622,9 +728,9 @@ function tickSet(btn) {
 
 function saveSets(tr, sets) {
   if (tr.store === 'reps') setExReps(mmEx.n, sets, tr.wv);
-  else setExSets(mmEx, sets);
+  else setExSets(mmEx, sets, tr.wv);
   paintMMStanding(true);
-  renderProg();                      // the row's set count, and a passed step
+  paintExRows(mmEx);                 // the row's set count, and a passed step
   if (tr.store === 'reps') renderScore();
 }
 
@@ -635,7 +741,7 @@ function saveSets(tr, sets) {
 function startRest(sets) {
   const n = setCountOf(mmEx), cur = curSet(sets, n);
   const band = BANDS[restBand(mmEx)];
-  const base = { s: band.s, why: band.n };
+  const base = { s: restSecs(mmEx), why: band.n, of: mmEx.n, base: band.s };
   if (cur < n) {
     rest.start({ ...base, ex: mmEx.n, go: mmEx.n, slot: mmSlot ? [...mmSlot] : null, next: `Set ${cur + 1} of ${n}` });
     return;
@@ -655,6 +761,36 @@ function startRest(sets) {
   const ex = resEx(PROGRAM[nx[0]].sections[nx[1]].ex[nx[2]]);
   rest.start({ ...base, ex: `${mmEx.n} done`, go: ex.n, slot: nx,
                next: `Next: ${ex.n} · ${setCountOf(ex)} set${setCountOf(ex) === 1 ? '' : 's'}` });
+}
+
+/* ── remembered rest ──
+
+   bp_restadj  { [exercise]: seconds }  — added to that exercise's band
+
+   The band is a sensible default, not your rest: if you nudge the timer
+   on the same exercise every session, it should learn that. A ±15s while
+   an exercise's rest is RUNNING is kept against that exercise and every
+   later rest for it starts that much longer or shorter. A "+30s" on a
+   rest that has already run out is not counted — that is a rest that
+   ended before you were ready, which says more about the moment than the
+   exercise. Kept so the rest never starts under 15s or over 10 minutes,
+   which is also where the stored nudge stops, so tapping back the other
+   way always moves it again. */
+const REST_MIN = 15, REST_MAX = 600;
+const restAdj = () => load('bp_restadj', {});
+const restSecs = ex => {
+  const s = BANDS[restBand(ex)].s + (+restAdj()[ex.n] || 0);
+  return Math.min(REST_MAX, Math.max(REST_MIN, s));
+};
+function restAdjust(d) {
+  const st = rest.current();
+  const running = !!st && st.end > Date.now();
+  rest.adjust(d);
+  if (!running || !st.of || !(st.base > 0)) return;
+  const m = restAdj();
+  const off = Math.min(REST_MAX - st.base, Math.max(REST_MIN - st.base, (+m[st.of] || 0) + d));
+  if (off) m[st.of] = off; else delete m[st.of];
+  save('bp_restadj', m);
 }
 
 /* Logging an exercise's last set moves the lab straight on to the next
@@ -750,6 +886,7 @@ function clearMMSets() {
   root.querySelectorAll('.mm-sets .mm-set').forEach((el, i) => el.classList.toggle('cur', i === 0));
   const pill = q('#mm-set-now');
   if (pill) { pill.textContent = setNowTxt(0, boxes.length); pill.classList.remove('done'); }
+  paintSame();
   boxes[0]?.focus();
 }
 
@@ -801,7 +938,9 @@ function mmProgHTML() {
   const added = tr.t.load === 'added';
   return progressHTML({
     hist: exHistory(mmEx, tr.store === 'reps' ? mmEx.n : undefined),
-    wv: tr.store === 'reps' ? tr.wv : undefined,
+    wv: tr.store === 'reps' ? tr.wv : tr.own && tr.wv > 0 ? tr.wv : undefined,
+    /* its sessions from before the weight was saved have none on record */
+    soft: !!tr.own,
     loaded: !!tr.t.load,
     unit: tr.t.unit,
     W: n => added ? (n > 0 ? `+${fmtW(n)} lbs` : 'bodyweight') : `${fmtW(n)} lbs`,
@@ -859,15 +998,27 @@ function mmLvlUp() {
 function openMM(ex) {
   /* Re-opened in place after a level change: the focus to return to is
      still the row that opened it, not the button that just re-rendered. */
-  if (!q('#mm-ol').classList.contains('on')) { mmReturnFocus = document.activeElement; mmOpenedAt = Date.now(); }
+  if (!q('#mm-ol').classList.contains('on')) {
+    mmReturnFocus = document.activeElement; mmOpenedAt = Date.now();
+    /* The lab covers the screen like a page of its own, so it takes a
+       history entry the way Anatomy does: a phone's back gesture closes
+       it instead of leaving the app. State, never the hash — the shell
+       reads the hash as which app is open. */
+    if (!mmEntry) {
+      mmEntry = Date.now() + Math.random();     // a token: see onMMPop
+      history.pushState({ mm: mmEntry }, '');
+      addEventListener('popstate', onMMPop);
+    }
+  }
   mmEx = ex;
   mmView('both');
   q('#mm-name').textContent = ex.n;
   paintMMStanding();
   let info = `<span class="mm-tag">${ex.s}</span>`;
   if (ex.b) info += `<span class="mm-tag">${ex.b}</span>`;
-  const band = BANDS[restBand(ex)];
-  info += `<span class="mm-tag mm-rest-tag" title="${band.n} — the timer that starts when you log a set">Rest ${fmtRest(band.s)}</span>`;
+  const band = BANDS[restBand(ex)], rs = restSecs(ex);
+  const own = rs !== band.s ? ` · ${fmtRest(band.s)} by default, ${rs > band.s ? 'longer' : 'shorter'} from your own ±15s` : '';
+  info += `<span class="mm-tag mm-rest-tag" title="${band.n} — the timer that starts when you log a set${own}">Rest ${fmtRest(rs)}</span>`;
   q('#mm-info').innerHTML = info;
   q('#mm-howto').innerHTML = mmHowtoHTML(ex);
   stopAnim();
@@ -962,7 +1113,7 @@ function mmHowtoHTML(ex) {
     ${h.avoid?.length ? `<div class="mm-avoid"><span>Avoid</span><ul>${h.avoid.map(c => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}`;
 }
 
-function closeMM() {
+function closeMM(fromPop = false) {
   stopAnim();
   mv3?.hide();
   q('.mm-map').classList.remove('is-3d');
@@ -971,6 +1122,34 @@ function closeMM() {
   mmReturnFocus?.focus({preventScroll:true});
   /* opened from Anatomy: the body goes back there */
   if (anatomy.isOpen()) anatomy.attach();
+  /* Closed by its own button: give back the entry it took. Closed by the
+     back gesture: the browser already has. */
+  if (mmEntry) {
+    const own = history.state?.mm === mmEntry;
+    mmEntry = 0;
+    removeEventListener('popstate', onMMPop);
+    if (!fromPop && own) history.back();
+  }
+}
+let mmEntry = 0;                 // the lab's history entry, by its token
+/* Any pop that does not land on the lab's own entry closes it — landing on
+   Anatomy's under it included. A token rather than a flag, so an entry
+   left over from before a reload (the app updates itself) cannot pass for
+   the one the lab took. */
+const onMMPop = () => { if (history.state?.mm !== mmEntry) closeMM(true); };
+
+/* Leaving the app with the lab or Anatomy open used to leave their history
+   entries behind, and the next back press spent itself on one of them and
+   did nothing. They are walked back here once the shell has finished the
+   switch — it rewrites the top entry's hash to the new app as it goes —
+   and the entry that walk lands on is given the new app's address, so the
+   shell's hashchange reads the app it is already showing and stays put. */
+function unwindHistory(n) {
+  setTimeout(() => {
+    const url = location.href;
+    addEventListener('popstate', () => history.replaceState(null, '', url), { once: true });
+    history.go(-n);
+  }, 0);
 }
 function mmView(view) {
   const map = q('.mm-map');
@@ -1067,6 +1246,48 @@ function setMMWeight(el) {
 function takeBump(to) {
   const el = q('#mm-wt');
   if (!el) return;
+  el.value = to;
+  setMMWeight(el);
+}
+
+/* ── − / + beside the weight ──
+
+   One step to the next weight you can actually set: the next rung of the
+   dumbbell ladder on a dumbbell lift (DB_LADDER, uneven on purpose — see
+   snapLoad in rank.js), the gym's step in a gym (GYM_STEP), and the
+   field's own 2.5 lb on a bar or a belt. Like takeBump it is typing the
+   number: the field is filled and handed to setMMWeight, so the log, the
+   toast and any rank-up are the ones a typed weight gets. The field stays
+   typeable for anything the buttons do not reach.
+
+   It never steps to nothing on a lift that needs a weight — clearing the
+   field is untracking the lift, not lifting zero, and a button should not
+   do that by accident. On a belt zero is bodyweight, so it may. */
+function nextWeight(cur, dir) {
+  const spec = LIFTS[mmEx.n] || {}, added = trackOf(mmEx).load === 'added';
+  const snap = st => {
+    const k = cur / st, n = dir > 0 ? Math.floor(k + 1e-9) + 1 : Math.ceil(k - 1e-9) - 1;
+    const v = +(n * st).toFixed(2);
+    return v > 0 || (added && v === 0) ? v : null;
+  };
+  if (GYM_STEP) return snap(GYM_STEP);
+  /* Above the heaviest dumbbell (a weight typed in by hand): + has nowhere
+     to go, and − comes back onto the ladder at its top rung. */
+  if (onLadder(spec)) {
+    const to = dir > 0 ? DB_LADDER.find(v => v > cur) : [...DB_LADDER].reverse().find(v => v < cur);
+    return to ?? null;
+  }
+  return snap(2.5);
+}
+function stepWeight(dir) {
+  const el = q('#mm-wt');
+  if (!mmEx || !el) return;
+  const raw = parseFloat(el.value), cur = raw > 0 ? raw : 0;
+  const to = nextWeight(cur, dir);
+  if (to === null) {
+    toast(dir > 0 ? `${fmtW(DB_MAX)} lbs is as heavy as the dumbbells go` : 'Nothing lighter to step to');
+    return;
+  }
   el.value = to;
   setMMWeight(el);
 }
@@ -1785,8 +2006,10 @@ function switchTab(tab) {
   root.querySelectorAll('.wk .panel').forEach(pl => pl.classList.toggle('active', pl.dataset.panel === t.k));
   /* Program and Body render on mount and stay rendered; every other panel
      repaints on arrival so a tab you were not looking at cannot show
-     yesterday's numbers. */
+     yesterday's numbers. Program too, when sets were logged while it was
+     not on screen (paintExRows). */
   if (t.k !== 'program' && t.k !== 'bw') t.r();
+  else if (t.k === 'program' && progStale) renderProg();
 }
 
 /* ── the extras tray ── */
@@ -1834,6 +2057,12 @@ function onClick(e) {
     case 'tray':      trayOpen() ? closeTray() : openTray(); break;
     case 'tray-close': closeTray(); break;
     case 'row':
+      /* The tick box is drawn at 20px, inside a row that opens the lab —
+         a thumb that lands just beside it opened the exercise instead of
+         ticking it. A tap within a 44px square around the box counts as
+         the box. Done here rather than with a pseudo-element because the
+         themes already use the box's ::before and ::after. */
+      if (nearChk(el, e)) { toggleChk(el.querySelector('.ex-chk').dataset.k); break; }
       mmSlot = [+a.di, +a.si, +a.ei];
       openMM(resEx(PROGRAM[+a.di].sections[+a.si].ex[+a.ei])); break;
     case 'mm-lvl-up': mmLvlUp(); break;
@@ -1845,7 +2074,9 @@ function onClick(e) {
     case 'mm-rebase': doRebase(); break;
     case 'mm-sets-clear': clearMMSets(); break;
     case 'mm-tick':   tickSet(el); break;
-    case 'rest-adj':  rest.adjust(+a.d); break;
+    case 'mm-same':   fillSame(); break;
+    case 'mm-wt-step': stepWeight(+a.d); break;
+    case 'rest-adj':  restAdjust(+a.d); break;
     case 'rest-skip': rest.stop(); break;
     case 'rest-go':   restGo(); break;
     case 'mm-bump':   takeBump(a.to); break;
@@ -1870,6 +2101,16 @@ function onClick(e) {
     default: if (a.act.startsWith('an-')) anatomy.act(el);
   }
 }
+const CHK_HIT = 44;                  // the smallest comfortable touch target, px
+function nearChk(row, e) {
+  const box = row.querySelector('.ex-chk');
+  if (!box || !e.clientX && !e.clientY) return false;
+  const r = box.getBoundingClientRect();
+  const px = Math.max(0, (CHK_HIT - r.width) / 2), py = Math.max(0, (CHK_HIT - r.height) / 2);
+  return e.clientX >= r.left - px && e.clientX <= r.right + px
+      && e.clientY >= r.top - py && e.clientY <= r.bottom + py;
+}
+
 /* The anatomy search filters its list as you type. */
 function onInput(e) {
   if (e.target.id === 'an-q') anatomy.search(e.target.value);
@@ -1908,6 +2149,81 @@ function onExternalChange() {
   if (activeTab !== 'program' && activeTab !== 'bw') renderScore();
   anatomy.refresh();
 }
+/* ── a new day behind your back ──
+
+   Installed on a phone, the app is rarely loaded fresh: it is brought
+   back from the background, often the next morning, with everything
+   still drawn for the day it was put away. The Body tab's date field
+   still said yesterday — value and max — so a morning weigh-in landed on
+   yesterday's entry and merged into it. So when the page comes back on a
+   different day than it last drew, everything that hangs off "today" is
+   drawn again: the program (its Today card, the Logged pills, the clocks,
+   checkmarks lapsing on a Monday), the Body tab, whichever tab is open,
+   the tray, the lab and Anatomy.
+
+   The Body form keeps what was typed into it. Its date moves on only if
+   it was still on the old today; a date picked on purpose stays. Grip's
+   form on the Rank tab gets the same. */
+let dayShown = null;
+function onResume() {
+  if (!root || document.visibilityState === 'hidden') return;
+  const d = todayStr();
+  if (d === dayShown) return;
+  dayShown = d;
+  const picked = id => { const el = q(id); return el && !el.readOnly && el.value && el.value !== el.max ? el.value : null; };
+  renderProg();
+  const bwDate = picked('#bw-date'), draft = bwFormDraft();
+  renderBW(); bwRestoreDraft(draft);
+  if (bwDate && q('#bw-date')) q('#bw-date').value = bwDate;
+  const grDate = picked('#gr-date'), grip = ['#gr-r', '#gr-l'].map(id => q(id)?.value || '');
+  const t = TABS.find(x => x.k === activeTab);
+  if (t && !t.app && t.k !== 'program' && t.k !== 'bw') t.r();
+  if (activeTab === 'rank') {
+    if (grDate && q('#gr-date')) q('#gr-date').value = grDate;
+    ['#gr-r', '#gr-l'].forEach((id, i) => { const el = q(id); if (el && grip[i]) el.value = grip[i]; });
+  }
+  if (trayOpen()) renderTray();
+  if (mmEx) paintMMStanding();
+  anatomy.refresh();
+}
+
+/* ── today's card ──
+
+   The first time the app is opened in a page load, the program is scrolled
+   to today's day, just under the sticky bars — that is the card you came
+   for. Once only: on a later visit the shell puts you back where you
+   were. Nothing moves on a rest day, nor when today's card already sits in
+   the top part of the screen, where scrolling would only hide the verse. */
+let scrolledToday = false;
+function scrollToToday() {
+  if (scrolledToday) return;
+  scrolledToday = true;
+  if (activeTab !== 'program') return;
+  const card = q(`.day-card.today`), nav = q('.nav');
+  if (!card || !nav) return;
+  /* On a phone the shell's top bar is sticky too, and runs a little past
+     the top the tab bar sticks at, so the lower of the two is the edge. */
+  const shellBar = document.querySelector('.sidebar');
+  let mine = null;                     // where we last put the page
+  const go = () => {
+    if (!card.isConnected) return;
+    if (mine !== null && Math.abs(scrollY - mine) > 2) return;   // you've scrolled since: leave it
+    let bars = (parseFloat(getComputedStyle(nav).top) || 0) + nav.offsetHeight;
+    if (shellBar && matchMedia('(max-width:820px)').matches) bars = Math.max(bars, shellBar.offsetHeight);
+    const top = card.getBoundingClientRect().top;
+    if (top >= bars && top - bars < (innerHeight - bars) * 0.4) return;
+    window.scrollTo({ top: Math.max(0, scrollY + top - bars - 10), behavior: 'instant' });
+    mine = scrollY;
+  };
+  go();
+  /* Again as the page settles — a late stylesheet, the verse, fonts —
+     each only if you have not scrolled in the meantime. A frame alone is
+     not enough: it never fires in a tab that is not on screen yet. */
+  requestAnimationFrame(go);
+  setTimeout(go, 250);
+  setTimeout(go, 900);
+}
+
 function onKeydown(e) {
   if (e.key === 'Escape' && trayOpen()) { closeTray(); q('.tab-more').focus(); return; }
   if (e.key === 'Escape' && anatomy.isOpen() && !q('#mm-ol').classList.contains('on')) { e.preventDefault(); anatomy.escape(); return; }
@@ -1967,7 +2283,7 @@ function template() {
         <div id="mm-lvl"></div>
         <div class="mm-wt-row">
           <label class="mm-wt-lbl" for="mm-wt">Working weight</label>
-          <div class="mm-wt-box"><input class="mm-wt-in" id="mm-wt" type="number" step="2.5" min="0" inputmode="decimal" placeholder="—"><span class="mm-wt-u">lbs</span></div>
+          <div class="mm-wt-box"><button type="button" class="mm-wt-step" data-act="mm-wt-step" data-d="-1" aria-label="One step lighter" title="One step lighter">−</button><input class="mm-wt-in" id="mm-wt" type="number" step="2.5" min="0" inputmode="decimal" placeholder="—"><span class="mm-wt-u">lbs</span><button type="button" class="mm-wt-step" data-act="mm-wt-step" data-d="1" aria-label="One step heavier" title="One step heavier">+</button></div>
         </div>
         <div id="mm-reps"></div>
         <div id="mm-prog"></div>
@@ -2034,7 +2350,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=3d-nov05b',
+  styles: 'apps/workout/workout.css?v=3d-nov13w',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
@@ -2063,7 +2379,11 @@ export default {
       closed: () => q('.tab-more')?.focus({ preventScroll: true }),
     });
     renderProg(); renderBW();
+    dayShown = todayStr();
+    document.addEventListener('visibilitychange', onResume);
+    window.addEventListener('pageshow', onResume);
     switchTab(activeTab);
+    scrollToToday();
     warm3D();
   },
   unmount() {
@@ -2076,10 +2396,18 @@ export default {
       root.removeEventListener('pointerout', onOut);
     }
     window.removeEventListener('bs:datachange', onExternalChange);
+    document.removeEventListener('visibilitychange', onResume);
+    window.removeEventListener('pageshow', onResume);
     rest.unmount();
     progRO?.disconnect(); progRO = null;
     clearInterval(clockTick); clockTick = null;
+    /* Only when the entry on top is one of ours: if the switch came from
+       the browser's own navigation, it has moved past them already. */
+    const held = (mmEntry ? 1 : 0) + (anatomy.isOpen() ? 1 : 0);
+    const ours = (!!mmEntry && history.state?.mm === mmEntry) || anatomy.ownsTop();
+    if (mmEntry) { mmEntry = 0; removeEventListener('popstate', onMMPop); }
     anatomy.close(true);
+    if (held && ours) unwindHistory(held);
     root = null;
   },
 };

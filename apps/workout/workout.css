@@ -1626,3 +1626,36 @@ html.wk-ax .rest-bar{visibility:hidden}
 @media (prefers-reduced-motion:reduce){
   .wk .ax,.wk .ax-hud,.wk .ax-drawer,.wk .ax-ring,.wk .ax-load,.wk .ax-bend-p,.wk .ax-grips.intro .ax-grip-ping{animation:none}
 }
+
+/* ── Today on the Program tab ──
+   Today's day card wears the accent the app already uses for "selected",
+   a rim and a bar down its left edge, with a tag beside the title — where
+   you are this week rather than a status, so it is not green. */
+.wk .day-card.today{box-shadow:inset 0 0 0 1px var(--sel-bd),inset 3px 0 0 var(--blue)}
+.wk .day-today{flex-shrink:0;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;
+  color:var(--blue);background:var(--blue-d);padding:3px 7px;border-radius:2px;box-shadow:inset 0 0 0 1px var(--sel-bd)}
+
+/* ── Same as last ──
+   Beside the set marker: last session's number for the box you are on,
+   one tap to log it. Accent-tinted like the boxes it fills. The head and
+   the tools wrap rather than overflow once it makes them too wide for a
+   phone; where they fit, nothing moves. */
+.mm-same{flex:none;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--blue);background:var(--blue-d);
+  border:1px solid var(--sel-bd);border-radius:var(--rs);padding:5px 9px;cursor:pointer;white-space:nowrap;transition:background .15s}
+.mm-same:hover{background:var(--bg-hover)}
+.mm-same:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.mm-same[hidden]{display:none}
+.mm-reps-head{flex-wrap:wrap}
+.mm-reps-tools{flex-wrap:wrap;justify-content:flex-end}
+
+/* ── − / + on the working weight ──
+   Inside the field's own box, so the three read as one control. The row
+   wraps the box under its label if a narrow phone cannot fit both. */
+.mm-wt-row{flex-wrap:wrap}
+.mm-wt-box{margin-left:auto}
+.mm-wt-step{flex:none;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;padding:0;
+  border:1px solid var(--border);border-radius:var(--rs);background:var(--bg-card);color:var(--text-2);
+  font-family:var(--mono);font-size:18px;font-weight:700;line-height:1;cursor:pointer;transition:color .15s,border-color .15s}
+.mm-wt-step:hover{color:var(--text);border-color:var(--border-lt)}
+.mm-wt-step:active{color:var(--blue);border-color:var(--blue)}
+.mm-wt-step:focus-visible{outline:2px solid var(--blue);outline-offset:1px}

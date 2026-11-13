@@ -35,7 +35,7 @@ import { PROGRAM, MMAP } from './data.js?v=3d-oct18a';
 import { load, save } from './store.js?v=3d-oct14d';
 import { REGIONS, regionsOfMuscle, regionOfMapId } from './muscles3d.js?v=3d-oct16g';
 import { MUSCLE_SVG } from './bodymap.js?v=3d-oct14d';
-import { resEx, setCountOf } from './rank.js?v=3d-nov06b';
+import { resEx, setCountOf } from './rank.js?v=3d-nov13x';
 import { weekWork, lastDone } from './sessions.js?v=3d-oct18a';
 
 /* ── the reference ──
@@ -554,7 +554,10 @@ export function open() {
   X.innerHTML = layerHTML();
   X.hidden = false;
   document.documentElement.classList.add('wk-ax');
-  history.pushState({ ax: 1 }, '');
+  /* A token rather than a flag: an entry left over from before a reload
+     (the app updates itself) must not pass for this one. */
+  axTok = Date.now() + Math.random();
+  history.pushState({ ax: axTok }, '');
   addEventListener('popstate', onPop);
   ro = new ResizeObserver(layout);
   ro.observe(X); ro.observe($('#ax-hud'));
@@ -573,10 +576,17 @@ export function close(fromPop) {
   is3d = false; quiz = null; exv = null;
   editing = false; bending = null; rig = RIG0(); undos = []; redos = [];
   document.documentElement.classList.remove('wk-ax');
-  if (!fromPop && history.state?.ax) history.back();
+  if (!fromPop && history.state?.ax === axTok) history.back();
   ctx.closed?.();
 }
-const onPop = () => close(true);
+/* An exercise opened from here takes an entry over this one (index.js),
+   and backing out of it lands back on this entry — that closes the
+   exercise, not Anatomy. Landing anywhere else closes Anatomy. */
+const onPop = () => { if (history.state?.ax !== axTok) close(true); };
+let axTok = 0;
+/* Whether the entry on top is still Anatomy's own, for index.js to give
+   it back when the app is left with Anatomy open. */
+export const ownsTop = () => isOpen() && history.state?.ax === axTok;
 
 /* Escape puts away the settings, then the list, then Edit Mode, then the
    quiz, then closes. */

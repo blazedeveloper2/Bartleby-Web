@@ -7,8 +7,8 @@
    To add a new app: import it and drop it into the APPS array.
    ═══════════════════════════════════════════════════════════ */
 
-import workout from '../../apps/workout/index.js?v=3d-nov06b';
-import finance from '../../apps/finance/index.js?v=3d-oct14d';
+import workout from '../../apps/workout/index.js?v=3d-nov13z';
+import finance from '../../apps/finance/index.js?v=3d-nov13f';
 import food from '../../apps/food/index.js?v=food-14';
 import { toast } from './ui.js?v=3d-oct14d';
 import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=3d-oct14d';
@@ -100,6 +100,11 @@ function switchTo(id) {
 
   loadStyles(app.styles);
   current = app;
+  /* A first visit starts at the top before mounting rather than after, so
+     an app that scrolls itself somewhere on its first mount (Workout to
+     today's day) is not yanked back up by the restore below. */
+  const seen = scrollPos.has(app.id);
+  if (!seen) window.scrollTo({ top: 0, behavior: 'instant' });
   app.mount(root);
 
   /* Restore twice on purpose. Reading scrollHeight forces layout, so the
@@ -108,11 +113,13 @@ function switchTo(id) {
      afterwards corrects for a stylesheet still arriving on a first visit.
      `instant` overrides the global scroll-behavior:smooth — returning to
      a position should look like you never left, not like a ride down. */
-  const y = scrollPos.get(app.id) || 0;
-  const jump = () => window.scrollTo({ top: y, behavior: 'instant' });
-  void document.documentElement.scrollHeight;
-  jump();
-  requestAnimationFrame(jump);
+  if (seen) {
+    const y = scrollPos.get(app.id);
+    const jump = () => window.scrollTo({ top: y, behavior: 'instant' });
+    void document.documentElement.scrollHeight;
+    jump();
+    requestAnimationFrame(jump);
+  }
 
   nav.querySelectorAll('.app-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.app === app.id));

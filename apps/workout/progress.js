@@ -20,26 +20,36 @@ const day = ds => new Date(ds + 'T00:00:00');
 const fmtD = ds => { const d = day(ds); return `${MON[d.getMonth()]} ${d.getDate()}`; };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 
-/* The sessions since the weight last changed. Bodyweight work never resets. */
-function currentRun(hist, loaded) {
+/* The sessions since the weight last changed. Bodyweight work never resets.
+
+   `soft` is a loaded lift whose weight was not always saved (the '4×F'
+   lifts with nothing to score — see mmTrack in index.js). A session with
+   no weight on record is one whose weight is unknown, not one at zero: it
+   joins the run it falls in rather than breaking it, and the run's weight
+   is the first one that is known. So the old sessions draw the line they
+   always drew, and once weights are saved a change starts it over. */
+function currentRun(hist, loaded, soft) {
   let run = [];
   for (const e of hist) {
     const sets = e.s.filter(n => n > 0);
-    const p = { d: e.d, w: loaded ? (e.w ?? 0) : null, best: Math.max(...sets) };
-    if (run.length && run[0].w !== p.w) run = [];
+    const p = { d: e.d, w: loaded ? (soft ? e.w ?? null : e.w ?? 0) : null, best: Math.max(...sets) };
+    const rw = soft ? runW(run) : run.length ? run[0].w : null;
+    if (run.length && !(soft && (p.w === null || rw === null)) && rw !== p.w) run = [];
     run.push(p);
   }
   return run;
 }
+const runW = run => { const k = run.find(p => p.w !== null); return k ? k.w : null; };
 
 /* `opts`:
      hist   exHistory() — every counted session, oldest first
      wv     the weight set now (undefined when the lift has none)
+     soft   sessions may have no weight on record (currentRun)
      loaded whether the movement carries a weight at all
      unit   'r' reps, 's' seconds
      W      weight formatter, e.g. 50 → '50 lbs'
      width  the chart's width in px */
-export function progressHTML({ hist, wv, loaded, unit, W, width }) {
+export function progressHTML({ hist, wv, loaded, soft = false, unit, W, width }) {
   if (unit === '-') return '';
   const u = unit === 's' ? 's' : '';
   const noun = unit === 's' ? 'seconds' : 'reps';
@@ -47,15 +57,17 @@ export function progressHTML({ hist, wv, loaded, unit, W, width }) {
   if (!hist.length) return `<div class="xp"><div class="xp-head"><div class="xp-t">Progress</div></div>
     <p class="xp-msg">Log your ${noun} and each session shows up here.</p></div>`;
 
-  const pts = currentRun(hist, loaded);
-  const w = pts[0].w;
-  const pending = loaded && wv !== undefined && (wv ?? 0) !== w;
+  const pts = currentRun(hist, loaded, soft);
+  const w = soft ? runW(pts) : pts[0].w;
+  /* an unknown weight is not a different one, and has no label to show */
+  const pending = loaded && wv !== undefined && (soft ? w !== null && wv !== w : (wv ?? 0) !== w);
+  const showW = loaded && !(soft && w === null);
   const delta = pts[pts.length - 1].best - pts[0].best;
   const chip = pts.length < 2 ? ''
     : `<div class="xp-delta ${delta > 0 ? 'up' : delta < 0 ? 'down' : ''}">${delta > 0 ? '+' : delta < 0 ? '−' : ''}${Math.abs(delta)} ${noun}</div>`;
 
   return `<div class="xp${pending ? ' pending' : ''}">
-    <div class="xp-head"><div class="xp-t">Progress${loaded ? `<span>${esc(W(w))}</span>` : ''}</div>${chip}</div>
+    <div class="xp-head"><div class="xp-t">Progress${showW ? `<span>${esc(W(w))}</span>` : ''}</div>${chip}</div>
     ${pending ? `<p class="xp-msg">Starts over at ${esc(W(wv))} after your first set.</p>` : ''}
     ${chart(pts, u, width)}
   </div>`;
