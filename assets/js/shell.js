@@ -18,6 +18,19 @@ import { THEMES, getTheme, setTheme, applyTheme } from './theme.js?v=3d-oct14d';
 // then import it here and add it to APPS.
 const APPS = [workout, finance, food];
 const ACTIVE_KEY = 'bartleby_active_app';
+/* Apps you have switched off in Settings. Hiding one only takes it out of
+   the nav; its data stays put (and stays in backups), so switching it back
+   on picks up where you left off. Lives under bs_ with the other suite
+   settings, so a backup carries it too. At least one app always stays on. */
+const HIDDEN_KEY = 'bs_hidden_apps';
+const hiddenApps = () => {
+  try { const v = JSON.parse(localStorage.getItem(HIDDEN_KEY)); return new Set(Array.isArray(v) ? v : []); }
+  catch { return new Set(); }
+};
+const shownApps = () => {
+  const off = hiddenApps(), list = APPS.filter(a => !off.has(a.id));
+  return list.length ? list : APPS;
+};
 // Each app declares its own storage prefix, so a new app joins the backup
 // and the storage breakdown by existing rather than by being listed twice.
 // bs_ carries suite-level settings (theme) and belongs to no app.
@@ -60,7 +73,7 @@ function loadStyles(href) {
 function renderNav() {
   /* The label is hidden on the mobile top bar, so the title carries the
      name for a long-press and for screen readers. */
-  nav.innerHTML = APPS.map(app => `
+  nav.innerHTML = shownApps().map(app => `
     <button class="app-btn" data-app="${app.id}" title="${app.name}" aria-label="${app.name}">
       <span class="app-ico">${app.icon || ''}</span>
       <span class="app-lbl">${app.name}</span>
@@ -68,10 +81,13 @@ function renderNav() {
     </button>`).join('');
   nav.querySelectorAll('.app-btn').forEach(btn =>
     btn.addEventListener('click', () => switchTo(btn.dataset.app)));
+  if (current) nav.querySelectorAll('.app-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.app === current.id));
 }
 
 function switchTo(id) {
-  const app = APPS.find(a => a.id === id) || APPS[0];
+  const shown = shownApps();
+  const app = shown.find(a => a.id === id) || shown[0];
   if (current && current.id === app.id) return;
 
   if (current) {
@@ -106,13 +122,14 @@ function switchTo(id) {
 
 function save(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} }
 function loadActive() {
+  const shown = shownApps();
   const fromHash = location.hash.slice(1);
-  if (APPS.some(a => a.id === fromHash)) return fromHash;
+  if (shown.some(a => a.id === fromHash)) return fromHash;
   try {
     const stored = JSON.parse(localStorage.getItem(ACTIVE_KEY));
-    if (APPS.some(a => a.id === stored)) return stored;
+    if (shown.some(a => a.id === stored)) return stored;
   } catch {}
-  return APPS[0].id;
+  return shown[0].id;
 }
 
 /* ═══════════════════ SETTINGS / BACKUP ═══════════════════ */
@@ -161,7 +178,10 @@ function buildSettings() {
         ${PEOPLED ? `<div class="sx-sec-lbl">Program</div>
         <div class="sx-eq" id="sx-who"></div>` : ''}
 
-        <div class="sx-sec-lbl${PEOPLED ? ' mt' : ''}">Theme</div>
+        <div class="sx-sec-lbl${PEOPLED ? ' mt' : ''}">Apps</div>
+        <div class="sx-eq" id="sx-apps"></div>
+
+        <div class="sx-sec-lbl mt">Theme</div>
         <div class="sx-themes" id="sx-themes"></div>
 
         <div id="sx-eq-sec">
@@ -206,6 +226,7 @@ function buildSettings() {
     else if (act === 'import') el.querySelector('#sx-file').click();
     else if (act === 'who') pickPerson(btn.dataset.id);
     else if (act === 'theme') pickTheme(btn.dataset.t);
+    else if (act === 'app') pickApp(btn.dataset.id, btn.dataset.v === '1');
     else if (act === 'eq') pickEquip(btn.dataset.id, btn.dataset.v === '1');
     else if (act === 'lv') pickLevel(btn.dataset.k, +btn.dataset.i);
     else if (act === 'lv-all') toggleLadder(btn.dataset.k);
@@ -224,6 +245,44 @@ function pickTheme(id) {
   syncSettings();
   broadcast();                       // apps re-render: some bake colours into SVG
   toast(`${THEMES.find(t => t.id === id)?.name || id} theme`);
+}
+
+/* ── which apps show ── */
+function paintApps() {
+  const el = document.getElementById('sx-apps');
+  if (!el) return;
+  const off = hiddenApps(), onCount = APPS.filter(a => !off.has(a.id)).length;
+  el.innerHTML = APPS.map(a => {
+    const on = !off.has(a.id), last = on && onCount <= 1;
+    return `
+    <div class="sx-row">
+      <div class="sx-row-l">
+        <div class="sx-row-t">${a.name}</div>
+        <div class="sx-row-s">${!on ? 'Hidden from the menu. Your data is kept.'
+          : last ? 'Your only app. One always stays on.' : 'In the menu.'}</div>
+      </div>
+      <div class="sx-seg">
+        <button class="sx-seg-btn ${on ? 'sel' : ''}" data-sx="app" data-id="${a.id}" data-v="1">Show</button>
+        <button class="sx-seg-btn ${on ? '' : 'sel'}" data-sx="app" data-id="${a.id}" data-v="0"${last ? ' disabled' : ''}>Hide</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function pickApp(id, show) {
+  const app = APPS.find(a => a.id === id);
+  const off = hiddenApps();
+  if (!app || show === !off.has(id)) return;
+  if (show) off.delete(id);
+  else {
+    if (APPS.filter(a => !off.has(a.id)).length <= 1) { toast('Keep at least one app'); return; }
+    off.add(id);
+  }
+  save(HIDDEN_KEY, [...off]);
+  renderNav();
+  if (!show && current && current.id === id) switchTo(shownApps()[0].id);
+  paintApps();
+  toast(show ? `${app.name} is back in the menu` : `${app.name} hidden — data kept`);
 }
 
 /* One entry per piece of optional kit the workout program can do without.
@@ -494,6 +553,7 @@ function syncSettings() {
   const el = document.getElementById('sx-ol');
   if (!el) return;
   const active = getTheme();
+  paintApps();
   el.querySelector('#sx-themes').innerHTML = THEMES.map(t => `
     <button class="sx-theme ${t.id === active ? 'sel' : ''}" data-sx="theme" data-t="${t.id}">
       <span class="sx-sw">${t.sw.map(c => `<i style="background:${c}"></i>`).join('')}</span>
@@ -607,5 +667,6 @@ switchTo(loadActive());
 
 window.addEventListener('hashchange', () => {
   const id = location.hash.slice(1);
-  if (APPS.some(a => a.id === id)) switchTo(id);
+  if (shownApps().some(a => a.id === id)) switchTo(id);
+  else if (current && APPS.some(a => a.id === id)) history.replaceState(null, '', '#' + current.id);
 });
