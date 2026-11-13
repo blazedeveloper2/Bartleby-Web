@@ -167,52 +167,115 @@ const fmtBytes = n => n < 1024 ? `${n} B`
    that changes meaning with the palette is not a legend. */
 const OWNER_COLOR = ['#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#f472b6', '#64748b'];
 
+/* ── settings sections ──
+
+   One long scroll of nine sections was the old modal: the theme you came to
+   change sat under the program picker, and the backup under four ladders.
+   Now it is four tabs, a side rail on a wide screen and a strip across the
+   top on a phone. A tab that belongs to an app (`app`) leaves with it when
+   that app is hidden. The tab you were on is remembered for the session. */
+const PANE_ICO = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const PANES = [
+  { k:'general', n:'General', i:PANE_ICO('<path d="M4 6h10"/><path d="M18 6h2"/><circle cx="16" cy="6" r="2"/><path d="M4 12h4"/><path d="M12 12h8"/><circle cx="10" cy="12" r="2"/><path d="M4 18h12"/><circle cx="18" cy="18" r="2"/>') },
+  { k:'workout', n:'Workout', app:'workout', i:PANE_ICO('<path d="M6.5 6.5v11"/><path d="M17.5 6.5v11"/><path d="M3 9.5v5"/><path d="M21 9.5v5"/><path d="M6.5 12h11"/>') },
+  { k:'food',    n:'Food',    app:'food', i:PANE_ICO('<path d="M4 3v5a3 3 0 0 0 6 0V3"/><path d="M7 3v18"/><path d="M17 21V3c-2.2 0-4 2.5-4 7v3h4"/>') },
+  { k:'data',    n:'Data',    i:PANE_ICO('<ellipse cx="12" cy="5.5" rx="8" ry="3"/><path d="M4 5.5v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/><path d="M4 11.5v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>') },
+];
+let pane = 'general';
+const paneShown = p => !p.app || (APPS.some(a => a.id === p.app) && !hiddenApps().has(p.app));
+
+function showPane(k) {
+  const el = document.getElementById('sx-ol');
+  if (!el) return;
+  const list = PANES.filter(paneShown);
+  const p = list.find(x => x.k === k) || list[0];
+  const changed = p.k !== pane;
+  pane = p.k;
+  el.querySelectorAll('.sx-nav-b').forEach(b => {
+    const on = b.dataset.p === pane;
+    b.hidden = !list.some(x => x.k === b.dataset.p);
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', on);
+    b.tabIndex = on ? 0 : -1;
+  });
+  el.querySelectorAll('.sx-pane').forEach(s => s.hidden = s.dataset.pane !== pane);
+  if (changed) el.querySelector('#sx-body').scrollTop = 0;
+  el.querySelector('.sx-nav-b.on')?.scrollIntoView({ block:'nearest', inline:'nearest' });
+}
+
 function buildSettings() {
   const el = document.createElement('div');
   el.className = 'sx-overlay';
   el.id = 'sx-ol';
   el.innerHTML = `
-    <div class="sx-card">
-      <div class="sx-head"><div class="sx-title">Settings</div><button class="sx-close" data-sx="close">&times;</button></div>
-      <div class="sx-body">
-        ${PEOPLED ? `<div class="sx-sec-lbl">Program</div>
-        <div class="sx-eq" id="sx-who"></div>` : ''}
+    <div class="sx-card" role="dialog" aria-modal="true" aria-labelledby="sx-title">
+      <div class="sx-head"><div class="sx-title" id="sx-title">Settings</div><button class="sx-close" data-sx="close" aria-label="Close settings">&times;</button></div>
+      <div class="sx-main">
+        <nav class="sx-nav" role="tablist" aria-label="Settings sections">${PANES.map(p => `
+          <button class="sx-nav-b" role="tab" data-sx="pane" data-p="${p.k}" id="sx-tab-${p.k}" aria-controls="sx-pane-${p.k}">
+            <span class="sx-nav-i">${p.i}</span><span class="sx-nav-n">${p.n}</span>
+          </button>`).join('')}
+        </nav>
+        <div class="sx-body" id="sx-body">
+          <section class="sx-pane" data-pane="general" id="sx-pane-general" role="tabpanel" aria-labelledby="sx-tab-general">
+            <div class="sx-grp">
+              <div class="sx-sec-lbl">Apps</div>
+              <div class="sx-sec-sub">Hide an app you don't use. Its data is kept.</div>
+              <div class="sx-eq" id="sx-apps"></div>
+            </div>
+            <div class="sx-grp">
+              <div class="sx-sec-lbl">Theme</div>
+              <div class="sx-themes" id="sx-themes"></div>
+            </div>
+          </section>
 
-        <div class="sx-sec-lbl${PEOPLED ? ' mt' : ''}">Apps</div>
-        <div class="sx-eq" id="sx-apps"></div>
+          <section class="sx-pane" data-pane="workout" id="sx-pane-workout" role="tabpanel" aria-labelledby="sx-tab-workout">
+            ${PEOPLED ? `<div class="sx-grp">
+              <div class="sx-sec-lbl">Program</div>
+              <div class="sx-eq" id="sx-who"></div>
+            </div>` : ''}
+            <div class="sx-grp">
+              <div class="sx-sec-lbl">Logging</div>
+              <div class="sx-eq" id="sx-pref"></div>
+            </div>
+            <div class="sx-grp" id="sx-eq-sec">
+              <div class="sx-sec-lbl">Equipment</div>
+              <div class="sx-eq" id="sx-eq"></div>
+            </div>
+            ${SKILLED.length ? `<div class="sx-grp" id="sx-lv-sec">
+              <div class="sx-sec-lbl">Calisthenics Level</div>
+              <div class="sx-lv" id="sx-lv"></div>
+            </div>` : ''}
+          </section>
 
-        <div class="sx-sec-lbl mt">Theme</div>
-        <div class="sx-themes" id="sx-themes"></div>
+          <section class="sx-pane" data-pane="food" id="sx-pane-food" role="tabpanel" aria-labelledby="sx-tab-food">
+            <div class="sx-grp">
+              <div class="sx-sec-lbl">Tracking</div>
+              <div class="sx-eq" id="sx-food"></div>
+            </div>
+          </section>
 
-        <div id="sx-eq-sec">
-        <div class="sx-sec-lbl mt">Equipment</div>
-        <div class="sx-eq" id="sx-eq"></div>
+          <section class="sx-pane" data-pane="data" id="sx-pane-data" role="tabpanel" aria-labelledby="sx-tab-data">
+            <div class="sx-grp">
+              <div class="sx-sec-lbl">Backup</div>
+              <div class="sx-usage">
+                <div class="sx-usage-top"><span>On-device storage</span><span id="sx-usage-txt"></span></div>
+                <div class="sx-bar" id="sx-bar"></div>
+                <div class="sx-legend" id="sx-legend"></div>
+                <div class="sx-hint">All your data lives only in this browser. Export a backup file before switching phones or browsers, then import it on the new one to restore everything.</div>
+              </div>
+              <div class="sx-actions">
+                <button class="sx-btn pri" data-sx="export">Export Backup</button>
+                <button class="sx-btn" data-sx="import">Import Backup</button>
+              </div>
+              <input type="file" id="sx-file" accept="application/json,.json" hidden>
+            </div>
+            <div class="sx-grp">
+              <div class="sx-sec-lbl danger">Danger Zone</div>
+              <div class="sx-danger" id="sx-danger"></div>
+            </div>
+          </section>
         </div>
-
-        <div class="sx-sec-lbl mt">Workout</div>
-        <div class="sx-eq" id="sx-pref"></div>
-
-        <div class="sx-sec-lbl mt">Food</div>
-        <div class="sx-eq" id="sx-food"></div>
-
-        ${SKILLED.length ? `<div id="sx-lv-sec"><div class="sx-sec-lbl mt">Calisthenics Level</div>
-        <div class="sx-lv" id="sx-lv"></div></div>` : ''}
-
-        <div class="sx-sec-lbl mt">Data &amp; Backup</div>
-        <div class="sx-usage">
-          <div class="sx-usage-top"><span>On-device storage</span><span id="sx-usage-txt"></span></div>
-          <div class="sx-bar" id="sx-bar"></div>
-          <div class="sx-legend" id="sx-legend"></div>
-          <div class="sx-hint">All your data lives only in this browser. Export a backup file before switching phones or browsers, then import it on the new one to restore everything.</div>
-        </div>
-        <div class="sx-actions">
-          <button class="sx-btn pri" data-sx="export">Export Backup</button>
-          <button class="sx-btn" data-sx="import">Import Backup</button>
-        </div>
-        <input type="file" id="sx-file" accept="application/json,.json" hidden>
-
-        <div class="sx-sec-lbl mt danger">Danger Zone</div>
-        <div class="sx-danger" id="sx-danger"></div>
       </div>
     </div>`;
   document.body.appendChild(el);
@@ -227,6 +290,7 @@ function buildSettings() {
     else if (act === 'who') pickPerson(btn.dataset.id);
     else if (act === 'theme') pickTheme(btn.dataset.t);
     else if (act === 'app') pickApp(btn.dataset.id, btn.dataset.v === '1');
+    else if (act === 'pane') showPane(btn.dataset.p);
     else if (act === 'eq') pickEquip(btn.dataset.id, btn.dataset.v === '1');
     else if (act === 'lv') pickLevel(btn.dataset.k, +btn.dataset.i);
     else if (act === 'lv-all') toggleLadder(btn.dataset.k);
@@ -235,6 +299,14 @@ function buildSettings() {
     else if (act === 'rs-go') runReset();
   });
   el.querySelector('#sx-file').addEventListener('change', importBackup);
+  el.querySelector('.sx-nav').addEventListener('keydown', e => {
+    const dir = { ArrowDown:1, ArrowRight:1, ArrowUp:-1, ArrowLeft:-1 }[e.key];
+    if (!dir) return;
+    e.preventDefault();
+    const list = PANES.filter(paneShown), i = list.findIndex(p => p.k === pane);
+    showPane(list[(i + dir + list.length) % list.length].k);
+    el.querySelector('.sx-nav-b.on')?.focus();
+  });
   return el;
 }
 
@@ -252,21 +324,16 @@ function paintApps() {
   const el = document.getElementById('sx-apps');
   if (!el) return;
   const off = hiddenApps(), onCount = APPS.filter(a => !off.has(a.id)).length;
-  el.innerHTML = APPS.map(a => {
+  el.innerHTML = `<div class="sx-list">${APPS.map(a => {
     const on = !off.has(a.id), last = on && onCount <= 1;
     return `
-    <div class="sx-row">
-      <div class="sx-row-l">
-        <div class="sx-row-t">${a.name}</div>
-        <div class="sx-row-s">${!on ? 'Hidden from the menu. Your data is kept.'
-          : last ? 'Your only app. One always stays on.' : 'In the menu.'}</div>
-      </div>
-      <div class="sx-seg">
-        <button class="sx-seg-btn ${on ? 'sel' : ''}" data-sx="app" data-id="${a.id}" data-v="1">Show</button>
-        <button class="sx-seg-btn ${on ? '' : 'sel'}" data-sx="app" data-id="${a.id}" data-v="0"${last ? ' disabled' : ''}>Hide</button>
-      </div>
+    <div class="sx-li${on ? '' : ' off'}">
+      <span class="sx-li-i">${a.icon || ''}</span>
+      <span class="sx-li-t"><b>${a.name}</b><em>${!on ? 'Hidden · data kept' : last ? 'Your only app' : 'In the menu'}</em></span>
+      <button class="sx-switch" role="switch" aria-checked="${on}" aria-label="Show ${a.name}"
+        data-sx="app" data-id="${a.id}" data-v="${on ? 0 : 1}"${last ? ' disabled title="One app always stays on"' : ''}><i></i></button>
     </div>`;
-  }).join('');
+  }).join('')}</div>`;
 }
 
 function pickApp(id, show) {
@@ -282,6 +349,7 @@ function pickApp(id, show) {
   renderNav();
   if (!show && current && current.id === id) switchTo(shownApps()[0].id);
   paintApps();
+  showPane(pane);
   toast(show ? `${app.name} is back in the menu` : `${app.name} hidden — data kept`);
 }
 
@@ -614,9 +682,13 @@ function openSettings() {
 
   syncSettings();
   paintDanger();
+  showPane(pane);
   el.classList.add('on');
 }
 function closeSettings() { document.getElementById('sx-ol')?.classList.remove('on'); }
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('sx-ol')?.classList.contains('on')) closeSettings();
+});
 
 function exportBackup() {
   const data = {};

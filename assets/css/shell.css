@@ -115,19 +115,68 @@
 .sx-card{position:relative;background:var(--bg-card);border:none;border-radius:0;--n:14px;
   box-shadow:inset 0 0 0 1px var(--border);
   clip-path:polygon(var(--n) 0,100% 0,100% calc(100% - var(--n)),calc(100% - var(--n)) 100%,0 100%,0 var(--n));
-  width:100%;max-width:440px;animation:sx-in .22s ease}
+  width:100%;max-width:640px;height:min(84vh,700px);display:flex;flex-direction:column;animation:sx-in .22s ease}
 @keyframes sx-in{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}
 .sx-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
 .sx-title{font-size:16px;font-weight:700}
 .sx-close{background:none;border:none;color:var(--text-3);font-size:22px;line-height:1;cursor:pointer;padding:4px 8px;border-radius:6px;transition:all .12s}
 .sx-close:hover{color:var(--text);background:var(--bg-hover)}
-.sx-body{padding:18px 20px 22px}
-.sx-body{max-height:min(78vh,760px);overflow-y:auto}
+/* Tabs down the left, the open one's settings on the right. The card has a
+   fixed height so switching tabs never makes the whole modal jump. */
+.sx-main{flex:1;min-height:0;display:flex}
+.sx-nav{flex-shrink:0;width:156px;display:flex;flex-direction:column;gap:3px;padding:14px 10px;border-right:1px solid var(--border)}
+.sx-nav-b{display:flex;align-items:center;gap:10px;width:100%;padding:10px 11px;border:none;border-radius:7px;background:none;
+  color:var(--text-3);font-family:var(--font);font-size:13px;font-weight:600;text-align:left;cursor:pointer;transition:background .12s,color .12s}
+.sx-nav-b:hover{background:var(--bg-hover);color:var(--text-2)}
+.sx-nav-b.on{background:var(--blue-d);color:var(--blue)}
+.sx-nav-b[hidden]{display:none}
+.sx-nav-b:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+.sx-nav-i{display:flex;width:18px;height:18px;flex-shrink:0}
+.sx-nav-i svg{width:18px;height:18px}
+.sx-body{flex:1;min-width:0;overflow-y:auto;overscroll-behavior:contain;padding:18px 20px 24px;
+  scrollbar-width:thin;scrollbar-color:var(--border-lt) transparent}
+.sx-pane{display:flex;flex-direction:column;gap:26px}
+.sx-pane[hidden]{display:none}
+.sx-grp[hidden]{display:none}
 .sx-sec-lbl{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-3);margin-bottom:12px}
-.sx-sec-lbl.mt{margin-top:22px}
+/* Compact on/off list: one row per item, a switch at the end. */
+.sx-list{background:var(--bg);box-shadow:inset 0 0 0 1px var(--border);--n:8px;
+  clip-path:polygon(var(--n) 0,100% 0,100% calc(100% - var(--n)),calc(100% - var(--n)) 100%,0 100%,0 var(--n))}
+.sx-li{display:flex;align-items:center;gap:12px;padding:11px 13px}
+.sx-li+.sx-li{border-top:1px solid var(--border)}
+.sx-li-i{display:flex;width:18px;height:18px;flex-shrink:0;color:var(--blue)}
+.sx-li-i svg{width:18px;height:18px}
+.sx-li.off .sx-li-i{color:var(--text-3)}
+.sx-li-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.sx-li-t b{font-size:13.5px;font-weight:600}
+.sx-li-t em{font-size:11px;font-style:normal;color:var(--text-3)}
+.sx-li.off .sx-li-t b{color:var(--text-2)}
+.sx-switch{position:relative;flex-shrink:0;width:40px;height:23px;border-radius:20px;border:1px solid var(--border-lt);
+  background:var(--bg-alt);cursor:pointer;padding:0;transition:background .15s,border-color .15s}
+.sx-switch i{position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:var(--text-3);transition:transform .15s,background .15s}
+.sx-switch[aria-checked="true"]{background:var(--blue);border-color:var(--blue)}
+.sx-switch[aria-checked="true"] i{transform:translateX(17px);background:var(--on-accent)}
+.sx-switch:disabled{opacity:.45;cursor:default}
+.sx-switch:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.sx-sec-sub{font-size:11.5px;color:var(--text-3);line-height:1.45;margin:-6px 0 12px}
+
+/* Phone: a full-screen sheet, the tabs a strip across the top. */
+@media(max-width:600px){
+  .sx-overlay{padding:0;align-items:stretch}
+  .sx-card{max-width:none;height:100%;clip-path:none;box-shadow:none}
+  .sx-head{padding:calc(12px + env(safe-area-inset-top)) 16px 12px}
+  .sx-close{font-size:26px;padding:6px 10px}
+  .sx-main{flex-direction:column}
+  .sx-nav{width:auto;flex-direction:row;gap:4px;padding:8px 10px;border-right:none;border-bottom:1px solid var(--border);
+    overflow-x:auto;scrollbar-width:none}
+  .sx-nav::-webkit-scrollbar{display:none}
+  .sx-nav-b{flex:1 1 0;min-width:max-content;width:auto;justify-content:center;gap:6px;padding:9px 6px;font-size:12.5px}
+  .sx-nav-i,.sx-nav-i svg{width:16px;height:16px}
+  .sx-body{padding:16px 16px calc(28px + env(safe-area-inset-bottom))}
+}
 
 /* ── theme picker ── */
-.sx-themes{display:flex;flex-direction:column;gap:8px}
+.sx-themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
 .sx-theme{position:relative;display:flex;align-items:center;gap:12px;width:100%;text-align:left;cursor:pointer;
   background:var(--bg);border:none;border-radius:0;--n:8px;box-shadow:inset 0 0 0 1px var(--border);
   clip-path:polygon(var(--n) 0,100% 0,100% calc(100% - var(--n)),calc(100% - var(--n)) 100%,0 100%,0 var(--n));
