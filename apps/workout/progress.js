@@ -55,7 +55,7 @@ export function progressHTML({ hist, wv, loaded, soft = false, unit, W, width })
   const noun = unit === 's' ? 'seconds' : 'reps';
 
   if (!hist.length) return `<div class="xp"><div class="xp-head"><div class="xp-t">Progress</div></div>
-    <p class="xp-msg">Log your ${noun} and each session shows up here.</p></div>`;
+    <p class="xp-msg">No sessions logged yet.</p></div>`;
 
   const pts = currentRun(hist, loaded, soft);
   const w = soft ? runW(pts) : pts[0].w;
@@ -72,7 +72,7 @@ export function progressHTML({ hist, wv, loaded, soft = false, unit, W, width })
     ${pts.length < 2
       /* One session is a dot, not a line, and a chart's worth of card for
          one dot told you nothing its number does not. */
-      ? `<p class="xp-msg">One session so far: best set <b>${pts[0].best}${u}</b> on ${fmtD(pts[0].d)}. The line starts with the next one.</p>`
+      ? `<p class="xp-msg">One session so far, best set <b>${pts[0].best}${u}</b> on ${fmtD(pts[0].d)}.</p>`
       : chart(pts, u, width)}
   </div>`;
 }

@@ -1867,3 +1867,15 @@ html[data-theme="redline"] .rk-seg,html[data-theme="black"] .rk-seg,html[data-th
 /* the fold is named Progress now, so the chart's own heading keeps only the weight */
 .wk .mm-fold .xp-t{font-size:0}
 .wk .mm-fold .xp-t>span{margin-left:0;font-size:12px}
+
+/* ── the lab's rank: the question, then its answer on its own line ── */
+.mm-rank-b{min-width:0}
+.mm-rank-k{font-size:12px;line-height:1.35;color:var(--text-3)}
+.mm-rank-v{margin:1px 0;font-family:var(--mono);font-size:17px;font-weight:700;line-height:1.3;color:var(--text)}
+/* the reset, said quietly under the chart it resets */
+.wk #mm-rebase:empty{display:none}
+.wk #mm-rebase{padding:0 22px 12px;border-bottom:1px solid var(--border)}
+.wk #mm-rebase .mm-rebase{display:inline;width:auto;margin:0;padding:6px 0;background:none;border:0;
+  font-size:11.5px;color:var(--text-3);text-decoration:underline;text-underline-offset:3px}
+.wk #mm-prog:has(+ #mm-rebase:not(:empty)) .xp{border-bottom:0;padding-bottom:6px}
+@media(max-width:480px){.wk #mm-rebase{padding:0 16px 10px}}

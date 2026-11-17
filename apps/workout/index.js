@@ -16,9 +16,9 @@ import {
   liftScores, standingOf, resEx, resKit, lvlOf, setLvl, resetTargets, applyReset,
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip, exHistory,
-  chkAll, chkSave, lastCount, dayCount, latchAwards, xsKey, nextLine, sessionDetailHTML,
-} from './rank.js?v=3d-nov16k';
-import { progressHTML } from './progress.js?v=3d-nov16c';
+  chkAll, chkSave, lastCount, dayCount, latchAwards, xsKey, nextParts, sessionDetailHTML,
+} from './rank.js?v=3d-nov16m';
+import { progressHTML } from './progress.js?v=3d-nov16m';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
@@ -28,7 +28,7 @@ import { restBand, BANDS, fmtRest } from './rest.js?v=3d-oct14d';
 import * as rest from './timer.js?v=3d-nov16k';
 import * as timing from './sessions.js?v=3d-nov16h';
 import { HOWTO } from './howto.js?v=3d-oct14h';
-import * as anatomy from './anatomy.js?v=3d-nov16k';
+import * as anatomy from './anatomy.js?v=3d-nov16m';
 import { animHTML, playAnim } from './pose.js?v=3d-nov16k';
 import { standingsFor } from './anthro.js?v=3d-oct14d';
 import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=3d-nov05b';
@@ -428,19 +428,24 @@ function mmRankHTML(st) {
     return `<div class="mm-rank none">Log your bodyweight on the Body tab to get a rank.</div>`;
   if (st.state === 'noweight')
     return `<div class="mm-rank none">${trackOf(mmEx).load === 'added' ? 'Add weight above to get a rank.' : 'Set a weight above to get a rank.'}</div>`;
-  /* Always on the card, never inside a fold: the letter, and the one thing
-     it takes to reach the next. It had grown to three lines ("Rank C,
-     Novice", "Stronger than 34% of lifters", "To reach B: go up to…") and
-     then been folded away with the progress chart; the rank is the reason
-     to look at this card between sets, and one line is all of it you act
-     on. The tier's name and the percentile are on the Rank tab. */
+  /* Always on the card, never inside a fold: the letter, then the
+     question on one line and its answer, larger, on the next —
+
+         To reach B
+         35 lbs or 15 reps
+
+     It had grown to three sentences and then been folded away with the
+     progress chart; the rank is the reason to look at this card between
+     sets, and this is all of it you act on. The tier's name and the
+     percentile are on the Rank tab. */
   const l = st.lift;
-  const next = nextLine(l);
+  const np = nextParts(l);
   return `<div class="mm-rank">
     <div class="mm-rank-l" style="color:var(${l.rank.c})"><small>Rank</small>${l.rank.l}</div>
-    <div class="mm-rank-s">${next
-      ? `${next}${l.over && !l.toReps ? `, past your ${DB_MAX} lb dumbbells` : ''}`
-      : 'Top of the scale'}</div>
+    <div class="mm-rank-b">${np
+      ? `<div class="mm-rank-k">${np[0]}</div><div class="mm-rank-v">${np[1]}</div>${
+          l.over && !l.toReps ? `<div class="mm-rank-k">past your ${DB_MAX} lb dumbbells</div>` : ''}`
+      : `<div class="mm-rank-v">Top of the scale</div>`}</div>
   </div>`;
 }
 
@@ -932,7 +937,6 @@ function paintMMStanding(keepBoxes = false) {
   if (verdict && (keepBoxes || reps.contains(document.activeElement))) { verdict.innerHTML = mmVerdictHTML(); paintSetNow(); }
   else reps.innerHTML = mmRepsHTML();
   paintProg();
-  q('#mm-stats').hidden = !q('#mm-prog').innerHTML.trim() && !q('#mm-rebase').innerHTML.trim();
   q('#mm-lvl').innerHTML = mmLvlHTML();
 }
 
@@ -955,8 +959,7 @@ function mmProgHTML() {
   const tr = mmTrack();
   if (!tr || tr.t.unit === '-') return '';
   /* the box spans the card; the chart sits inside .pg's side padding */
-  /* inside the Stats row's own padding now; a guess while the row is shut */
-  const width = q('#mm-prog')?.clientWidth || Math.min(560, innerWidth - 20) - (innerWidth <= 480 ? 32 : 44);
+  const width = (q('#mm-prog')?.clientWidth || Math.min(560, innerWidth - 20)) - (innerWidth <= 480 ? 32 : 44);
   const added = tr.t.load === 'added';
   return progressHTML({
     hist: exHistory(mmEx, tr.store === 'reps' ? mmEx.n : undefined),
@@ -975,7 +978,7 @@ function mmProgHTML() {
    the app thinks you got weaker. */
 function rebaseHTML() {
   if (!mmEx || !hasHistory(mmEx.n)) return '';
-  return `<button class="mm-rebase" data-act="mm-rebase" title="Void this lift's recorded history and start it again from the weight above">Had this wrong? Start this lift over</button>`;
+  return `<button class="mm-rebase" data-act="mm-rebase" title="Void this lift's recorded history and start it again from the weight above">Start this lift over</button>`;
 }
 
 function doRebase() {
@@ -1044,9 +1047,9 @@ function openMM(ex) {
      chart, the rank, the how-to, a muscle map and a muscle list, about
      two and a half screens. Now the prescription is one line under the
      name (with the rep range the weight is meant to fail in, which used
-     to live on the strip under the boxes), the rank is one line under the
-     boxes, and Progress, How to and Muscles are three rows that open on a
-     tap and start shut each time. */
+     to live on the strip under the boxes), the rank and the progress chart
+     sit under the boxes, and How to and Muscles are two rows that open on
+     a tap and start shut each time. */
   const band = BANDS[restBand(ex)], rs = restSecs(ex);
   const own = rs !== band.s ? `, ${fmtRest(band.s)} by default, ${rs > band.s ? 'longer' : 'shorter'} from your own ±15s` : '';
   const tk = trackOf(ex);
@@ -1183,7 +1186,6 @@ function toggleFold(btn) {
   const open = body.hidden;
   body.hidden = !open;
   btn.setAttribute('aria-expanded', String(open));
-  if (sec.id === 'mm-stats' && open) paintProg();        // it had no width to draw at while shut
   if (sec.id !== 'mm-musc' || !mmEx) return;
   if (open) show3D(mmEx);
   else { mv3?.hide(); q('.mm-map').classList.remove('is-3d'); }
@@ -2432,15 +2434,8 @@ function template() {
         </div>
         <div id="mm-reps"></div>
         <div id="mm-rank"></div>
-        <section class="mm-fold" id="mm-stats">
-          <button type="button" class="mm-fold-tog" data-act="mm-fold" aria-expanded="false" aria-controls="mm-stats-body">
-            <span>Progress</span><small id="mm-stats-sum"></small><i aria-hidden="true"></i>
-          </button>
-          <div class="mm-fold-body" id="mm-stats-body" hidden>
-            <div id="mm-prog"></div>
-            <div id="mm-rebase"></div>
-          </div>
-        </section>
+        <div id="mm-prog"></div>
+        <div id="mm-rebase"></div>
         <section class="mm-howto" id="mm-howto"></section>
         <section class="mm-fold" id="mm-musc">
           <button type="button" class="mm-fold-tog" data-act="mm-fold" aria-expanded="false" aria-controls="mm-musc-body">
@@ -2510,7 +2505,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=3d-nov16l',
+  styles: 'apps/workout/workout.css?v=3d-nov16m',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {

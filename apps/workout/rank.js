@@ -1263,6 +1263,14 @@ export function nextLine(l, long = false) {
   if (l.toReps) ways.push(long ? `do ${B(`${l.toReps} reps`)} at ${wTxt(l.w)} lbs` : `${l.toReps} reps`);
   return `To reach ${l.rank.next.l}: ${ways.join(long ? ', or ' : ' or ')}`;
 }
+/* The same answer in two pieces, for the lab, which sets the question on
+   one line and the answer under it: ["To reach B", "35 lbs or 15 reps"]. */
+export function nextParts(l) {
+  const s = nextLine(l);
+  if (!s) return null;
+  const i = s.indexOf(': ');
+  return [s.slice(0, i), s.slice(i + 2)];
+}
 
 export function liftScores() {
   const st = strength();
