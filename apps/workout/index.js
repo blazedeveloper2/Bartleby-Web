@@ -16,8 +16,8 @@ import {
   liftScores, standingOf, resEx, resKit, lvlOf, setLvl, resetTargets, applyReset,
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip, exHistory,
-  chkAll, chkSave, lastCount, dayCount, latchAwards, xsKey, nextStep, sessionDetailHTML,
-} from './rank.js?v=3d-nov16f';
+  chkAll, chkSave, lastCount, dayCount, latchAwards, xsKey, nextLine, sessionDetailHTML,
+} from './rank.js?v=3d-nov16g';
 import { progressHTML } from './progress.js?v=3d-nov16c';
 
 /* Which movements have a published standard, so the rep boxes only appear
@@ -28,7 +28,7 @@ import { restBand, BANDS, fmtRest } from './rest.js?v=3d-oct14d';
 import * as rest from './timer.js?v=3d-nov16b';
 import * as timing from './sessions.js?v=3d-oct18a';
 import { HOWTO } from './howto.js?v=3d-oct14h';
-import * as anatomy from './anatomy.js?v=3d-nov16f';
+import * as anatomy from './anatomy.js?v=3d-nov16g';
 import { animHTML, playAnim } from './pose.js?v=3d-nov16c';
 import { standingsFor } from './anthro.js?v=3d-oct14d';
 import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=3d-nov05b';
@@ -430,20 +430,23 @@ function mmRankHTML(st) {
     return `<div class="mm-rank none">${trackOf(mmEx).load === 'added'
       ? 'Bodyweight reps are counted, not scored — add weight above and this lift starts scoring.'
       : 'Set a working weight above and this lift starts scoring.'}</div>`;
+  /* Three lines, each a plain statement: what rank this lift is, what
+     that means, and what the next one takes. It used to be "Novice · 49th
+     percentile [PROXY]" over "35 lbs or 12 reps at 30 → B · Intermediate":
+     every word true and the whole thing a puzzle. The tag for which
+     published standard a lift is scored against is gone from here; it
+     never changed what you would do next. */
   const l = st.lift;
-  const src = l.srcLabel ? `<span class="rk-lift-src ${l.src}" title="${l.note || ''}">${l.srcLabel}</span>`
-            : (l.note ? `<span class="rk-lift-src info" title="${l.note}">i</span>` : '');
-  /* in steps that exist: the next weight on the rack, or a rep count at
-     this one (nextStep, rank.js) */
-  const ns = nextStep(l, true);
-  const next = ns
-    ? `<b>${ns.join('</b> or <b>')}</b> → ${l.rank.next.l} · ${l.rank.next.name}${l.over && !l.toReps ? ` · heavier than your ${DB_MAX} lb dumbbells` : ''}`
-    : 'Past the top of the published scale.';
+  const means = l.pct >= 1 ? `Stronger than ${Math.floor(l.pct)}% of lifters` : 'Below the published tables so far';
+  const next = nextLine(l, true);
   return `<div class="mm-rank">
     <div class="mm-rank-l" style="color:var(${l.rank.c})">${l.rank.l}</div>
     <div class="mm-rank-b">
-      <div class="mm-rank-n">${l.rank.name} · ${ord(l.pct)} percentile${src}</div>
-      <div class="mm-rank-s">${next}</div>
+      <div class="mm-rank-n">Rank ${l.rank.l} · ${l.rank.name}</div>
+      <div class="mm-rank-p">${means}</div>
+      <div class="mm-rank-s">${next
+        ? `${next}${l.over && !l.toReps ? ` (heavier than your ${DB_MAX} lb dumbbells)` : ''}`
+        : 'Past the top of the published scale.'}</div>
     </div>
   </div>`;
 }
@@ -2482,7 +2485,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=3d-nov16f',
+  styles: 'apps/workout/workout.css?v=3d-nov16g',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {

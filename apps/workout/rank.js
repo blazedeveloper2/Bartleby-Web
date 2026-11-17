@@ -1239,21 +1239,29 @@ export function setReps(r) { if (REP_OPTS.includes(+r)) sReps(+r); }
 /* The map, plus the one fact about HOW it was scored that the Program tab's
    tooltips need. Returned from the same run rather than fetched by a second
    strength() call, which would re-score every lift to read one boolean. */
-/* What the next letter takes, as the parts of a sentence: ["50 lbs",
-   "11 reps"] reads "50 lbs or 11 reps → C". `long` names the weight the
-   reps are at, for the lab, which has the room. A lift with no rack to
-   read (toW null) keeps the plain pounds. */
+/* What the next letter takes, as a sentence in plain words:
+
+     long   "To reach B: go up to <b>35 lbs</b>, or do <b>12 reps</b> at 30 lbs"
+     short  "To reach B: 35 lbs or 12 reps"
+
+   It was "35 lbs or 12 reps at 30 → B", which put the answer before the
+   question and left the arrow to carry the meaning. A lift with no rack to
+   read (toW null) says how many pounds to add instead. Past the top of the
+   rack there is no weight to name: if reps can get there they are the
+   whole answer, and if not the pounds stand (the lab says why). */
 const wTxt = n => (Math.round(n * 10) % 10 === 0 ? String(Math.round(n)) : n.toFixed(1));
-export function nextStep(l, long = false) {
+export function nextLine(l, long = false) {
   if (!l.rank.next || l.need === null) return null;
-  const parts = [l.toW !== null && l.toW !== undefined
-    ? `${wTxt(l.toW)} lbs`
-    : `+${l.need < 1 ? l.need.toFixed(1) : Math.round(l.need)} lbs`];
-  if (l.toReps) parts.push(long ? `${l.toReps} reps at ${wTxt(l.w)}` : `${l.toReps} reps`);
-  /* past the top of the rack there is no weight to name: if reps can get
-     there they are the whole answer, and if not the pounds stand, marked */
-  if (l.over && l.toReps) parts.shift();
-  return parts;
+  const B = s => (long ? `<b>${s}</b>` : s);
+  const ways = [];
+  if (l.toW !== null && l.toW !== undefined)
+    ways.push(long ? `go up to ${B(`${wTxt(l.toW)} lbs`)}` : `${wTxt(l.toW)} lbs`);
+  else if (!(l.over && l.toReps)) {
+    const n = l.need < 1 ? l.need.toFixed(1) : Math.round(l.need);
+    ways.push(long ? `add ${B(`${n} lbs`)}` : `+${n} lbs`);
+  }
+  if (l.toReps) ways.push(long ? `do ${B(`${l.toReps} reps`)} at ${wTxt(l.w)} lbs` : `${l.toReps} reps`);
+  return `To reach ${l.rank.next.l}: ${ways.join(long ? ', or ' : ' or ')}`;
 }
 
 export function liftScores() {
@@ -1990,11 +1998,11 @@ function wireTrend(p, g) {
 function repChip(l) {
   if (l.repsLogged) {
     const sets = l.repSets.filter(n => n > 0);
-    return `<span class="rk-lift-src counted" title="Counted ${sets.join(', ')} at ${l.w} lbs on ${l.repsDate}. The best set (${l.reps}) is what the estimate is read off — the later ones are lower because of fatigue, not because you got weaker mid-session.">${l.reps} reps</span>`;
+    return `<span class="rk-lift-src counted" title="Counted ${sets.join(', ')} at ${l.w} lbs on ${l.repsDate}. The best set (${l.reps}) is what the estimate is read off — the later ones are lower because of fatigue, not because you got weaker mid-session.">best ${l.reps} reps</span>`;
   }
   if (l.repsStale)
-    return `<span class="rk-lift-src stale" title="Your counted reps were logged at ${l.repsStaleW} lbs and this lift is at ${l.w} now, so they no longer apply. Assuming ${l.reps} until you count a set at the new weight.">reps stale</span>`;
-  return `<span class="rk-lift-src assumed" title="No reps counted for this lift, so the estimate assumes ${l.reps}. Open it from the Program tab and log what you actually hit — it is the single biggest thing separating this number from a guess.">assumes ${l.reps}</span>`;
+    return `<span class="rk-lift-src stale" title="Your counted reps were logged at ${l.repsStaleW} lbs and this lift is at ${l.w} now, so they no longer apply. Assuming ${l.reps} until you count a set at the new weight.">reps out of date</span>`;
+  return `<span class="rk-lift-src assumed" title="No reps counted for this lift, so the estimate assumes ${l.reps}. Open it from the Program tab and log what you actually hit — it is the single biggest thing separating this number from a guess.">reps not logged</span>`;
 }
 
 function liftsHTML(st) {
@@ -2005,22 +2013,16 @@ function liftsHTML(st) {
   const rows = shown.map(l => `
     <div class="rk-lift">
       <div class="rk-lift-top">
-        <div class="rk-lift-n">${l.name}${l.srcLabel
-            ? `<span class="rk-lift-src ${l.src}" title="${l.note || ''}">${l.srcLabel}</span>`
-            : (l.note ? `<span class="rk-lift-src info" title="${l.note}">i</span>` : '')}${repChip(l)}${l.pending
-            ? `<span class="rk-lift-src pend" title="No completed session at ${l.w} lbs yet${l.provenW ? ` — last trained at ${l.provenW} lbs` : ''}. This row is an estimate until there is one.">Untested</span>` : ''}</div>
+        <div class="rk-lift-n">${l.name}${repChip(l)}${l.pending
+            ? `<span class="rk-lift-src pend" title="No completed session at ${l.w} lbs yet${l.provenW ? ` — last trained at ${l.provenW} lbs` : ''}. This row is an estimate until there is one.">not trained yet</span>` : ''}</div>
         <div class="rk-lift-r" style="color:var(${l.rank.c})">${l.rank.l}</div>
       </div>
       ${bandTrack(l.pct, false)}
       <div class="rk-lift-foot">
-        <span><b>${l.w}</b> lbs · <b>${l.approx ? '~' : ''}${Math.round(l.oneRM)}</b> ${l.oneRMLabel}${l.approx
-            ? ` <span class="rk-lift-src approx" title="Read off a ${l.reps}-rep set. Every 1RM formula loses accuracy as the rep count climbs, and past about 12 it is extrapolating a long way off one linear term — so this is the right order of magnitude rather than a figure to hold to the pound. The ratio and the letter carry the same looseness.">approx</span>`
-            : ''} · ${l.ratio.toFixed(2)}× ${st.usingLean ? 'ref' : 'bw'}</span>
+        <span><b>${l.w}</b> lbs · est. 1-rep max <b>${l.approx ? '~' : ''}${Math.round(l.oneRM)}</b>${/added/.test(l.oneRMLabel) ? ' added' : ''}</span>
         <span class="rk-lift-need">${l.beyond
             ? 'past the top of the table'
-            : nextStep(l)
-              ? `${nextStep(l).join(' or ')} → ${l.rank.next.l}`
-              : 'maxed'}</span>
+            : nextLine(l) || 'maxed'}</span>
       </div>
     </div>`).join('');
 
@@ -2042,7 +2044,7 @@ function liftsHTML(st) {
       <div class="pg-card-note">${st.liftCount}${st.grip ? ' + grip' : ''} in the score</div>
     </div>
     <div class="rk-reps">
-      <span class="rk-reps-l">Assume this many reps<span class="rk-reps-sub">when a lift has none counted</span></span>
+      <span class="rk-reps-l">Reps to assume<span class="rk-reps-sub">for lifts with no reps logged</span></span>
       <div class="rk-reps-seg">${repBtns}</div>
     </div>
     ${repNote}

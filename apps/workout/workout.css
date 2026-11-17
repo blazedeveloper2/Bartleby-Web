@@ -1799,3 +1799,11 @@ html[data-theme="redline"] .rk-seg,html[data-theme="black"] .rk-seg,html[data-th
 @media(max-width:480px){.wk .day-sep{display:none}.wk .day-top-r{gap:6px}}
 /* a name with two chips after it wraps rather than clipping the second */
 .rk-lift-n{flex-wrap:wrap;row-gap:4px}
+
+/* the lab's rank block, three plain lines */
+.mm-rank{align-items:flex-start}
+.mm-rank-l{padding-top:2px}
+.mm-rank-p{font-size:12.5px;color:var(--text-2);margin-top:3px}
+.wk .mm-rank-s{font-size:12.5px;line-height:1.45;color:var(--text-2);margin-top:5px}
+.mm-rank-s b{color:var(--text)}
+.rk-lift-foot{row-gap:4px}
