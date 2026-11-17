@@ -17,7 +17,7 @@ import {
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip, exHistory,
   chkAll, chkSave, lastCount, dayCount, latchAwards, xsKey, nextLine, sessionDetailHTML,
-} from './rank.js?v=3d-nov16h';
+} from './rank.js?v=3d-nov16k';
 import { progressHTML } from './progress.js?v=3d-nov16c';
 
 /* Which movements have a published standard, so the rep boxes only appear
@@ -25,11 +25,11 @@ import { progressHTML } from './progress.js?v=3d-nov16c';
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
 import { MUSCLE_SVG } from './bodymap.js?v=3d-oct14d';
 import { restBand, BANDS, fmtRest } from './rest.js?v=3d-oct14d';
-import * as rest from './timer.js?v=3d-nov16b';
+import * as rest from './timer.js?v=3d-nov16k';
 import * as timing from './sessions.js?v=3d-nov16h';
 import { HOWTO } from './howto.js?v=3d-oct14h';
-import * as anatomy from './anatomy.js?v=3d-nov16h';
-import { animHTML, playAnim } from './pose.js?v=3d-nov16h';
+import * as anatomy from './anatomy.js?v=3d-nov16k';
+import { animHTML, playAnim } from './pose.js?v=3d-nov16k';
 import { standingsFor } from './anthro.js?v=3d-oct14d';
 import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=3d-nov05b';
 import {
@@ -442,7 +442,7 @@ function mmRankHTML(st) {
   return `<div class="mm-rank">
     <div class="mm-rank-l" style="color:var(${l.rank.c})">${l.rank.l}</div>
     <div class="mm-rank-b">
-      <div class="mm-rank-n">Rank ${l.rank.l} · ${l.rank.name}</div>
+      <div class="mm-rank-n">Rank ${l.rank.l}, ${l.rank.name}</div>
       <div class="mm-rank-p">${means}</div>
       <div class="mm-rank-s">${next
         ? `${next}${l.over && !l.toReps ? ` (heavier than your ${DB_MAX} lb dumbbells)` : ''}`
@@ -535,7 +535,7 @@ function lvlLine(ex) {
   const L = ex && ex.line && LADDERS[ex.line];
   if (!L) return '';
   const i = lvlOf(ex.line);
-  return `${L.n} · level ${i + 1} of ${L.steps.length} · ${L.steps[i].tier}${ex.dose && ex.dose !== 's' ? ' · practice' : ''}`;
+  return `${L.n}, level ${i + 1} of ${L.steps.length}, ${L.steps[i].tier}${ex.dose && ex.dose !== 's' ? ', practice' : ''}`;
 }
 
 function mmRepsHTML() {
@@ -554,10 +554,9 @@ function mmRepsHTML() {
   const clr = vals.some(v => v > 0)
     ? `<button class="mm-sets-clr" data-act="mm-sets-clear" title="Empties today's boxes to log them again. The last count keeps scoring until you enter the first new one, so closing without typing loses nothing.">Clear sets</button>` : '';
   const hint = '';
-  const same = tick ? '' : `<button type="button" class="mm-same" id="mm-same" data-act="mm-same"${sameAttrs(cur, last, secs)}</button>`;
   return `<div class="mm-reps-row">
     <div class="mm-reps-head"><div class="mm-reps-lbl">${tr.lbl}${sub ? `<span>${sub}</span>` : ''}</div>
-      <div class="mm-reps-tools">${same}<span class="mm-set-now${cur >= tr.n ? ' done' : ''}" id="mm-set-now">${setNowTxt(cur, tr.n)}</span>${clr}</div></div>
+      <div class="mm-reps-tools"><span class="mm-set-now${cur >= tr.n ? ' done' : ''}" id="mm-set-now">${setNowTxt(cur, tr.n)}</span>${clr}</div></div>
     <div class="mm-sets">${boxes}</div>
     ${hint}
     <div id="mm-verdict">${mmVerdictHTML(tr)}</div>
@@ -565,48 +564,6 @@ function mmRepsHTML() {
 }
 
 const setNowTxt = (cur, n) => (cur >= n ? `All ${n} done` : `Set ${cur + 1} of ${n}`);
-
-/* ── same as last ──
-
-   The faded number in the box you are on is last session's, and matching
-   it is the commonest thing to type there. One tap puts it in and logs it
-   exactly as typing it would — the same change handler, so the rest timer,
-   the session clock and auto-advance all follow as usual. Typing over the
-   hint still works as it always did; this is only a shortcut beside it.
-   Hidden while there is no last number for the box you are on. */
-const sameAttrs = (i, last, secs) => {
-  const v = last[i] > 0 ? last[i] : 0;
-  return v
-    ? ` data-set="${i}" title="Fill set ${i + 1} with last session's ${v}${secs ? 's' : ''} and log it" aria-label="Same as last: ${v}${secs ? ' seconds' : ''}">Same · ${v}${secs ? 's' : ''}`
-    : ' hidden>';
-};
-/* Repainted with the marker. The box it fills is the first empty one on
-   screen, which after Clear sets is not what storage says yet. */
-function paintSame() {
-  const tr = mmTrack(), btn = q('#mm-same');
-  if (!tr || !btn) return;
-  const boxes = [...root.querySelectorAll('.mm-set-in')];
-  const i = boxes.findIndex(el => el.value === '');
-  const v = i >= 0 ? lastVals(tr)[i] : 0;
-  btn.hidden = !(v > 0);
-  if (!(v > 0)) return;
-  const secs = tr.t.unit === 's';
-  btn.dataset.set = i;
-  btn.textContent = `Same · ${v}${secs ? 's' : ''}`;
-  btn.title = `Fill set ${i + 1} with last session's ${v}${secs ? 's' : ''} and log it`;
-  btn.setAttribute('aria-label', `Same as last: ${v}${secs ? ' seconds' : ''}`);
-}
-function fillSame() {
-  const tr = mmTrack();
-  if (!tr) return;
-  const boxes = [...root.querySelectorAll('.mm-set-in')];
-  const box = boxes.find(el => el.value === '');
-  const v = box ? lastVals(tr)[+box.dataset.set] : 0;
-  if (!(v > 0)) return;
-  box.value = v;
-  setMMReps(box);                    // the path a typed number takes on change
-  paintSame();
-}
 
 /* Moves the "you are here" marker without rebuilding the boxes, which
    would take focus out of the one you are about to type in. */
@@ -617,7 +574,6 @@ function paintSetNow() {
   pill.textContent = setNowTxt(cur, tr.n);
   pill.classList.toggle('done', cur >= tr.n);
   root.querySelectorAll('.mm-sets .mm-set').forEach((el, i) => el.classList.toggle('cur', i === cur));
-  paintSame();
 }
 
 /* ── the verdict strip ──
@@ -664,16 +620,16 @@ function loadVerdictHTML({ t, wv }) {
   /* On a belt the number is what is added to you, and nothing added is
      bodyweight rather than "0 lbs". */
   const W = n => t.load === 'added' ? (n > 0 ? `+${fmtW(n)} lbs` : 'bodyweight') : `${fmtW(n)} lbs`;
-  const when = adv.d ? ` · counted ${fmtWhen(adv.d)}` : '';
+  const when = adv.d ? `, counted ${fmtWhen(adv.d)}` : '';
   const span = `${adv.lo}–${adv.hi}`;
   const stale = adv.staleW !== null && adv.staleW !== undefined;
-  const k = adv.best === null ? `Target ${span}` : `Best ${adv.best}${per} · target ${span}`;
+  const k = adv.best === null ? `Target ${span}` : `Best ${adv.best}${per}, target ${span}`;
   const v = {
     up:        () => `${W(wv)} → ${W(adv.to)}`,
     down:      () => `${W(wv)} → ${W(adv.to)}`,
     hold:      () => `Hold ${W(wv)}`,
     capped:    () => adv.up ? `Max ${fmtW(DB_MAX)} lbs` : 'Lightest there is',
-    uncounted: () => stale ? `Stale · counted at ${W(adv.staleW)}` : 'Not counted',
+    uncounted: () => stale ? `Stale, counted at ${W(adv.staleW)}` : 'Not counted',
   }[adv.state]();
   const tip = {
     up:        `Your best set reached ${adv.best}, past the ${adv.hi} this movement is meant to fail by — the weight is no longer what stops you. ${W(adv.to)} holds the same estimated 1RM at ${adv.edge} reps. Tap to set it — your reps then need counting again at the new load.`,
@@ -717,16 +673,16 @@ function skillVerdictHTML({ t }) {
              : `Put in what you did on each set${target ? ` — the target is ${target} a set` : ''}.`);
     }
     case 'over':
-      return strip('hold', `Best ${val(a.best)} · practice ${target}`, 'Ease off',
+      return strip('hold', `Best ${val(a.best)}, practice ${target}`, 'Ease off',
         `Practice days are meant to stop short of Saturday's test — end each set with a few seconds still in it. The step is tested at the full dose on Saturday.${when}`);
     case 'top':
-      return strip('hold', `Best ${val(a.best)}${per} · target ${target}`, 'Make it harder',
+      return strip('hold', `Best ${val(a.best)}${per}, target ${target}`, 'Make it harder',
         `Past the top of the ${target} this is prescribed at${mmEx.line ? ', with no step above it' : ''}. Slow the tempo or add a pause at the hardest point rather than piling on more.${when}`);
     case 'under':
-      return strip('hold', `Best ${val(a.best)}${per} · target ${target}`, 'Build into it',
+      return strip('hold', `Best ${val(a.best)}${per}, target ${target}`, 'Build into it',
         `Short of the ${target} target — normal on a step you have just moved to. Stay here until the sets reach it.${when}`);
     default:
-      return strip('hold', target ? `Best ${val(a.best)}${per} · target ${target}` : `Best ${val(a.best)}${per}`, 'On target',
+      return strip('hold', target ? `Best ${val(a.best)}${per}, target ${target}` : `Best ${val(a.best)}${per}`, 'On target',
         `Inside the range, so nothing to change.${when}`);
   }
 }
@@ -809,10 +765,10 @@ function startRest(sets) {
     const t = dayTally(di, { ...chks(), [ek(di, si, ei)]: true });
     if (t.done >= t.tot) { rest.stop(); return; }
   }
-  if (!nx) { rest.start({ ...base, ex: `${mmEx.n} done`, next: 'Last in the list · go back for what you skipped', slot: null }); return; }
+  if (!nx) { rest.start({ ...base, ex: `${mmEx.n} done`, next: 'Last in the list. Go back for what you skipped', slot: null }); return; }
   const ex = resEx(PROGRAM[nx[0]].sections[nx[1]].ex[nx[2]]);
   rest.start({ ...base, ex: `${mmEx.n} done`, go: ex.n, slot: nx,
-               next: `Next: ${ex.n} · ${setCountOf(ex)} set${setCountOf(ex) === 1 ? '' : 's'}` });
+               next: `Next: ${ex.n}, ${setCountOf(ex)} set${setCountOf(ex) === 1 ? '' : 's'}` });
 }
 
 /* ── remembered rest ──
@@ -867,7 +823,7 @@ function autoNext(sets) {
   const nx = nextSlot(mmSlot);
   if (!nx) {
     const t = dayTally(di, chks());
-    if (t.done < t.tot) toast(`${from} done · last exercise of the day`);
+    if (t.done < t.tot) toast(`${from} done, last exercise of the day`);
     return;
   }
   setTimeout(() => {
@@ -957,7 +913,6 @@ function clearMMSets() {
   root.querySelectorAll('.mm-sets .mm-set').forEach((el, i) => el.classList.toggle('cur', i === 0));
   const pill = q('#mm-set-now');
   if (pill) { pill.textContent = setNowTxt(0, boxes.length); pill.classList.remove('done'); }
-  paintSame();
   boxes[0]?.focus();
 }
 
@@ -976,7 +931,7 @@ function paintMMStanding(keepBoxes = false) {
   /* carry the row's tint through, so the modal reads as the same lift */
   q('#mm-name').style.color = st.state === 'scored' ? pctColor(st.lift.pct) : '';
   q('#mm-rank').innerHTML = mmRankHTML(st) + rebaseHTML();
-  q('#mm-stats-sum').textContent = st.state === 'scored' ? `Rank ${st.lift.rank.l} · ${st.lift.rank.name}` : '';
+  q('#mm-stats-sum').textContent = st.state === 'scored' ? `Rank ${st.lift.rank.l}, ${st.lift.rank.name}` : '';
   /* Otherwise rebuilt rather than patched: the box count follows the
      prescription and the whole block disappears when the weight is
      cleared. Still skipped while a box has focus, for the same reason. */
@@ -1099,13 +1054,12 @@ function openMM(ex) {
      to live on the strip under the boxes), and Stats, How to and Muscles
      are three rows that open on a tap and start shut each time. */
   const band = BANDS[restBand(ex)], rs = restSecs(ex);
-  const own = rs !== band.s ? ` · ${fmtRest(band.s)} by default, ${rs > band.s ? 'longer' : 'shorter'} from your own ±15s` : '';
+  const own = rs !== band.s ? `, ${fmtRest(band.s)} by default, ${rs > band.s ? 'longer' : 'shorter'} from your own ±15s` : '';
   const tk = trackOf(ex);
   const aim = tk.rng && tk.unit !== '-' && /F/.test(ex.s || '')
     ? `${tk.rng[0]}–${tk.rng[1]}${tk.unit === 's' ? 's' : ' reps'}` : '';
-  q('#mm-info').innerHTML = [ex.s, aim, ex.b,
-    `<span title="${band.n} — the timer that starts when you log a set${own}">Rest ${fmtRest(rs)}</span>`]
-    .filter(Boolean).join(' <i>·</i> ');
+  q('#mm-info').innerHTML = [ex.s, aim, ex.b].filter(Boolean).map(s => `<span>${s}</span>`).join('')
+    + `<span title="${band.n}: the timer that starts when you log a set${own}">Rest ${fmtRest(rs)}</span>`;
   root.querySelectorAll('.mm-fold').forEach(sec => {
     sec.querySelector('.mm-fold-body').hidden = true;
     sec.querySelector('.mm-fold-tog').setAttribute('aria-expanded', 'false');
@@ -1209,7 +1163,7 @@ const posterHTML = name => animHTML(name)
   ? `<button type="button" class="mm-poster" data-act="mm-anim-play" aria-label="Play the rep in 3D">
       <span class="mm-poster-play" aria-hidden="true"></span>
       <span class="mm-poster-t">Watch the rep</span>
-      <span class="mm-poster-s">3D · drag to turn, pinch to zoom</span>
+      <span class="mm-poster-s">Drag to turn, pinch to zoom</span>
     </button>` : '';
 
 function mmHowtoHTML(ex) {
@@ -1217,7 +1171,7 @@ function mmHowtoHTML(ex) {
   if (!h) return '';
   const poster = posterHTML(ex.n);
   return `<button type="button" class="mm-howto-tog" data-act="mm-howto" aria-expanded="false" aria-controls="mm-howto-body">
-      <span>How to</span><small>${h.do.length} steps${poster ? ' · 3D rep' : ''}</small><i aria-hidden="true"></i>
+      <span>How to</span><small>${h.do.length} steps${poster ? ', 3D rep' : ''}</small><i aria-hidden="true"></i>
     </button>
     <div class="mm-howto-body" id="mm-howto-body" hidden>
       ${poster}
@@ -1321,7 +1275,7 @@ function inspectMuscle(button) {
     mv3.focus(mv3.regionsOfName(name));
     q('.mm-map').classList.add('is-focused');
     button.setAttribute('aria-pressed','true');
-    mmReadout(button.querySelector('span').textContent + ' · tap again for full body');
+    mmReadout(button.querySelector('span').textContent + ', tap again for full body');
     return;
   }
   const regions=[...root.querySelectorAll('.m-region.focus')];
@@ -1340,7 +1294,7 @@ function inspectMuscle(button) {
     svg.setAttribute('viewBox',`0 ${y} 160 ${Math.max(100,bottom-y)}`);
   });
   button.setAttribute('aria-pressed','true');
-  mmReadout(button.querySelector('span').textContent + ' · tap again for full body');
+  mmReadout(button.querySelector('span').textContent + ', tap again for full body');
 }
 
 
@@ -2244,7 +2198,6 @@ function onClick(e) {
     case 'mm-rebase': doRebase(); break;
     case 'mm-sets-clear': clearMMSets(); break;
     case 'mm-tick':   tickSet(el); break;
-    case 'mm-same':   fillSame(); break;
     case 'mm-wt-step': stepWeight(+a.d); break;
     case 'mm-howto':  toggleHowto(el); break;
     case 'day-fold':  toggleDay(el); break;
@@ -2562,7 +2515,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=3d-nov16i',
+  styles: 'apps/workout/workout.css?v=3d-nov16k',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {

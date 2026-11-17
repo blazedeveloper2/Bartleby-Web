@@ -46,7 +46,7 @@ export function animHTML(name) {
   if (!m) return '';
   return `<figure class="mm-anim">
     <div class="rp-stage" role="img" aria-label="${esc(m.label || `${name}, one rep in 3D`)}"></div>
-    <span class="rp-hint" aria-hidden="true">Drag to turn · pinch to zoom</span>
+    <span class="rp-hint" aria-hidden="true">Drag to turn, pinch to zoom</span>
     <button type="button" class="rp-fs" aria-label="Open the full-screen viewer" title="Full screen">${EXPAND}</button>
     <button type="button" class="rp-pp" aria-label="Pause animation" aria-pressed="false"></button>
     <figcaption class="rp-bar">${segsHTML(m)}</figcaption>
@@ -144,7 +144,7 @@ function openViewer(S, name, m, carry, reduced, onClose) {
     </div>
     <div class="rv-main">
       <div class="rp-stage rv-stage" role="img" aria-label="${esc(m.label || `${name}, one rep in 3D`)}"></div>
-      <span class="rv-hint" aria-hidden="true">Drag to turn · scroll or pinch to zoom · double-click to reset</span>
+      <span class="rv-hint" aria-hidden="true">Drag to turn, scroll or pinch to zoom, double-click to reset</span>
       <div class="rv-views" role="group" aria-label="Camera">
         ${VIEWS.map(([k, l]) => `<button type="button" data-view="${k}">${l}</button>`).join('')}
         <button type="button" data-view="reset">Reset</button>

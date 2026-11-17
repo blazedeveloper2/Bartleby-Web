@@ -158,8 +158,8 @@ function paint() {
   el.classList.toggle('done', done);
   el.querySelector('.rest-fill').style.transform = `scaleX(${Math.min(1, Math.max(0, p))})`;
   el.querySelector('.rest-t').textContent = done ? '0:00' : fmt(left);
-  el.querySelector(".rest-sub b").textContent = done && goTo(st) ? `${st.next} — go` : st.next;
-  el.querySelector('.rest-sub span').textContent = `${st.ex} · ${st.why || 'rest'} ${fmt(st.dur * 1000)}`;
+  el.querySelector(".rest-sub b").textContent = done && goTo(st) ? `${st.next}. Go` : st.next;
+  el.querySelector('.rest-sub span').textContent = `${st.ex}, ${(st.why || 'rest').toLowerCase()} ${fmt(st.dur * 1000)}`;
 }
 
 /* What Go opens. A rest saved before `go` existed has no slot key at all

@@ -1836,3 +1836,20 @@ html[data-theme="redline"] .rk-seg,html[data-theme="black"] .rk-seg,html[data-th
 /* the rest bar opens its exercise (restOpen, index.js) */
 .rest-bar{cursor:pointer}
 .rest-bar button{cursor:pointer}
+
+/* ── the lab is as tall as what is in it ──
+   On a phone it was a full-bleed sheet, height:100%, from when its content
+   ran to two and a half screens. Folded, the content is about half a
+   screen, and a sheet that covers the whole page to show half of one read
+   as having left the program rather than opened something on it. So the
+   height follows the content: still top-aligned, still capped in percent
+   of the overlay (the reasons above stand — nothing here is centred or
+   measured in dvh), and it grows downward as a row is opened until it
+   reaches the full screen, where it scrolls as before. The dimmed page
+   shows under it, and a tap there closes it. */
+@media (max-width:560px){
+  html[data-theme] .wk .mm-card{height:auto;max-height:100%;border-bottom:1px solid var(--border-lt);box-shadow:0 24px 70px #000c}
+}
+
+/* the prescription line: items set apart by space, not by dots */
+.mm-sub{display:flex;flex-wrap:wrap;gap:2px 14px}

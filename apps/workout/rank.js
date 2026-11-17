@@ -2019,7 +2019,7 @@ function liftsHTML(st) {
       </div>
       ${bandTrack(l.pct, false)}
       <div class="rk-lift-foot">
-        <span><b>${l.w}</b> lbs · est. 1-rep max <b>${l.approx ? '~' : ''}${Math.round(l.oneRM)}</b>${/added/.test(l.oneRMLabel) ? ' added' : ''}</span>
+        <span><b>${l.w}</b> lbs, est. 1-rep max <b>${l.approx ? '~' : ''}${Math.round(l.oneRM)}</b>${/added/.test(l.oneRMLabel) ? ' added' : ''}</span>
         <span class="rk-lift-need">${l.beyond
             ? 'past the top of the table'
             : nextLine(l) || 'maxed'}</span>
@@ -2416,7 +2416,7 @@ function historyHTML(s) {
     const day = PROGRAM[e.di];
     return `<div class="pg-s-row" data-act="pg-open" data-d="${e.d}" data-di="${e.di}" role="button" tabindex="0" aria-expanded="false" title="Show what you did">
       <span class="day-badge ${day?.day || ''}">${day?.day || '—'}</span>
-      <div class="pg-s-body"><div class="pg-s-n">${day?.label || 'Session'}</div><div class="pg-s-d">${fmtD(e.d)} · ${e.sets} sets</div></div>
+      <div class="pg-s-body"><div class="pg-s-n">${day?.label || 'Session'}</div><div class="pg-s-d">${fmtD(e.d)}, ${e.sets} sets</div></div>
       <button class="bw-h-btn del" data-act="pg-del" data-d="${e.d}" data-di="${e.di}" title="Delete session">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
       </button>
@@ -2451,7 +2451,7 @@ export function sessionDetailHTML(d, di) {
     if (!e) { missing++; return; }
     const u = trackOf(ex).unit, sets = e.s.filter(n => n > 0);
     const what = u === '-' ? `${sets.length} set${sets.length === 1 ? '' : 's'}`
-      : sets.map(n => `${n}${u === 's' ? 's' : ''}`).join(' · ');
+      : sets.map(n => `${n}${u === 's' ? 's' : ''}`).join(', ');
     lines.push(`<div class="pg-sd-row"><span class="pg-sd-n">${ex.n}</span><span class="pg-sd-v">${e.w > 0 ? `<b>${wTxt(e.w)} lbs</b>` : ''}<span>${what}</span></span></div>`);
   }));
   const t = timedSessions().find(s => s.d === d && s.di === di && s.done);
