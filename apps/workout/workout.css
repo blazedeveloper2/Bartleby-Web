@@ -1807,3 +1807,32 @@ html[data-theme="redline"] .rk-seg,html[data-theme="black"] .rk-seg,html[data-th
 .wk .mm-rank-s{font-size:12.5px;line-height:1.45;color:var(--text-2);margin-top:5px}
 .mm-rank-s b{color:var(--text)}
 .rk-lift-foot{row-gap:4px}
+
+/* ═══════════════════════════════════════════════════════════
+   THE LAB ON ONE SCREEN (Nov 2026)
+   name + one line, the weight, the set boxes, three folded rows
+   ═══════════════════════════════════════════════════════════ */
+.mm-sub{margin-top:5px;font-family:var(--mono);font-size:12px;line-height:1.4;color:var(--text-2)}
+.mm-sub i{font-style:normal;color:var(--text-3)}
+.mm-fold{padding:16px 20px;border-bottom:1px solid var(--border)}
+.mm-fold[hidden]{display:none}
+.mm-fold-tog{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;margin:0;padding:0;
+  background:none;border:0;cursor:pointer;text-align:left;font-family:var(--font);color:var(--text)}
+.mm-fold-tog>span{font-size:14px;font-weight:600}
+.mm-fold-tog>small{flex:1;min-width:0;font-size:11px;font-weight:400;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mm-fold-tog>i{flex:none;margin-left:auto;margin-right:4px;width:8px;height:8px;border-right:2px solid var(--text-3);
+  border-bottom:2px solid var(--text-3);transform:translateY(-2px) rotate(45deg);transition:transform .15s}
+.mm-fold-tog[aria-expanded="true"]>i{transform:translateY(2px) rotate(-135deg)}
+.mm-fold-tog:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.mm-fold-body{padding-top:8px}
+.mm-fold-body[hidden]{display:none}
+/* the blocks inside keep their own rules but give up their own gutters */
+.wk .mm-fold .xp{padding:0 0 10px;border:0}
+.wk .mm-fold .mm-rank{padding:8px 0 4px;border:0}
+.wk .mm-fold .mm-anatomy{margin:0}
+.wk .mm-fold .mm-muscles{padding:12px 0 0}
+.wk .mm-reps-row{border-bottom:1px solid var(--border)}
+@media(max-width:480px){.wk .mm-fold{padding:10px 16px}}
+/* the rest bar opens its exercise (restOpen, index.js) */
+.rest-bar{cursor:pointer}
+.rest-bar button{cursor:pointer}

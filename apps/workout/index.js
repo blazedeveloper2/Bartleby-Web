@@ -553,8 +553,7 @@ function mmRepsHTML() {
   const sub = lvlLine(mmEx);
   const clr = vals.some(v => v > 0)
     ? `<button class="mm-sets-clr" data-act="mm-sets-clear" title="Empties today's boxes to log them again. The last count keeps scoring until you enter the first new one, so closing without typing loses nothing.">Clear sets</button>` : '';
-  const hint = !tick && last.some(v => v > 0)
-    ? `<div class="mm-sets-last">Grey numbers are last session's — the ones to beat.</div>` : '';
+  const hint = '';
   const same = tick ? '' : `<button type="button" class="mm-same" id="mm-same" data-act="mm-same"${sameAttrs(cur, last, secs)}</button>`;
   return `<div class="mm-reps-row">
     <div class="mm-reps-head"><div class="mm-reps-lbl">${tr.lbl}${sub ? `<span>${sub}</span>` : ''}</div>
@@ -645,7 +644,14 @@ function mmVerdictHTML(tr = mmTrack()) {
   return skillVerdictHTML(tr);
 }
 
+/* Inert strips are no longer drawn. "Hold 55 lbs" and "Not counted" took
+   a full-width band to say there was nothing to do, under boxes that
+   already show the numbers; the rep target they carried is on the line
+   under the exercise's name now. What is left is the two that are
+   buttons — go up, go down — and `capped`, which is the answer to "why
+   is it not offering more weight". */
 const strip = (cls, k, v, tip, act) => {
+  if (!act && cls !== 'capped') return '';
   const attrs = `class="mm-bump ${cls}" title="${tip}"`;
   const inner = `<span class="mm-bump-k">${k}</span><span class="mm-bump-v">${v}</span>`;
   return act ? `<button ${attrs} ${act}>${inner}</button>` : `<div ${attrs}>${inner}</div>`;
@@ -902,6 +908,25 @@ function restGo() {
   openMM(resEx(raw));
 }
 
+/* A tap on the rest bar itself — anywhere but its buttons — opens the
+   exercise it is talking about: the one you are resting from mid-exercise,
+   or the one it names as next. For when you wandered off to another tab
+   during the rest. Unlike Go it leaves the timer running. */
+function restOpen() {
+  const st = rest.current();
+  if (!st) return;
+  const slot = st.slot || findSlot(st.go || (st.slot === undefined ? st.ex : null));
+  if (!slot) return;
+  const [di, si, ei] = slot;
+  const raw = PROGRAM[di]?.sections[si]?.ex[ei];
+  if (!raw) return;
+  const ex = resEx(raw);
+  if (mmEx && mmEx.n === ex.n && q('#mm-ol').classList.contains('on')) return;   // already looking at it
+  if (activeTab !== 'program') switchTab('program');
+  mmSlot = [di, si, ei];
+  openMM(ex);
+}
+
 function findSlot(name) {
   if (!name) return null;
   const dow = ['sun','mon','tue','wed','thu','fri','sat'][new Date().getDay()];
@@ -951,6 +976,7 @@ function paintMMStanding(keepBoxes = false) {
   /* carry the row's tint through, so the modal reads as the same lift */
   q('#mm-name').style.color = st.state === 'scored' ? pctColor(st.lift.pct) : '';
   q('#mm-rank').innerHTML = mmRankHTML(st) + rebaseHTML();
+  q('#mm-stats-sum').textContent = st.state === 'scored' ? `Rank ${st.lift.rank.l} · ${st.lift.rank.name}` : '';
   /* Otherwise rebuilt rather than patched: the box count follows the
      prescription and the whole block disappears when the weight is
      cleared. Still skipped while a box has focus, for the same reason. */
@@ -958,6 +984,7 @@ function paintMMStanding(keepBoxes = false) {
   if (verdict && (keepBoxes || reps.contains(document.activeElement))) { verdict.innerHTML = mmVerdictHTML(); paintSetNow(); }
   else reps.innerHTML = mmRepsHTML();
   paintProg();
+  q('#mm-stats').hidden = !q('#mm-prog').innerHTML.trim() && !q('#mm-rank').innerHTML.trim();
   q('#mm-lvl').innerHTML = mmLvlHTML();
 }
 
@@ -980,7 +1007,8 @@ function mmProgHTML() {
   const tr = mmTrack();
   if (!tr || tr.t.unit === '-') return '';
   /* the box spans the card; the chart sits inside .pg's side padding */
-  const width = (q('#mm-prog')?.clientWidth || Math.min(560, innerWidth - 20)) - (innerWidth <= 480 ? 32 : 44);
+  /* inside the Stats row's own padding now; a guess while the row is shut */
+  const width = q('#mm-prog')?.clientWidth || Math.min(560, innerWidth - 20) - (innerWidth <= 480 ? 32 : 44);
   const added = tr.t.load === 'added';
   return progressHTML({
     hist: exHistory(mmEx, tr.store === 'reps' ? mmEx.n : undefined),
@@ -1060,12 +1088,31 @@ function openMM(ex) {
   mmView('both');
   q('#mm-name').textContent = ex.n;
   paintMMStanding();
-  let info = `<span class="mm-tag">${ex.s}</span>`;
-  if (ex.b) info += `<span class="mm-tag">${ex.b}</span>`;
+  /* ── one screen ──
+
+     Opening an exercise is for three things: the weight, the set boxes and
+     whether to go up. Everything else on the card is reference, and it
+     used to be laid out in full under them — a row of tags, a progress
+     chart, the rank, the how-to, a muscle map and a muscle list, about
+     two and a half screens. Now the prescription is one line under the
+     name (with the rep range the weight is meant to fail in, which used
+     to live on the strip under the boxes), and Stats, How to and Muscles
+     are three rows that open on a tap and start shut each time. */
   const band = BANDS[restBand(ex)], rs = restSecs(ex);
   const own = rs !== band.s ? ` · ${fmtRest(band.s)} by default, ${rs > band.s ? 'longer' : 'shorter'} from your own ±15s` : '';
-  info += `<span class="mm-tag mm-rest-tag" title="${band.n} — the timer that starts when you log a set${own}">Rest ${fmtRest(rs)}</span>`;
-  q('#mm-info').innerHTML = info;
+  const tk = trackOf(ex);
+  const aim = tk.rng && tk.unit !== '-' && /F/.test(ex.s || '')
+    ? `${tk.rng[0]}–${tk.rng[1]}${tk.unit === 's' ? 's' : ' reps'}` : '';
+  q('#mm-info').innerHTML = [ex.s, aim, ex.b,
+    `<span title="${band.n} — the timer that starts when you log a set${own}">Rest ${fmtRest(rs)}</span>`]
+    .filter(Boolean).join(' <i>·</i> ');
+  root.querySelectorAll('.mm-fold').forEach(sec => {
+    sec.querySelector('.mm-fold-body').hidden = true;
+    sec.querySelector('.mm-fold-tog').setAttribute('aria-expanded', 'false');
+  });
+  mv3?.hide();
+  q('.mm-map').classList.remove('is-3d');
+  q('#mm-musc-sum').textContent = ex.m.replace(/\(.*?\)/g, '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 2).join(', ');
   stopAnim(); stopAnim = () => {};
   q('#mm-howto').innerHTML = mmHowtoHTML(ex);
 
@@ -1097,7 +1144,7 @@ function openMM(ex) {
   });
   void map.offsetWidth;                 // commit it before transitions come back
   map.classList.remove('no-tx');
-  show3D(ex);
+  /* the 3D body is drawn when Muscles is opened (toggleFold), not before */
 
   q('#mm-ol').classList.add('on');
   q('.mm-card').scrollTop = 0;
@@ -1177,6 +1224,21 @@ function mmHowtoHTML(ex) {
       <ol class="mm-cues">${h.do.map(c => `<li>${esc(c)}</li>`).join('')}</ol>
       ${h.avoid?.length ? `<div class="mm-avoid"><span>Avoid</span><ul>${h.avoid.map(c => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}
     </div>`;
+}
+
+/* Stats and Muscles. The muscle map's 3D body is only put on the card
+   while its row is open — a canvas nobody can see is still a canvas being
+   drawn — and handed back when it shuts. */
+function toggleFold(btn) {
+  const sec = btn.closest('.mm-fold'), body = sec?.querySelector('.mm-fold-body');
+  if (!body) return;
+  const open = body.hidden;
+  body.hidden = !open;
+  btn.setAttribute('aria-expanded', String(open));
+  if (sec.id === 'mm-stats' && open) paintProg();        // it had no width to draw at while shut
+  if (sec.id !== 'mm-musc' || !mmEx) return;
+  if (open) show3D(mmEx);
+  else { mv3?.hide(); q('.mm-map').classList.remove('is-3d'); }
 }
 
 function toggleHowto(btn) {
@@ -2211,6 +2273,8 @@ function onClick(e) {
     case 'rest-adj':  restAdjust(+a.d); break;
     case 'rest-skip': rest.stop(); break;
     case 'rest-go':   restGo(); break;
+    case 'rest-open': restOpen(); break;
+    case 'mm-fold':   toggleFold(el); break;
     case 'mm-bump':   takeBump(a.to); break;
     case 'bw-range':  bwSetRange(a.k); break;
     case 'bw-metric': bwSetMetric(a.k); break;
@@ -2413,17 +2477,28 @@ function template() {
 
     <div class="mm-overlay" id="mm-ol">
       <div class="mm-card" role="dialog" aria-modal="true" aria-labelledby="mm-name">
-        <div class="mm-head"><div><div class="mm-kicker">Exercise lab</div><div class="mm-title" id="mm-name"></div></div><button class="mm-close" data-act="mm-close" aria-label="Close exercise viewer">&times;</button></div>
-        <div class="mm-info" id="mm-info"></div>
+        <div class="mm-head"><div><div class="mm-title" id="mm-name"></div><div class="mm-sub" id="mm-info"></div></div><button class="mm-close" data-act="mm-close" aria-label="Close exercise viewer">&times;</button></div>
         <div id="mm-lvl"></div>
         <div class="mm-wt-row">
           <label class="mm-wt-lbl" for="mm-wt">Working weight</label>
           <div class="mm-wt-box"><button type="button" class="mm-wt-step" data-act="mm-wt-step" data-d="-1" aria-label="One step lighter" title="One step lighter">−</button><input class="mm-wt-in" id="mm-wt" type="number" step="2.5" min="0" inputmode="decimal" placeholder="—"><span class="mm-wt-u">lbs</span><button type="button" class="mm-wt-step" data-act="mm-wt-step" data-d="1" aria-label="One step heavier" title="One step heavier">+</button></div>
         </div>
         <div id="mm-reps"></div>
-        <div id="mm-prog"></div>
-        <div id="mm-rank"></div>
+        <section class="mm-fold" id="mm-stats">
+          <button type="button" class="mm-fold-tog" data-act="mm-fold" aria-expanded="false" aria-controls="mm-stats-body">
+            <span>Stats</span><small id="mm-stats-sum"></small><i aria-hidden="true"></i>
+          </button>
+          <div class="mm-fold-body" id="mm-stats-body" hidden>
+            <div id="mm-prog"></div>
+            <div id="mm-rank"></div>
+          </div>
+        </section>
         <section class="mm-howto" id="mm-howto"></section>
+        <section class="mm-fold" id="mm-musc">
+          <button type="button" class="mm-fold-tog" data-act="mm-fold" aria-expanded="false" aria-controls="mm-musc-body">
+            <span>Muscles</span><small id="mm-musc-sum"></small><i aria-hidden="true"></i>
+          </button>
+          <div class="mm-fold-body" id="mm-musc-body" hidden>
         <section class="mm-anatomy">
         <div class="mm-map-toolbar"><span>Muscle map</span><div class="mm-views" aria-label="Body view">
           <button data-act="mm-view" data-view="both" aria-pressed="true">Both</button>
@@ -2435,11 +2510,13 @@ function template() {
         </section>
         <div class="m-readout" id="mm-readout" aria-live="polite"></div>
         <div class="mm-muscles"><div class="mm-muscles-title">Target Muscles</div><div class="mm-muscle-list" id="mm-mlist"></div></div>
+          </div>
+        </section>
       </div>
     </div>
 
     <div class="lv-overlay" id="lv-ol"><div id="lv-body"></div></div>
-    <div class="rest-bar" id="rest-bar" role="timer" aria-live="polite" hidden></div>
+    <div class="rest-bar" id="rest-bar" data-act="rest-open" role="timer" aria-live="polite" title="Open this exercise" hidden></div>
   </div>`;
 }
 
@@ -2485,7 +2562,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=3d-nov16g',
+  styles: 'apps/workout/workout.css?v=3d-nov16i',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
