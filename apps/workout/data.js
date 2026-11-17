@@ -53,6 +53,15 @@ const EDRIN = [
       {n:'Incline Dumbbell Press',m:'Upper Chest, Front Delts, Triceps',s:'3×F',b:'30°',bc:'bench-30'},
       {n:'Dumbbell Bench Press',m:'Chest, Triceps, Front Delts',s:'3×F',b:'Flat 0°',bc:'bench-flat'},
       {n:'Dumbbell Shoulder Press',m:'Front Delts, Side Delts, Triceps',s:'2×F',b:'85°',bc:'bench-85'},
+      /* Two sets of rowing on the push day (and two of pressing on the pull
+         day, below). Chest and back each had eight hard sets a week, all on
+         one day — just under the ten or so the volume research supports,
+         and the only big muscles trained once a week. Two sets on the
+         other upper day takes each to ten and to twice a week, and gives
+         the triceps a second day too. Last in its block on purpose: the
+         day's own lifts are done fresh, and nothing after it moves, so
+         this week's ticks stay on the exercises they were made on. */
+      {n:'Chest-Supported Rows',m:'Lats, Rhomboids, Traps, Rear Delts, Biceps',s:'2×F',b:'30-45°',bc:'bench-30'},
     ]},
     {tag:'Isolation',ex:[
       {n:'Dumbbell Flyes',m:'Chest (stretch focus), Front Delts',s:'2×F',b:'Flat 0°',bc:'bench-flat'},
@@ -141,6 +150,8 @@ const EDRIN = [
        req:'bar', alt:{n:'Single-Arm Rows',m:'Lats, Rhomboids, Rear Delts, Biceps',s:'3×F /arm',b:'Flat 0°',bc:'bench-flat'}},
       {n:'Chest-Supported Rows',m:'Lats, Rhomboids, Traps, Rear Delts, Biceps',s:'3×F',b:'30-45°',bc:'bench-30'},
       {n:'Dumbbell Pullovers',m:'Lats, Chest, Serratus Anterior',s:'2×F',b:'Flat 0°',bc:'bench-flat'},
+      /* the push day's counterpart — see Monday's Chest-Supported Rows */
+      {n:'Incline Dumbbell Press',m:'Upper Chest, Front Delts, Triceps',s:'2×F',b:'30°',bc:'bench-30'},
     ]},
     {tag:'Isolation',ex:[
       /* Same reasoning as Monday's raises, and starker: the rear delt had

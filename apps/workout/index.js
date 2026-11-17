@@ -6,7 +6,7 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER, GYM_STEP } from './data.js?v=3d-oct18a';
+import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER, GYM_STEP } from './data.js?v=3d-nov16h';
 import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=3d-oct14d';
 import { toast } from '../../assets/js/ui.js?v=3d-oct14d';
 import { pctColor, ord, LIFTS, DB_LADDER, onLadder } from './standards.js?v=3d-oct14d';
@@ -17,7 +17,7 @@ import {
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip, exHistory,
   chkAll, chkSave, lastCount, dayCount, latchAwards, xsKey, nextLine, sessionDetailHTML,
-} from './rank.js?v=3d-nov16g';
+} from './rank.js?v=3d-nov16h';
 import { progressHTML } from './progress.js?v=3d-nov16c';
 
 /* Which movements have a published standard, so the rep boxes only appear
@@ -26,10 +26,10 @@ const LIFT_NAMES = new Set(Object.keys(LIFTS));
 import { MUSCLE_SVG } from './bodymap.js?v=3d-oct14d';
 import { restBand, BANDS, fmtRest } from './rest.js?v=3d-oct14d';
 import * as rest from './timer.js?v=3d-nov16b';
-import * as timing from './sessions.js?v=3d-oct18a';
+import * as timing from './sessions.js?v=3d-nov16h';
 import { HOWTO } from './howto.js?v=3d-oct14h';
-import * as anatomy from './anatomy.js?v=3d-nov16g';
-import { animHTML, playAnim } from './pose.js?v=3d-nov16c';
+import * as anatomy from './anatomy.js?v=3d-nov16h';
+import { animHTML, playAnim } from './pose.js?v=3d-nov16h';
 import { standingsFor } from './anthro.js?v=3d-oct14d';
 import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=3d-nov05b';
 import {
@@ -1113,7 +1113,7 @@ function openMM(ex) {
 let mv3 = null, mv3Load = null;
 /* The Anatomy tab borrows the same body (anatomy.js), so it loads it
    through here too. */
-const loadMV = () => (mv3Load ||= import('./muscleview.js?v=3d-oct18a').then(m => (mv3 = m)));
+const loadMV = () => (mv3Load ||= import('./muscleview.js?v=3d-nov16h').then(m => (mv3 = m)));
 /* Warm the 3D up while the app sits on its first tab, so nothing you open
    makes you wait: the model (one download, shared by the exercise card,
    the rep animation and Anatomy), the muscle view with its shaders
@@ -1125,7 +1125,7 @@ function warm3D() {
   warmed = true;
   const go = () => {
     loadMV().then(m => m.warm()).catch(() => {});
-    import('./stage.js?v=3d-nov03a').then(S => S.ready()).catch(() => {});
+    import('./stage.js?v=3d-nov16h').then(S => S.ready()).catch(() => {});
   };
   if ('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 2500 });
   else setTimeout(go, 1200);
