@@ -35,7 +35,7 @@ import { USER } from './store.js?v=3d-oct14d';
               hold it catches, not by the attempts), '-' for nothing (a
               stretch has no better or worse). */
 const EDRIN = [
-  {day:'mon',label:'Upper · Push Focus',sections:[
+  {day:'mon',label:'Upper Push',sections:[
     /* Three sets on the compound that leads each day's focus: both chest
        presses, the front squat, pull-ups and rows, Friday's RDL. At two,
        those muscles sat at six to nine direct sets a week, under the ten-plus
@@ -84,7 +84,7 @@ const EDRIN = [
       {n:'Lateral Raises',m:'Side Delts',s:'4×F'},
     ]},
   ]},
-  {day:'tue',label:'Lower · Quad Focus',sections:[
+  {day:'tue',label:'Lower Quads',sections:[
     {tag:'Warm-Up',ex:[
       {n:'Dead Bugs',m:'Rectus Abdominis, TVA',s:'1× easy /side'},
     ]},
@@ -144,7 +144,7 @@ const EDRIN = [
       {n:'Weighted Side Plank w/ Reach-Through',ld:1,m:'Obliques, TVA, Core',s:'2×F /side'},
     ]},
   ]},
-  {day:'thu',label:'Upper · Pull Focus',sections:[
+  {day:'thu',label:'Upper Pull',sections:[
     {tag:null,ex:[
       {n:'Pull-Ups',m:'Lats, Biceps, Rhomboids, Forearms',s:'3×F',
        req:'bar', alt:{n:'Single-Arm Rows',m:'Lats, Rhomboids, Rear Delts, Biceps',s:'3×F /arm',b:'Flat 0°',bc:'bench-flat'}},
@@ -167,7 +167,7 @@ const EDRIN = [
       {n:'Lateral Raises',m:'Side Delts',s:'4×F'},
     ]},
   ]},
-  {day:'fri',label:'Lower · Ham & Glute Focus',sections:[
+  {day:'fri',label:'Lower Hams & Glutes',sections:[
     {tag:null,ex:[
       {n:'Barbell Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'3×F',
        req:'barbell', alt:{n:'Romanian Deadlifts',m:'Hamstrings, Glutes, Erectors',s:'3×F'}},
@@ -295,7 +295,7 @@ const EDRIN = [
    count toward finishing the day — the rest days are done at the Zone 2
    and the mobility. */
 const ANDREW = [
-  {day:'mon',label:'Upper · Heavy',sections:[
+  {day:'mon',label:'Upper Heavy',sections:[
     {tag:null,ex:[
       {n:'Incline DB Press',ld:1,m:'Upper Chest, Front Delts, Triceps',s:'4×6-8'},
       {n:'Neutral/Medium-Grip Lat Pulldown',ld:1,m:'Lats, Biceps, Rhomboids, Rear Delts',s:'4×6-8',nt:'heavy'},
@@ -310,7 +310,7 @@ const ANDREW = [
       {n:'Cable Wrist Curl',ld:1,m:'Wrist Flexors',s:'3×12-20',nt:'last'},
     ]},
   ]},
-  {day:'tue',label:'Lower · Heavy',sections:[
+  {day:'tue',label:'Lower Heavy',sections:[
     {tag:null,ex:[
       {n:'Leg Press Machine',ld:1,m:'Quads, Glutes, Adductors',s:'4×6-10'},
       {n:'Romanian Deadlift',ld:1,m:'Hamstrings, Glutes, Erectors',s:'4×6-10'},
@@ -320,21 +320,21 @@ const ANDREW = [
     ]},
     {tag:'Core & Grip',ex:[
       {n:'Cable Crunch',ld:1,m:'Upper Abs, Rectus Abdominis, Obliques',s:'3×12-15'},
-      {n:'Dead Hangs',k:'s',m:'Forearms, Lats',s:'3×F',nt:'2–3 timed sets to near-failure · very last'},
+      {n:'Dead Hangs',k:'s',m:'Forearms, Lats',s:'3×F',nt:'2–3 timed sets to near-failure, very last'},
     ]},
   ]},
-  {day:'wed',label:'Rest+ · Zone 2',sections:[
+  {day:'wed',label:'Rest+ Zone 2',sections:[
     {tag:null,ex:[
       {n:'Zone 2 Cardio',k:'-',m:'Cardio',s:'1×30-45 min'},
       {n:'Mobility',k:'-',m:'Mobility',s:'1× easy'},
     ]},
-    {tag:'Optional · ~15 min',opt:1,ex:[
+    {tag:'Optional, ~15 min',opt:1,ex:[
       {n:'Reverse Curls',ld:1,m:'Brachioradialis, Brachialis, Wrist Extensors',s:'3×10-15'},
       {n:'Wrist Extensions',ld:1,m:'Wrist Extensors',s:'2×15-20'},
       {n:'Cross-Body Cable Rear Delt Fly',ld:1,m:'Rear Delts, Mid Traps, Rhomboids',s:'3×15-20'},
     ]},
   ]},
-  {day:'thu',label:'Push · Hypertrophy',sections:[
+  {day:'thu',label:'Push Hypertrophy',sections:[
     {tag:null,ex:[
       {n:'Incline Smith Press',ld:1,m:'Upper Chest, Front Delts, Triceps',s:'3×8-12'},
       {n:'Machine Chest Press',ld:1,m:'Chest, Triceps, Front Delts',s:'3×8-12'},
@@ -346,7 +346,7 @@ const ANDREW = [
       {n:'Triceps Pushdown',ld:1,m:'Lateral Head, Triceps Long Head',s:'2×12-15'},
     ]},
   ]},
-  {day:'fri',label:'Pull · Hypertrophy',sections:[
+  {day:'fri',label:'Pull Hypertrophy',sections:[
     {tag:null,ex:[
       {n:'Wide-Grip Pulldown',ld:1,m:'Lats, Rear Delts, Rhomboids, Biceps',s:'3×8-12',nt:'elbows down and out, stretch in the armpit'},
       {n:'Chest-Supported Cable Row',ld:1,m:'Lats, Rhomboids, Traps, Rear Delts, Biceps',s:'3×10-12'},
@@ -360,7 +360,7 @@ const ANDREW = [
       {n:'Cable Wrist Curl',ld:1,m:'Wrist Flexors',s:'3×12-20',nt:'last'},
     ]},
   ]},
-  {day:'sat',label:'Legs · Hypertrophy',sections:[
+  {day:'sat',label:'Legs Hypertrophy',sections:[
     {tag:'First',ex:[
       {n:'Cable Lateral Raise',ld:1,m:'Side Delts',s:'4×12-20',nt:'lean-away'},
     ]},
@@ -377,7 +377,7 @@ const ANDREW = [
       {n:'Reverse Curls',ld:1,m:'Brachioradialis, Brachialis, Wrist Extensors',s:'2×12-15',nt:'last'},
     ]},
   ]},
-  {day:'sun',label:'Rest+ · Zone 2',sections:[
+  {day:'sun',label:'Rest+ Zone 2',sections:[
     {tag:null,ex:[
       {n:'Zone 2 Cardio',k:'-',m:'Cardio',s:'1×30-45 min'},
       {n:'Mobility',k:'-',m:'Mobility',s:'1× easy'},

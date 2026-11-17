@@ -310,8 +310,8 @@ export const whtrOf = (waist, h) => (num(waist) && num(h) ? waist / h : null);
 export const WHTR_BANDS = [
   { max: 0.40, n:'Below the healthy range', tone:'warn' },
   { max: 0.50, n:'Healthy range',           tone:'good' },
-  { max: 0.60, n:'Increased central adiposity', tone:'mid' },
-  { max: Infinity, n:'High central adiposity',  tone:'warn' },
+  { max: 0.60, n:'Above the healthy range', tone:'mid' },
+  { max: Infinity, n:'Well above the healthy range', tone:'warn' },
 ];
 export const whtrBand = r => (num(r) ? WHTR_BANDS.find(b => r < b.max) : null);
 

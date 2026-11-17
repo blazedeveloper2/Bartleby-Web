@@ -6,7 +6,7 @@
    Local-first, event-delegated.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER, GYM_STEP } from './data.js?v=3d-nov16h';
+import { PROGRAM, WEEK_ORDER, LADDERS, MMAP, PEOPLE, USER, GYM_STEP } from './data.js?v=3d-nov16n';
 import { load, save, todayStr, dateStr, USER_KEY } from './store.js?v=3d-oct14d';
 import { toast } from '../../assets/js/ui.js?v=3d-oct14d';
 import { pctColor, ord, LIFTS, DB_LADDER, onLadder } from './standards.js?v=3d-oct14d';
@@ -17,8 +17,8 @@ import {
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip, exHistory,
   chkAll, chkSave, lastCount, dayCount, latchAwards, xsKey, nextParts, sessionDetailHTML,
-} from './rank.js?v=3d-nov16m';
-import { progressHTML } from './progress.js?v=3d-nov16m';
+} from './rank.js?v=3d-nov16o';
+import { progressHTML } from './progress.js?v=3d-nov16n';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
@@ -26,10 +26,10 @@ const LIFT_NAMES = new Set(Object.keys(LIFTS));
 import { MUSCLE_SVG } from './bodymap.js?v=3d-oct14d';
 import { restBand, BANDS, fmtRest } from './rest.js?v=3d-oct14d';
 import * as rest from './timer.js?v=3d-nov16k';
-import * as timing from './sessions.js?v=3d-nov16h';
+import * as timing from './sessions.js?v=3d-nov16n';
 import { HOWTO } from './howto.js?v=3d-oct14h';
-import * as anatomy from './anatomy.js?v=3d-nov16m';
-import { animHTML, playAnim } from './pose.js?v=3d-nov16k';
+import * as anatomy from './anatomy.js?v=3d-nov16o';
+import { animHTML, playAnim } from './pose.js?v=3d-nov16n';
 import { standingsFor } from './anthro.js?v=3d-oct14d';
 import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=3d-nov05b';
 import {
@@ -37,7 +37,7 @@ import {
   weighed, hasW, hasWa, hasNk, TAPE, TAPE_KEYS, hasAny, lastTaped,
   UNITS, unitOf, toU, fromU, unitFor, setUnitFor, healthyFor, whtrBand,
   snapshot as bodySnap, advise, project,
-} from './body.js?v=3d-oct14d';
+} from './body.js?v=3d-nov16o';
 
 /* ── namespaced storage ──
    Checkmarks carry the day they were made and lapse at the week's turn
@@ -177,7 +177,7 @@ function rowHTML(di, si, ei, ex, n, ch, w, sc) {
   const dn = doneToday(ex), nS = setCountOf(ex);
   const dH  = dn ? `<span class="ex-done${dn >= nS ? ' full' : ''}" title="Sets logged today">${Math.min(dn, nS)}/${nS}</span>` : '';
   const l   = sc.get(ex.n);
-  const nA  = l ? ` style="color:${pctColor(l.pct)}" title="${l.rank.l} · ${ord(l.pct)} percentile at your ${sc.basisWord}"` : '';
+  const nA  = l ? ` style="color:${pctColor(l.pct)}" title="${l.rank.l}, ${ord(l.pct)} percentile at your ${sc.basisWord}"` : '';
   return `<div class="ex-row ${on?'off':''}" data-act="row" data-di="${di}" data-si="${si}" data-ei="${ei}"><span class="ex-rail"></span><div class="ex-chk ${on?'on':''}" data-act="chk" data-k="${k}"></div><span class="ex-idx">${pad(n)}</span><div class="ex-body"><div class="ex-name"${nA}>${ex.n}</div>${ex.nt ? `<div class="ex-note">${ex.nt}</div>` : ''}</div><div class="ex-right">${wtH}${dH}<span class="ex-sets">${ex.s}</span>${bH}</div></div>`;
 }
 
@@ -994,7 +994,7 @@ Your other lifts are untouched.`)) return;
   renderProg();
   renderScore();
   toast(r.reclaimed > 0
-    ? `${name} reset · ${Math.round(r.reclaimed)} lbs no longer counted against you`
+    ? `${name} reset, ${Math.round(r.reclaimed)} lbs no longer counted against you`
     : `${name} reset`);
 }
 
@@ -1111,7 +1111,7 @@ function openMM(ex) {
 let mv3 = null, mv3Load = null;
 /* The Anatomy tab borrows the same body (anatomy.js), so it loads it
    through here too. */
-const loadMV = () => (mv3Load ||= import('./muscleview.js?v=3d-nov16h').then(m => (mv3 = m)));
+const loadMV = () => (mv3Load ||= import('./muscleview.js?v=3d-nov16n').then(m => (mv3 = m)));
 /* Warm the 3D up while the app sits on its first tab, so nothing you open
    makes you wait: the model (one download, shared by the exercise card,
    the rep animation and Anatomy), the muscle view with its shaders
@@ -1123,7 +1123,7 @@ function warm3D() {
   warmed = true;
   const go = () => {
     loadMV().then(m => m.warm()).catch(() => {});
-    import('./stage.js?v=3d-nov16h').then(S => S.ready()).catch(() => {});
+    import('./stage.js?v=3d-nov16n').then(S => S.ready()).catch(() => {});
   };
   if ('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 2500 });
   else setTimeout(go, 1200);
@@ -1305,13 +1305,13 @@ function weightToast(res, name, v) {
     return `Rolled back — ${voided.from} → ${voided.hi || voided.to} lbs was never trained, so it doesn't count`;
   const rebased = c.rolled.find(r => r.k === 'base');
   if (rebased)
-    return `${name} starting weight corrected to ${v} lbs · the ${rebased.hi} never counted`;
+    return `${name} starting weight corrected to ${v} lbs, the ${rebased.hi} never counted`;
   if (c.rolled.length && c.kind !== 'up')
-    return `${name} down to ${v} lbs · the untrained part of that increase came off with it`;
+    return `${name} down to ${v} lbs, the untrained part of that increase came off with it`;
   switch (c.kind) {
-    case 'up':    return `${name} ${c.from} → ${v} lbs · untested until you train it`;
-    case 'down':  return `Back-off logged · ${name} ${c.from} → ${v} lbs`;
-    case 'base':  return `${name} starting weight ${v} lbs · untested until you train it`;
+    case 'up':    return `${name} ${c.from} → ${v} lbs, untested until you train it`;
+    case 'down':  return `Back-off logged, ${name} ${c.from} → ${v} lbs`;
+    case 'base':  return `${name} starting weight ${v} lbs, untested until you train it`;
     case 'clear': return `${name} cleared`;
     default:      return `${name}: ${v > 0 ? v + ' lbs' : 'cleared'}`;
   }
@@ -1516,7 +1516,7 @@ function bwChartSVG(series, m) {
   }
   const xIdx=n>=4?[0,Math.floor(n/2),n-1]:[0,n-1];
   const xHTML=xIdx.map(i=>`<text x="${xOf(i).toFixed(1)}" y="${H-6}" text-anchor="middle" fill="${AXIS}" font-family="JetBrains Mono, monospace" font-size="9">${bwFmt(series[i].d)}</text>`).join('');
-  const dotsHTML=points.map((p,i)=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${hasTrend?2.6:3.5}" fill="${AC}" stroke="${CARD}" stroke-width="${hasTrend?1.5:2}" opacity="${hasTrend?0.55:1}"><title>${withUnit(series[i].v, m)} · ${bwFmt(series[i].d)}</title></circle>`).join('');
+  const dotsHTML=points.map((p,i)=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${hasTrend?2.6:3.5}" fill="${AC}" stroke="${CARD}" stroke-width="${hasTrend?1.5:2}" opacity="${hasTrend?0.55:1}"><title>${withUnit(series[i].v, m)}, ${bwFmt(series[i].d)}</title></circle>`).join('');
 
   return `<svg class="bw-chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
     <defs><linearGradient id="bw-grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${AC}" stop-opacity="0.28"/><stop offset="100%" stop-color="${AC}" stop-opacity="0"/></linearGradient></defs>
@@ -1533,10 +1533,10 @@ function bwChartSVG(series, m) {
 function tile(label, value, unit, sub, cls = '') {
   return `<div class="bw-stat"><div class="bw-stat-v">${value}${unit?`<span class="bw-stat-u">${unit}</span>`:''}</div>`
     + `<div class="bw-stat-l">${label}</div>`
-    + `<div class="bw-stat-d ${cls}">${sub ?? '·'}</div></div>`;
+    + `<div class="bw-stat-d ${cls}">${sub ?? ''}</div></div>`;
 }
 const deltaSub = v => v === null || v === undefined
-  ? { t:'·', c:'flat' }
+  ? { t:'', c:'flat' }
   : { t:`${v > 0 ? '+' : ''}${v.toFixed(1)}`, c: v > 0.05 ? 'up' : v < -0.05 ? 'dn' : 'flat' };
 
 /* ── the body-fat scale ── */
@@ -1552,7 +1552,7 @@ function bfScaleHTML(bf, healthy) {
      ceiling at all. */
   const segs = BF_BANDS.map((b, i) => {
     const range = i === BF_BANDS.length - 1 ? `${b.lo}%+` : `${b.lo}–${b.hi - 1}%`;
-    return `<i class="${b.tone}" style="flex:${b.hi - b.lo}" title="${b.n} · ${range}"></i>`;
+    return `<i class="${b.tone}" style="flex:${b.hi - b.lo}" title="${b.n}, ${range}"></i>`;
   }).join('');
   const names = BF_BANDS.map(b => `<span style="flex:${b.hi - b.lo}"><em>${b.n}</em><i>${b.ab}</i></span>`).join('');
   const pos = at(bf);
@@ -1577,13 +1577,13 @@ function bfScaleHTML(bf, healthy) {
 /* ── the call ── */
 function projectHTML(cur, goalW, rate) {
   const p = project(cur, goalW, rate);
-  if (!p) return `<div class="bd-proj none">Log a few more weigh-ins and this will say how long it should take.</div>`;
-  if (p.state === 'there') return `<div class="bd-proj good">You're there. Re-measure and set the next one.</div>`;
-  if (p.state === 'flat')  return `<div class="bd-proj none">Weight isn't moving, so there's nothing to project from.</div>`;
-  if (p.state === 'away')  return `<div class="bd-proj warn">Currently moving away from this goal — no date until that turns around.</div>`;
+  if (!p) return `<div class="bd-proj none">Log a few more weigh-ins to see how long it takes.</div>`;
+  if (p.state === 'there') return `<div class="bd-proj good">You're there.</div>`;
+  if (p.state === 'flat')  return `<div class="bd-proj none">Weight isn't moving yet.</div>`;
+  if (p.state === 'away')  return `<div class="bd-proj warn">Moving away from this goal right now.</div>`;
   const wks = Math.round(p.weeks);
   const when = wks > 12 ? bwFmtLong(p.date) : bwFmt(p.date);
-  return `<div class="bd-proj good"><b>${Math.abs(p.gap).toFixed(1)} lbs</b> to go · about <b>${wks} week${wks===1?'':'s'}</b> at your current rate · around <b>${when}</b></div>`;
+  return `<div class="bd-proj good"><b>${Math.abs(p.gap).toFixed(1)} lbs</b> to go, about <b>${wks} week${wks===1?'':'s'}</b>, around <b>${when}</b></div>`;
 }
 
 function callHTML(s, a) {
@@ -1593,14 +1593,13 @@ function callHTML(s, a) {
        a neck bigger than a waist has no estimate in it, and "log a waist and
        neck" is unhelpful advice to someone who just did. */
     const need = s.tapeBad
-      ? `Your last tape reads a ${lenStr(s.waist, unitFor(s.units, 'wa'))} waist and a ${lenStr(s.neck, unitFor(s.units, 'nk'))} neck, and no estimate comes out of that — the waist has to be the larger of the two. Check whether the two numbers went into the wrong boxes.`
+      ? 'Your last tape has the neck larger than the waist, so there is no estimate. Check the two numbers.'
       : s.h === null
         ? 'Set your height above, then log a waist and neck measurement below.'
-        : 'Log a waist and neck measurement below and this fills in immediately.';
+        : 'Log a waist and neck measurement below.';
     return `<div class="bd-call empty"><div class="bd-call-top"><span class="bd-call-v">—</span>
       <span class="bd-call-sub">No body fat estimate yet</span></div>
-      <p class="bd-call-why">${need}</p>
-      <p class="bd-call-why">Waist at the navel, neck just below the larynx — the same two spots every time, because the change in the number is worth more than the number.</p></div>`;
+      <p class="bd-call-why">${need}</p></div>`;
   }
   const g = s.goal !== null && s.goal !== undefined ? s.goal : (a.goal ? a.goal.w : null);
   const usingOwn = s.goal !== null && s.goal !== undefined;
@@ -1608,7 +1607,7 @@ function callHTML(s, a) {
   return `<div class="bd-call ${a.tone}">
     <div class="bd-call-top">
       <span class="bd-call-v">${a.v}</span>
-      <span class="bd-call-sub">${fx(s.bf,1)}% body fat · ${s.band.n}</span>
+      <span class="bd-call-sub">${fx(s.bf,1)}% body fat, ${s.band.n}</span>
     </div>
     <p class="bd-call-why">${a.why}</p>
     ${a.pace ? `<div class="bd-pace ${a.pace.tone}">${a.pace.t}</div>` : ''}
@@ -1625,7 +1624,7 @@ function callHTML(s, a) {
                    : `<span class="bd-goal-tag">Recommended</span>`}</div>
       <div class="bd-goal-row">
         <div class="bd-goal-v">${fx(g,1)}<span>lbs</span></div>
-        <div class="bd-goal-at">${a.goal ? `at ~${fx(a.goal.pct,0)}% body fat` : ''}${a.goal && a.goal.staged ? ' · staged' : ''}</div>
+        <div class="bd-goal-at">${a.goal ? `at ~${fx(a.goal.pct,0)}% body fat` : ''}${a.goal && a.goal.staged ? ', staged' : ''}</div>
         <input class="bw-in bd-goal-in" id="bd-goal" type="number" step="0.5" min="0" inputmode="decimal"
                placeholder="${a.goal ? a.goal.w.toFixed(1) : 'Set your own'}" value="${usingOwn ? s.goal : ''}">
         <button class="bd-mini go" data-act="bd-goal-save">Set</button>
@@ -1656,11 +1655,11 @@ function dueHTML(t, snap) {
   const wk = n => `${Math.round(n / 7)} week${Math.round(n / 7) === 1 ? '' : 's'}`;
   if (t.never)
     return t.due
-      ? `<div class="bd-caveat stale">You have been logging weight for a fortnight without a tape measurement. Waist and neck are what turn the scale into a body fat estimate — two minutes, once every ${wk(t.every)}.</div>`
+      ? `<div class="bd-caveat stale">Add a waist and neck measurement to get a body fat estimate.</div>`
       : '';
   if (t.due) {
     const over = t.overdueBy;
-    return `<div class="bd-caveat stale" title="Everything above still reads off ${snap.bfDate ? bwFmt(snap.bfDate) : 'your last tape measurement'}.">Tape measurement due${over ? ` — <b>${over} day${over === 1 ? '' : 's'}</b> overdue` : ''}</div>`;
+    return `<div class="bd-caveat stale" title="Everything above still reads off ${snap.bfDate ? bwFmt(snap.bfDate) : 'your last tape measurement'}.">Tape measurement due${over ? `, <b>${over} day${over === 1 ? '' : 's'}</b> overdue` : ''}</div>`;
   }
   return `<div class="bd-due" title="Every ${wk(t.every)} is the right cadence at your current rate — measure more often and you mostly record the tape's own error.">Next tape measurement due in <b>${t.dueIn} day${t.dueIn === 1 ? '' : 's'}</b></div>`;
 }
@@ -1681,7 +1680,7 @@ function standingsHTML(s) {
     const c = pctColor(r.score);
     return `<div class="an-row">
       <div class="an-top">
-        <span class="an-n">${r.lbl}<span class="an-src ${r.src}" title="${r.note}">${r.srcLabel}</span></span>
+        <span class="an-n">${r.lbl}</span>
         <span class="an-v">${lenStr(inches, unitFor(s.units, r.key))}</span>
       </div>
       <div class="an-bar"><i style="width:${r.score.toFixed(1)}%;background:${c}"></i></div>
@@ -1692,7 +1691,7 @@ function standingsHTML(s) {
   return `<div class="pg-card an-card">
     <div class="pg-card-head">
       <div class="pg-card-title">Where you stand</div>
-      <div class="pg-card-note">${s.age ? 'age-matched' : 'all adult men — set an age above to match'}</div>
+      <div class="pg-card-note">${s.age ? 'men your age' : 'all adult men'}</div>
     </div>
     <div class="an-list">${body}</div>
   </div>`;
@@ -1743,7 +1742,7 @@ function profileFoldHTML(s) {
     ? `${Math.round(toU(s.h, 'cm'))} cm`
     : `${ft}′ ${+(s.h - ft * 12).toFixed(1)}″`;
   const act = ACTIVITY.find(x => x.k === s.act);
-  const bits = [ht, s.age ? `age ${s.age}` : null, act ? act.n : null].filter(Boolean).join(' · ');
+  const bits = [ht, s.age ? `age ${s.age}` : null, act ? act.n : null].filter(Boolean).join(', ');
   return `<div class="bd-fold">
       <div class="bd-fold-h"><span>Profile</span><b>${bits}</b><button type="button" class="bd-fold-b" data-act="bd-prof" aria-label="Edit height, age and activity">Edit</button></div>
     </div>`;
@@ -1766,15 +1765,15 @@ function renderBW() {
   const rateSub = rate
     ? `${rate.pctWk > 0 ? '+' : ''}${rate.pctWk.toFixed(2)}%/wk`
     : 'Needs a week of data';
-  const bmiWord = s.bmi === null ? '·'
-    : s.bmi < 18.5 ? 'Under' : s.bmi < 25 ? 'Normal' : s.bmi < 30 ? '"Overweight"' : '"Obese"';
+  const bmiWord = s.bmi === null ? ''
+    : s.bmi < 18.5 ? 'Under' : s.bmi < 25 ? 'Normal' : s.bmi < 30 ? 'Overweight' : 'Obese';
   const whtrB = whtrBand(s.whtr);
 
   h += `<div class="bw-stats">
     ${tile('Weight', fx(s.w,1), 'lbs', s.wDate ? bwRelLabel(s.wDate) : 'Not logged', 'flat')}
     ${tile('Body fat', fx(s.bf,1), '%', s.band ? s.band.n : 'Needs tape', 'flat')}
-    ${tile('Lean mass', fx(s.lean,1), 'lbs', s.lean !== null ? 'Est. fat-free' : '·', 'flat')}
-    ${tile('Fat mass', fx(s.fat,1), 'lbs', s.fat !== null ? 'Estimated' : '·', 'flat')}
+    ${tile('Lean mass', fx(s.lean,1), 'lbs', s.lean !== null ? 'Est. fat-free' : '', 'flat')}
+    ${tile('Fat mass', fx(s.fat,1), 'lbs', s.fat !== null ? 'Estimated' : '', 'flat')}
   </div>`;
 
   h += `<div class="bw-stats second">
@@ -1797,12 +1796,9 @@ function renderBW() {
      minus a fat percentage from three weeks ago is not a measurement of
      anything that existed on either date — so both dates are printed
      whenever they differ. */
-  /* BMI is in that row because it is free and people ask for it, not because
-     it is worth much here — it cannot tell muscle from fat, which is the one
-     distinction this whole tab exists to make. Hence the quotation marks
-     above and the line below. */
-  if (s.bmi !== null && s.lean !== null && s.bmi >= 25 && s.bf < 20)
-    h += `<div class="bd-caveat">BMI reads ${fx(s.bmi,1)} — "overweight" — at an estimated ${fx(s.bf,1)}% body fat. <span title="NICE NG246 advises caution interpreting BMI in adults with high muscle mass. That makes the category unreliable here, not the number meaningless — and the body fat it is being weighed against is itself a tape estimate with a few points of error.">BMI cannot tell muscle from fat, so read it next to the figures above rather than on its own.</span></div>`;
+  /* (A paragraph used to follow the tiles whenever BMI called a lean
+     person overweight. The tile already has the number; the body fat
+     beside it is the answer.) */
 
   if (s.bf !== null) h += bfScaleHTML(s.bf, s.healthy);
   h += callHTML(s, a);
@@ -2505,7 +2501,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=3d-nov16m',
+  styles: 'apps/workout/workout.css?v=3d-nov16o',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {

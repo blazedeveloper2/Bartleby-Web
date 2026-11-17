@@ -31,12 +31,12 @@
    map stands in and works the same way.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, MMAP } from './data.js?v=3d-nov16h';
+import { PROGRAM, MMAP } from './data.js?v=3d-nov16n';
 import { load, save } from './store.js?v=3d-oct14d';
 import { REGIONS, regionsOfMuscle, regionOfMapId } from './muscles3d.js?v=3d-oct16g';
 import { MUSCLE_SVG } from './bodymap.js?v=3d-oct14d';
-import { resEx, setCountOf } from './rank.js?v=3d-nov16m';
-import { weekWork, lastDone } from './sessions.js?v=3d-nov16h';
+import { resEx, setCountOf } from './rank.js?v=3d-nov16o';
+import { weekWork, lastDone } from './sessions.js?v=3d-nov16n';
 
 /* ── the reference ──
 
@@ -665,7 +665,7 @@ function hudHTML() {
   const tiers = [1, 2, 3].map(t => [t, tr.filter(e => e.tier === t)]).filter(([, l]) => l.length);
   return `<div class="ax-hud-h">
       <div class="ax-hud-t">
-        <div class="ax-k2"><span>${r.group}${r.deep ? ' · deep' : ''}</span><b>${at >= 0 ? String(at + 1).padStart(2, '0') : '--'}/${String(rs.length).padStart(2, '0')}</b></div>
+        <div class="ax-k2"><span>${r.group}${r.deep ? ', deep' : ''}</span><b>${at >= 0 ? String(at + 1).padStart(2, '0') : '--'}/${String(rs.length).padStart(2, '0')}</b></div>
         <h2 class="ax-name">${r.name}</h2>
         <div class="ax-latin">${a.l}</div>
       </div>
@@ -884,7 +884,7 @@ function editUI() {
   if (bar.hidden === on) { bar.hidden = !on; layout(); }
   if (!on) return;
   const who = !bending ? '' : bending.side ? `${bending.side === 'L' ? 'Left' : 'Right'} ${bending.joint}` : bending.joint[0].toUpperCase() + bending.joint.slice(1);
-  $('#ax-bend-t').innerHTML = bending ? `<b>${who}</b> · ${bending.act}` : '<b>Edit mode</b>';
+  $('#ax-bend-t').innerHTML = bending ? `<b>${who}</b>, ${bending.act}` : '<b>Edit mode</b>';
   bar.querySelector('[data-act="an-undo"]').disabled = !undos.length;
   bar.querySelector('[data-act="an-redo"]').disabled = !redos.length;
   bar.querySelector('[data-act="an-rigreset"]').disabled = JSON.stringify(rig) === JSON.stringify(RIG0());
@@ -976,7 +976,7 @@ function editHTML() {
     const r = R(sel), z = rig.sizes[sel];
     body = `<div class="ax-ed-mh">
         <div class="ax-hud-t">
-          <div class="ax-k2"><span>${r.group}${r.deep ? ' · deep' : ''}</span></div>
+          <div class="ax-k2"><span>${r.group}${r.deep ? ', deep' : ''}</span></div>
           <h2 class="ax-name">${r.name}</h2>
         </div>
         <div class="ax-hud-b">
@@ -1284,7 +1284,7 @@ function setHTML() {
       <button type="button" class="ax-qb" data-act="an-quiz" data-k="name"><b>Name it</b><small>A muscle lights up; pick its name</small></button>
       <button type="button" class="ax-qb" data-act="an-quiz" data-k="find"><b>Find it</b><small>You get a name; tap it on the body</small></button>
     </div>
-    <p class="ax-qstat">${seen ? `You know ${known()} of ${POOL.length} · ${seen} tried` : `${POOL.length} muscles to learn`}</p>
+    <p class="ax-qstat">${seen ? `You know ${known()} of ${POOL.length}, ${seen} tried` : `${POOL.length} muscles to learn`}</p>
     </div>`;
 }
 
@@ -1393,7 +1393,7 @@ function quizHTML() {
     : `That was the ${R(q.picked).name}. The ${r.name} is lit now.`;
   return `<div class="ax-hud-h">
       <div class="ax-hud-t">
-        <div class="ax-k2"><span>Quiz · ${name ? 'Name it' : 'Find it'}</span><b>${q.right}/${q.total}${q.streak > 1 ? ` · ${q.streak} in a row` : ''}</b></div>
+        <div class="ax-k2"><span>Quiz: ${name ? 'Name it' : 'Find it'}</span><b>${q.right}/${q.total}${q.streak > 1 ? `, ${q.streak} in a row` : ''}</b></div>
         <h2 class="ax-name">${title}</h2>
         <div class="ax-latin">${sub}</div>
       </div>

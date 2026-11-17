@@ -97,7 +97,7 @@ function chart(pts, u, width) {
   const room = pts.length === 1 || iw / (pts.length - 1) > 24;
   const dots = pts.map((p, i) => {
     const [cx, cy] = P[i], now = i === pts.length - 1;
-    return `<g class="xp-pt${now ? ' now' : ''}"><title>${fmtD(p.d)} · ${p.best}${u}</title>
+    return `<g class="xp-pt${now ? ' now' : ''}"><title>${fmtD(p.d)}, ${p.best}${u}</title>
       <circle cx="${cx}" cy="${cy}" r="${now ? 5 : 3.5}"/>
       ${room || now ? `<text x="${cx}" y="${cy - 10}">${p.best}</text>` : ''}</g>`;
   }).join('');

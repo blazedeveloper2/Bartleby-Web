@@ -36,14 +36,14 @@
    different things, and neither can stand in for the other.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM, LADDERS, GYM_STEP } from './data.js?v=3d-nov16h';
+import { PROGRAM, LADDERS, GYM_STEP } from './data.js?v=3d-nov16n';
 import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, RANKS, rankFor, ord, verseFor, VERSE_NOTICE } from './standards.js?v=3d-oct14d';
 import { load, save, remove, todayStr, dateStr } from './store.js?v=3d-oct14d';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
-import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=3d-oct14d';
-import { TIME_RESET, timeCount, sessions as timedSessions, fmtDur } from './sessions.js?v=3d-nov16h';
+import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=3d-nov16o';
+import { TIME_RESET, timeCount, sessions as timedSessions, fmtDur } from './sessions.js?v=3d-nov16n';
 import { gripOn, gripAll, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_HOW } from './grip.js?v=3d-nov05b';
 
 /* ── storage ── */
@@ -1770,7 +1770,7 @@ export function celebrationHTML(r) {
       <div class="lv-kicker ${h ? 'mid' : ''}">Level Up</div>
       <div class="lv-letter"><span class="lv-burst">${BURST}</span><span class="lv-badge-hex"><b>${lv.n}</b></span></div>
       <div class="lv-rank-n">${lv.title}</div>
-      <div class="lv-rank-sub">Level ${lv.n} · ${fmtN(lv.sessions)} session${lv.sessions === 1 ? '' : 's'} in · ${left} more to Level ${lv.n + 1}</div>
+      <div class="lv-rank-sub">Level ${lv.n}, ${fmtN(lv.sessions)} session${lv.sessions === 1 ? '' : 's'} in, ${left} more to Level ${lv.n + 1}</div>
     </div>`;
   }
   if (r.tierUps?.length) {
@@ -1823,7 +1823,7 @@ export function verseHTML(open = true) {
   return `<div class="pg-card rk-verse${open ? '' : ' min'}" data-act="verse" role="button" tabindex="0" aria-expanded="${open}" title="${open ? 'Tap to fold away' : 'Tap to read it in full'}">
     <div class="rk-verse-mark">&ldquo;</div>
     <div class="rk-verse-t">${v.t}</div>
-    <div class="rk-verse-r">${v.r} <span title="${VERSE_NOTICE}">· NIV · changes daily</span></div>
+    <div class="rk-verse-r">${v.r} <span title="${VERSE_NOTICE}">NIV</span></div>
   </div>`;
 }
 
@@ -1881,7 +1881,7 @@ function heroHTML(st, tr) {
     </div>
     ${bandTrack(st.overall, true)}
     <div class="rk-up">${nx
-      ? `Next <b style="color:var(${nx.c})">${nx.l}</b> · ${(nx.min - st.overall).toFixed(1)} pts`
+      ? `<b>${(nx.min - st.overall).toFixed(1)} pts</b> to reach <b style="color:var(${nx.c})">${nx.l}</b>`
       : '<b>Max rank</b>'}</div>
     ${tr ? trendHTML(tr) : ''}
   </div>`;
@@ -2003,62 +2003,50 @@ function wireTrend(p, g) {
 
 /* The chip on each row saying where its rep count came from, which is the
    difference between an estimate and a guess and is worth one word. */
-function repChip(l) {
-  if (l.repsLogged) {
-    const sets = l.repSets.filter(n => n > 0);
-    return `<span class="rk-lift-src counted" title="Counted ${sets.join(', ')} at ${l.w} lbs on ${l.repsDate}. The best set (${l.reps}) is what the estimate is read off — the later ones are lower because of fatigue, not because you got weaker mid-session.">best ${l.reps} reps</span>`;
-  }
-  if (l.repsStale)
-    return `<span class="rk-lift-src stale" title="Your counted reps were logged at ${l.repsStaleW} lbs and this lift is at ${l.w} now, so they no longer apply. Assuming ${l.reps} until you count a set at the new weight.">reps out of date</span>`;
-  return `<span class="rk-lift-src assumed" title="No reps counted for this lift, so the estimate assumes ${l.reps}. Open it from the Program tab and log what you actually hit — it is the single biggest thing separating this number from a guess.">reps not logged</span>`;
-}
 
 function liftsHTML(st) {
   if (!st.bodyweight) return '';
   /* Only the sheet you can see — an off-sheet alternate is history, and
      the Rank tab is no place to show it. */
   const shown = st.lifts.filter(l => st.counted.includes(l));
+  /* A row is the lift, its letter, the bar, and one line: what it is at
+     and what the next letter takes. The tags that used to sit after the
+     name ("reps not logged" on nine rows of ten) and the estimated max
+     said the same few things on every row; what is left of them is three
+     words in the detail line, only where they apply. */
+  const at = l => `<b>${l.w}</b> lbs${l.repsLogged ? ` × ${l.reps}` : l.repsStale ? ', reps out of date' : ', no reps logged'}${l.pending ? ', not trained yet' : ''}`;
   const rows = shown.map(l => `
     <div class="rk-lift">
       <div class="rk-lift-top">
-        <div class="rk-lift-n">${l.name}${repChip(l)}${l.pending
-            ? `<span class="rk-lift-src pend" title="No completed session at ${l.w} lbs yet${l.provenW ? ` — last trained at ${l.provenW} lbs` : ''}. This row is an estimate until there is one.">not trained yet</span>` : ''}</div>
+        <div class="rk-lift-n">${l.name}</div>
         <div class="rk-lift-r" style="color:var(${l.rank.c})">${l.rank.l}</div>
       </div>
       ${bandTrack(l.pct, false)}
       <div class="rk-lift-foot">
-        <span><b>${l.w}</b> lbs, est. 1-rep max <b>${l.approx ? '~' : ''}${Math.round(l.oneRM)}</b>${/added/.test(l.oneRMLabel) ? ' added' : ''}</span>
-        <span class="rk-lift-need">${l.beyond
-            ? 'past the top of the table'
-            : nextLine(l) || 'maxed'}</span>
+        <span>${at(l)}</span>
+        <span class="rk-lift-need">${l.beyond ? 'Top of the scale' : nextLine(l) || 'Top of the scale'}</span>
       </div>
     </div>`).join('');
 
   const repBtns = REP_OPTS.map(r =>
     `<button class="rk-rep ${r === st.reps ? 'sel' : ''}" data-act="rk-reps" data-r="${r}">${r}</button>`).join('');
-
-  /* The dial is now a fallback, and saying so is the point: it stops being
-     the thing you tune to move your rank and becomes the thing you stop
-     needing. */
-  const repNote = st.loggedReps ? '' : `<div class="rk-basis-note" title="At 50 lbs, assuming five reps gives a 58 lb 1RM and assuming fifteen gives 75 — same entry, same arithmetic, different guess. Counting the set is what turns it into a measurement. Open a lift from the Program tab to log its sets; the best one scores.">No reps counted yet — every estimate here is running on this dial. Log sets from the <b>Program</b> tab.</div>`;
-
-  /* The divisor is no longer a choice, so the only thing left to say is
-     when the tape measurement it needs is missing. */
-  const basisNote = st.usingLean ? '' : `<div class="rk-basis-note">Scoring against bodyweight — log a waist and neck on the <b>Body</b> tab to score against lean mass instead.</div>`;
+  /* The dial only matters for a lift with no reps logged, so it sits under
+     the list and is gone once every lift has a count. */
+  const dial = shown.some(l => !l.repsLogged) ? `<div class="rk-reps">
+      <span class="rk-reps-l">Reps to assume<span class="rk-reps-sub">where none are logged</span></span>
+      <div class="rk-reps-seg">${repBtns}</div>
+    </div>` : '';
+  const basisNote = st.usingLean ? '' : `<div class="rk-basis-note">Scored against bodyweight. Add a waist and neck on the <b>Body</b> tab to score against lean mass.</div>`;
 
   return `<div class="pg-card">
     <div class="pg-card-head">
       <div class="pg-card-title">Every Lift</div>
       <div class="pg-card-note">${st.liftCount}${st.grip ? ' + grip' : ''} in the score</div>
     </div>
-    <div class="rk-reps">
-      <span class="rk-reps-l">Reps to assume<span class="rk-reps-sub">for lifts with no reps logged</span></span>
-      <div class="rk-reps-seg">${repBtns}</div>
-    </div>
-    ${repNote}
-    ${basisNote}
     ${shown.length ? `<div class="rk-lift-list">${rows}</div>`
       : `<div class="pg-empty">No weights set on any scored lift yet.</div>`}
+    ${dial}
+    ${basisNote}
   </div>`;
 }
 
@@ -2088,7 +2076,7 @@ function gripHTML() {
   if (!g.last) {
     return `<div class="pg-card">
       <div class="pg-card-head"><div class="pg-card-title">Grip Strength</div><div class="pg-card-note">dynamometer</div></div>
-      <div class="rk-basis-note">${GRIP_HOW}</div>
+      <details class="rk-how"><summary>How to measure</summary><p>${GRIP_HOW}</p></details>
       ${form}
     </div>`;
   }
@@ -2097,15 +2085,15 @@ function gripHTML() {
   /* The table stops at the 90th, and the clamp at 99 means SS is not
      something a grip reading can claim — so past S there is no next. */
   const nx = rk.next && rk.next.min <= 99 ? rk.next : null;
-  const need = g.beyond === 'top' ? 'past the top of the table'
-    : nx ? `+${fmt(g.need(nx.min))} ${u} → ${nx.l}` : 'maxed';
+  const need = g.beyond === 'top' ? 'Top of the scale'
+    : nx ? `To reach ${nx.l}: +${fmt(g.need(nx.min))} ${u}` : 'Top of the scale';
   const since = g.since && Math.abs(g.since.kg) >= 0.05
-    ? ` · ${g.since.kg > 0 ? '+' : '−'}${fmt(Math.abs(g.since.kg))} since ${fmtD(g.since.d)}` : '';
+    ? `, ${g.since.kg > 0 ? '+' : '−'}${fmt(Math.abs(g.since.kg))} since ${fmtD(g.since.d)}` : '';
 
   const hist = [...g.log].reverse().slice(0, 6).map(e => `
     <div class="gr-h">
       <span class="gr-h-d">${fmtD(e.d)}</span>
-      <span class="gr-h-v">${e.r ? `R <b>${fmt(e.r)}</b>` : ''}${e.r && e.l ? ' · ' : ''}${e.l ? `L <b>${fmt(e.l)}</b>` : ''}</span>
+      <span class="gr-h-v">${e.r ? `R <b>${fmt(e.r)}</b>` : ''}${e.r && e.l ? ', ' : ''}${e.l ? `L <b>${fmt(e.l)}</b>` : ''}</span>
       <button class="bw-h-btn del" data-act="gr-del" data-d="${e.d}" title="Delete reading" aria-label="Delete the reading from ${fmtD(e.d)}">${TRASH}</button>
     </div>`).join('');
 
@@ -2113,20 +2101,17 @@ function gripHTML() {
     <div class="pg-card-head"><div class="pg-card-title">Grip Strength</div><div class="pg-card-note">vs ${g.group}</div></div>
     <div class="rk-lift gr-lift">
       <div class="rk-lift-top">
-        <div class="rk-lift-n">${rk.name}<span class="rk-lift-src ${g.aged ? 'counted' : 'assumed'}" title="${g.aged
-          ? `Compared with ${g.group}, read between the ages the table publishes.`
-          : 'No age set on the Body tab, so this compares you with men at the age grip peaks — the strongest group there is. Set an age to match.'}">${g.aged ? 'age-matched' : 'no age'}</span>${g.beyond
-          ? `<span class="rk-lift-src approx" title="The table publishes the 10th to the 90th centile. Past either end the percentile comes from a normal tail fitted to that end, so it is the right neighbourhood rather than an exact figure.">approx</span>` : ''}</div>
+        <div class="rk-lift-n">${rk.name}</div>
         <div class="rk-lift-r" style="color:var(${rk.c})">${rk.l}</div>
       </div>
       ${bandTrack(g.pct, false)}
       <div class="rk-lift-foot">
-        <span><b>${fmt(g.kg)}</b> ${u} ${g.hand} · ${ord(g.pct)} percentile${since}</span>
+        <span><b>${fmt(g.kg)}</b> ${u} ${g.hand}${since}</span>
         <span class="rk-lift-need">${need}</span>
       </div>
-      <div class="gr-med">Stronger than ${Math.round(g.pct)}% of ${g.group}. Their median is ${fmt(g.median)} ${u}.</div>
+      <div class="gr-med">Stronger than ${Math.round(g.pct)}% of ${g.group}</div>
     </div>
-    ${g.aged ? '' : `<div class="rk-basis-note">No age set, so this compares you with men at their peak (30–39), the strongest group there is. Set an age on the <b>Body</b> tab to match.</div>`}
+    ${g.aged ? '' : `<div class="rk-basis-note">No age set, so this compares you with men aged 30 to 39.</div>`}
     ${form}
     <div class="gr-hist">${hist}</div>
   </div>`;
@@ -2162,30 +2147,30 @@ function heatmapHTML(s) {
          paint two green squares. The grid reports the schedule, so the work
          is credited once, to the day that asked for it. streaksFrom already
          skips unscheduled dates for the same reason. */
-      else if (!sched)                           cls = 'rest',   tip = `${fmtD(ds)} · rest day`;
+      else if (!sched)                           cls = 'rest',   tip = `${fmtD(ds)}, rest day`;
       /* Green means the day's own card got done, the same test streaksFrom
          uses. A session on the date is not enough: do Monday's card on
          Tuesday and skip Tuesday's, and that one session would otherwise
          paint Monday (made up) and Tuesday (trained on) both. */
       else if (cov === 'done') {
         cls = 'hit';
-        tip = `${fmtD(ds)} · ${s.log.filter(e => e.d === ds).map(e => PROGRAM[e.di]?.label).join(', ') || 'session'}`;
+        tip = `${fmtD(ds)}, ${s.log.filter(e => e.d === ds).map(e => PROGRAM[e.di]?.label).join(', ') || 'session'}`;
       }
       /* A made-up day is a done day, all the way down: Tuesday reads as
          trained and says so on hover exactly the way a session done on the
          day would. */
-      else if (made)                             cls = 'hit',    tip = `${fmtD(ds)} · ${label}`;
-      else if (ds === today)                     cls = 'open',   tip = `Today · ${label}`;
+      else if (made)                             cls = 'hit',    tip = `${fmtD(ds)}, ${label}`;
+      else if (ds === today)                     cls = 'open',   tip = `Today, ${label}`;
       else if (s.firstDate && ds >= s.firstDate) {
         const other = s.log.filter(e => e.d === ds).map(e => PROGRAM[e.di]?.label).filter(Boolean);
         cls = 'miss';
-        tip = `${fmtD(ds)} · ${label} missed${other.length ? ` (trained ${other.join(', ')} instead)` : ''}`;
+        tip = `${fmtD(ds)}, ${label} missed${other.length ? ` (trained ${other.join(', ')} instead)` : ''}`;
       }
       else                                       cls = 'pre',    tip = fmtD(ds);
       if (ds === today) cls += ' today';
       const di = DI_OF_DOW[d.getDay()];
       const manual = cls === 'hit' && s.log.some(e => e.d === ds && e.di === di && e.m);
-      if (manual) tip += ' · marked by hand';
+      if (manual) tip += ', marked by hand';
       const act = hmEdit && (cls === 'miss' || manual)
         ? ` data-act="hm-day" data-d="${ds}" data-di="${di}"` : '';
       if (act) cls += ' edit';
@@ -2231,7 +2216,7 @@ function tile(label, value, unit, sub, cnt) {
   return `<div class="bw-stat">
     <div class="bw-stat-v">${v}${unit ? `<span class="bw-stat-u">${unit}</span>` : ''}</div>
     <div class="bw-stat-l">${label}</div>
-    <div class="bw-stat-d ${sub ? 'up' : 'flat'}">${sub || '·'}</div>
+    <div class="bw-stat-d ${sub ? 'up' : 'flat'}">${sub || ''}</div>
   </div>`;
 }
 
@@ -2287,7 +2272,7 @@ function sinceHTML(s) {
   const yr = dOf(s.firstDate).getFullYear() !== new Date().getFullYear()
     ? `, ${dOf(s.firstDate).getFullYear()}` : '';
   return `<div class="pg-card rk-next"><span class="pg-kicker">Training For</span>
-    <div><span class="pg-next-w">${trainingFor(s.firstDate)}</span> · since ${fmtD(s.firstDate)}${yr}</div></div>`;
+    <div><span class="pg-next-w">${trainingFor(s.firstDate)}</span>, since ${fmtD(s.firstDate)}${yr}</div></div>`;
 }
 
 function nextUpHTML(s) {
@@ -2300,7 +2285,7 @@ function nextUpHTML(s) {
     if (!schedOn(ds, d.getDay())) continue;
     if (i === 0 && s.hits.has(ds)) continue;
     const when = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : dOf(ds).toLocaleDateString('en-US', { weekday:'long' });
-    return `<span class="pg-next-w">${when}</span> · ${PROGRAM[DI_OF_DOW[d.getDay()]].label}${tail}`;
+    return `<span class="pg-next-w">${when}</span>, ${PROGRAM[DI_OF_DOW[d.getDay()]].label}${tail}`;
   }
   return `Rest up.${tail}`;
 }
@@ -2319,7 +2304,7 @@ function prRow(p, i) {
     <div class="pg-pr-ex">${p.ex}</div>
     <div class="pg-pr-w"><span class="pg-pr-from">${p.from}</span> → ${to} <span class="pg-pr-u">lbs</span></div>
     <div class="pg-pr-up">${vd ? 'rolled back' : `${pc > 0 ? '+' : ''}${pc}%`}</div>
-    <div class="pg-pr-d">${fmtD(p.d)}${dn && !vd ? ' · back-off' : ''}${tag ? ` · <span class="pg-pr-tag">${tag}</span>` : ''}</div>
+    <div class="pg-pr-d">${fmtD(p.d)}${dn && !vd ? ', back-off' : ''}${tag ? `, <span class="pg-pr-tag">${tag}</span>` : ''}</div>
   </div>`;
 }
 
@@ -2340,7 +2325,7 @@ function progressionHTML(s, st) {
     s.givenBack > 0 ? [`+${fmtN(Math.round(s.grossAdded))}`, 'peak added'] : null,
     s.givenBack > 0 ? [`−${fmtN(Math.round(s.givenBack))}`, `${s.backoffs} back-off${s.backoffs === 1 ? '' : 's'}`] : null,
     s.voids > 0 ? [s.voids, `rolled back`] : null,
-    pend ? [pend, `untested${s.pendingLoad > 0 ? ` · ${fmtN(Math.round(s.pendingLoad))} lbs` : ''}`] : null,
+    pend ? [pend, `untested${s.pendingLoad > 0 ? `, ${fmtN(Math.round(s.pendingLoad))} lbs` : ''}`] : null,
   ].filter(Boolean);
 
   return `<div class="pg-card">
@@ -2413,7 +2398,7 @@ function badgesHTML(ach, flat) {
 
   return `${nextUp}<div class="pg-card">
     <div class="pg-card-head"><div class="pg-card-title">Achievements</div><div class="pg-card-note">${ach.ids.size}/${BADGES.length} earned</div></div>
-    <p class="pg-b-intro">Milestones for turning up, getting stronger and keeping the log. Each one says what earns it. Green ones are yours, with the day you earned them; the rest show how far along you are.</p>
+    <p class="pg-b-intro">Milestones you earn by training. Green ones are yours.</p>
     ${groups}
   </div>`;
 }

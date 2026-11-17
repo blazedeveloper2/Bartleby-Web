@@ -24,7 +24,7 @@
    average rather than dragging them down.
    ═══════════════════════════════════════════════════════════ */
 
-import { PROGRAM } from './data.js?v=3d-nov16h';
+import { PROGRAM } from './data.js?v=3d-nov16n';
 import { load, save, todayStr, dateStr } from './store.js?v=3d-oct14d';
 
 const KEY = 'bp_time';
@@ -188,7 +188,7 @@ export function renderTime(root) {
   h += `<div class="bw-stats pg-tiles">
     ${tile('Avg session', avg ? fmtDur(avg) : '—', done.length ? `${done.length} timed` : 'none finished yet')}
     ${tile('This week', fmtDur(wkMs), `${thisWeek.length} session${thisWeek.length === 1 ? '' : 's'}`)}
-    ${tile('Longest', longest ? fmtDur(longest.ms) : '—', longest ? `${PROGRAM[longest.di].day} · ${fmtD(longest.d)}` : '')}
+    ${tile('Longest', longest ? fmtDur(longest.ms) : '—', longest ? `${PROGRAM[longest.di].day}, ${fmtD(longest.d)}` : '')}
     ${tile('Per set', perSet ? fmtClock(perSet) : '—', perSet ? 'set + its rest' : '')}
   </div>`;
 
@@ -202,7 +202,7 @@ function tile(label, v, sub) {
   return `<div class="bw-stat">
     <div class="bw-stat-v">${v}</div>
     <div class="bw-stat-l">${label}</div>
-    <div class="bw-stat-d ${sub ? 'up' : 'flat'}">${sub || '·'}</div>
+    <div class="bw-stat-d ${sub ? 'up' : 'flat'}">${sub || ''}</div>
   </div>`;
 }
 
@@ -210,9 +210,9 @@ function liveHTML(s) {
   const day = PROGRAM[s.di];
   return `<div class="pg-card tm-live">
     <div class="tm-live-l">
-      <span class="pg-kicker">In progress${s.part ? ' · partial' : ''}</span>
+      <span class="pg-kicker">In progress${s.part ? ', partial' : ''}</span>
       <div class="tm-live-n"><span class="day-badge ${day.day}">${day.day}</span>${esc(day.label)}</div>
-      <div class="tm-live-s">${s.sets} set${s.sets === 1 ? '' : 's'} logged${avgFor(s.di) ? ` · usually ${fmtDur(avgFor(s.di))}` : ''}</div>
+      <div class="tm-live-s">${s.sets} set${s.sets === 1 ? '' : 's'} logged${avgFor(s.di) ? `, usually ${fmtDur(avgFor(s.di))}` : ''}</div>
     </div>
     <div class="tm-live-t" data-clock="${s.di}">${fmtClock(s.ms)}</div>
   </div>`;
@@ -242,7 +242,7 @@ function byDayHTML(all) {
         <span class="tm-day-n">${esc(r.day.label)}</span>
         <span class="tm-day-v">${fmtDur(r.avg)}</span>
         <span class="tm-bar"><i style="width:${(r.avg / most * 100).toFixed(1)}%"></i></span>
-        <span class="tm-day-s">last ${fmtDur(r.last.ms)} · ${r.n} timed</span>
+        <span class="tm-day-s">last ${fmtDur(r.last.ms)}, ${r.n} timed</span>
       </summary>
       <div class="tm-ex">${r.top.map(([n, ms]) => `<div class="tm-ex-row">
         <span class="tm-ex-n">${esc(n)}</span><span class="tm-ex-v">${fmtDur(ms)}</span>
@@ -284,7 +284,7 @@ function recentHTML(all) {
       const start = new Date(s.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
       return `<div class="pg-s-row">
         <span class="day-badge ${day.day}">${day.day}</span>
-        <div class="pg-s-body"><div class="pg-s-n">${esc(day.label)} ${tag}</div><div class="pg-s-d">${fmtD(s.d)} · started ${start} · ${s.sets} sets</div></div>
+        <div class="pg-s-body"><div class="pg-s-n">${esc(day.label)} ${tag}</div><div class="pg-s-d">${fmtD(s.d)}, started ${start}, ${s.sets} sets</div></div>
         <span class="tm-dur"${s.live ? ` data-clock="${s.di}"` : ''}>${s.live ? fmtClock(s.ms) : fmtDur(s.ms)}</span>
       </div>`;
     }).join('')}</div>
