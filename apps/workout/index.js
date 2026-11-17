@@ -16,8 +16,8 @@ import {
   liftScores, standingOf, resEx, resKit, lvlOf, setLvl, resetTargets, applyReset,
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip, exHistory,
-  chkAll, chkSave, lastCount, dayCount, latchAwards, xsKey,
-} from './rank.js?v=3d-nov16c';
+  chkAll, chkSave, lastCount, dayCount, latchAwards, xsKey, nextStep, sessionDetailHTML,
+} from './rank.js?v=3d-nov16e';
 import { progressHTML } from './progress.js?v=3d-nov16c';
 
 /* Which movements have a published standard, so the rep boxes only appear
@@ -28,7 +28,7 @@ import { restBand, BANDS, fmtRest } from './rest.js?v=3d-oct14d';
 import * as rest from './timer.js?v=3d-nov16b';
 import * as timing from './sessions.js?v=3d-oct18a';
 import { HOWTO } from './howto.js?v=3d-oct14h';
-import * as anatomy from './anatomy.js?v=3d-nov16c';
+import * as anatomy from './anatomy.js?v=3d-nov16e';
 import { animHTML, playAnim } from './pose.js?v=3d-nov16c';
 import { standingsFor } from './anthro.js?v=3d-oct14d';
 import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=3d-nov05b';
@@ -131,6 +131,7 @@ function renderProg() {
   const sc = liftScores();
   const tdi = todayDi();
   progStale = false;
+  dayOpen ||= new Set([focusDay()]);
   /* Before the first day card: the verse is what you read on the way in. */
   let h = verseHTML(verseOpen);
   WEEK_ORDER.forEach((di, pos) => {
@@ -140,14 +141,15 @@ function renderProg() {
     const comp = dn === tot && tot > 0;
     const xpH = comp && isLoggedToday(di) ? `<span class="day-xp logged">Logged</span>` : '';
     const tmH = dayClockHTML(di);
-    h += `<div class="day-card${di === tdi ? ' today' : ''}" data-day="${di}">
-      <div class="day-top">
+    const open = dayOpen.has(di);
+    h += `<div class="day-card${di === tdi ? ' today' : ''}${open ? '' : ' shut'}" data-day="${di}">
+      <div class="day-top" data-act="day-fold" data-di="${di}" role="button" tabindex="0" aria-expanded="${open}" title="Show or hide this day">
         <div class="day-top-l">
           <span class="day-idx">${pad(pos + 1)}</span><span class="day-sep">//</span>
           <span class="day-badge ${day.day}">${day.day}</span>
           <span class="day-title">${day.label}</span>${di === tdi ? '<span class="day-today">Today</span>' : ''}
         </div>
-        <div class="day-top-r">${tmH}${xpH}<span class="day-prog ${comp?'done':''}">${dn}/${tot}</span></div>
+        <div class="day-top-r">${tmH}${xpH}<span class="day-prog ${comp?'done':''}">${dn}/${tot}</span><i class="day-chev" aria-hidden="true"></i></div>
       </div>
       <div class="day-meter">${meterHTML(dn, tot)}</div>
       <div class="day-body">`;
@@ -176,7 +178,7 @@ function rowHTML(di, si, ei, ex, n, ch, w, sc) {
   const dH  = dn ? `<span class="ex-done${dn >= nS ? ' full' : ''}" title="Sets logged today">${Math.min(dn, nS)}/${nS}</span>` : '';
   const l   = sc.get(ex.n);
   const nA  = l ? ` style="color:${pctColor(l.pct)}" title="${l.rank.l} · ${ord(l.pct)} percentile at your ${sc.basisWord}"` : '';
-  return `<div class="ex-row ${on?'off':''}" data-act="row" data-di="${di}" data-si="${si}" data-ei="${ei}"><span class="ex-rail"></span><div class="ex-chk ${on?'on':''}" data-act="chk" data-k="${k}"></div><span class="ex-idx">${pad(n)}</span><div class="ex-body"><div class="ex-name"${nA}>${ex.n}</div><div class="ex-detail"><span class="ex-musc">${ex.m}</span></div>${ex.nt ? `<div class="ex-note">${ex.nt}</div>` : ''}</div><div class="ex-right">${wtH}${dH}<span class="ex-sets">${ex.s}</span>${bH}</div></div>`;
+  return `<div class="ex-row ${on?'off':''}" data-act="row" data-di="${di}" data-si="${si}" data-ei="${ei}"><span class="ex-rail"></span><div class="ex-chk ${on?'on':''}" data-act="chk" data-k="${k}"></div><span class="ex-idx">${pad(n)}</span><div class="ex-body"><div class="ex-name"${nA}>${ex.n}</div>${ex.nt ? `<div class="ex-note">${ex.nt}</div>` : ''}</div><div class="ex-right">${wtH}${dH}<span class="ex-sets">${ex.s}</span>${bH}</div></div>`;
 }
 
 /* What a logged set can change on the Program tab: that exercise's rows
@@ -185,6 +187,36 @@ function rowHTML(di, si, ei, ex, n, ch, w, sc) {
    rows are rebuilt and nothing else; a full renderProg() per set rebuilt
    every card and restarted their entrance animations. Off the Program tab
    nothing is painted at all, and the tab is rebuilt on the way back. */
+/* ── one day at a time ──
+
+   Four or seven day cards stacked is a long page for a thing you do one
+   card of. Today's card is open and the others fold to their header —
+   badge, title, progress and the notch meter stay, so the week still reads
+   at a glance — and a tap on any header opens or shuts it. On a rest day
+   the next training day is the one left open. The rows are still built for
+   a folded day, only hidden: everything that finds an exercise by its row
+   (paintExRows, the today scroll) works as it did. Which days are open
+   lasts for the visit and starts over on a new day. */
+let dayOpen = null;
+function focusDay() {
+  const t = todayDi();
+  if (t >= 0) return t;
+  const dow = new Date().getDay();
+  for (let k = 1; k < 7; k++) {
+    const di = PROGRAM.findIndex(d => d.day === DOW_KEY[(dow + k) % 7]);
+    if (di >= 0) return di;
+  }
+  return WEEK_ORDER[0];
+}
+function toggleDay(head) {
+  const di = +head.dataset.di, card = head.closest('.day-card');
+  if (!card || !dayOpen) return;
+  const open = !dayOpen.has(di);
+  open ? dayOpen.add(di) : dayOpen.delete(di);
+  card.classList.toggle('shut', !open);
+  head.setAttribute('aria-expanded', String(open));
+}
+
 let progStale = false;
 function paintExRows(ex) {
   if (!ex) return;
@@ -401,8 +433,11 @@ function mmRankHTML(st) {
   const l = st.lift;
   const src = l.srcLabel ? `<span class="rk-lift-src ${l.src}" title="${l.note || ''}">${l.srcLabel}</span>`
             : (l.note ? `<span class="rk-lift-src info" title="${l.note}">i</span>` : '');
-  const next = l.rank.next && l.need !== null
-    ? `<b>+${l.need < 1 ? l.need.toFixed(1) : Math.round(l.need)} lbs</b> → ${l.rank.next.l} · ${l.rank.next.name}`
+  /* in steps that exist: the next weight on the rack, or a rep count at
+     this one (nextStep, rank.js) */
+  const ns = nextStep(l, true);
+  const next = ns
+    ? `<b>${ns.join('</b> or <b>')}</b> → ${l.rank.next.l} · ${l.rank.next.name}${l.over && !l.toReps ? ` · heavier than your ${DB_MAX} lb dumbbells` : ''}`
     : 'Past the top of the published scale.';
   return `<div class="mm-rank">
     <div class="mm-rank-l" style="color:var(${l.rank.c})">${l.rank.l}</div>
@@ -2147,6 +2182,16 @@ function onClick(e) {
     case 'mm-same':   fillSame(); break;
     case 'mm-wt-step': stepWeight(+a.d); break;
     case 'mm-howto':  toggleHowto(el); break;
+    case 'day-fold':  toggleDay(el); break;
+    case 'pg-open': {
+      const row = el.closest('.pg-s-row'), det = row?.nextElementSibling;
+      if (!row) break;
+      const was = det?.classList.contains('pg-s-det');
+      if (was) det.remove(); else row.insertAdjacentHTML('afterend', sessionDetailHTML(a.d, +a.di));
+      row.classList.toggle('open', !was);
+      row.setAttribute('aria-expanded', String(!was));
+      break;
+    }
     case 'mm-anim-play': playHowto(); break;
     case 'verse': {
       verseOpen = !verseOpen;
@@ -2255,6 +2300,7 @@ function onResume() {
   if (d === dayShown) return;
   dayShown = d;
   verseOpen = true; save(VERSE_KEY, d);         // a new day, a new verse to read
+  dayOpen = null;                               // and a new today to open on
   const picked = id => { const el = q(id); return el && !el.readOnly && el.value && el.value !== el.max ? el.value : null; };
   renderProg();
   const bwDate = picked('#bw-date'), draft = bwFormDraft();
@@ -2322,7 +2368,7 @@ function onKeydown(e) {
     }
   }
   if (e.key !== 'Enter') return;
-  if (e.target.classList?.contains('rk-verse')) { e.preventDefault(); e.target.click(); return; }
+  if (e.target.matches?.('.rk-verse, .day-top, .pg-s-row')) { e.preventDefault(); e.target.click(); return; }
   if (e.target.id === 'bw-weight' || TAPE_KEYS.some(k => e.target.id === 'bw-' + k)) bwSave();
   else if (e.target.id === 'bd-goal') bdGoalSave();
   else if (e.target.id === 'gr-r' || e.target.id === 'gr-l') grSave();
@@ -2436,7 +2482,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=3d-nov16c',
+  styles: 'apps/workout/workout.css?v=3d-nov16e',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
@@ -2445,7 +2491,7 @@ export default {
        should return you to the tab you left, not to its front page. */
     bwRange = '30'; bwMetric = 'w'; bwMore = false; bwEditDate = null; mmEx = null; mmSlot = null;
     verseOpen = load(VERSE_KEY, '') !== todayStr(); save(VERSE_KEY, todayStr());
-    bwProfOpen = false;
+    bwProfOpen = false; dayOpen = null;
     root.innerHTML = template();
     root.addEventListener('click', onClick);
     root.addEventListener('change', onChange);

@@ -1732,3 +1732,76 @@ html.wk-ax .rest-bar{visibility:hidden}
 .bd-fold-b:hover{color:var(--text);border-color:var(--border-lt)}
 .bd-fold-b:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
 .bd-fold .bd-prof{margin:0;border:0;border-top:1px solid var(--border);border-radius:0;background:none}
+
+/* ═══════════════════════════════════════════════════════════
+   SECOND PASS (Nov 2026) — one day at a time, rank you can read,
+   a session log that opens, awards that explain themselves
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── program: other days fold to their header (dayOpen, index.js) ── */
+.wk .day-top{cursor:pointer}
+.wk .day-top:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+.wk .day-chev{flex:none;width:7px;height:7px;margin:0 2px 3px 2px;border-right:2px solid var(--text-3);
+  border-bottom:2px solid var(--text-3);transform:rotate(-135deg);transition:transform .15s}
+.wk .day-card.shut .day-chev{transform:rotate(45deg)}
+.wk .day-card.shut .day-body{display:none}
+.wk .day-card.shut{opacity:.86}
+
+/* ── bench chips: the angle is the information, not the colour ──
+   Colour-coded, three of the five landed on a red in a red theme and read
+   as warnings on a row that had nothing wrong with it. */
+.wk .bench-tag,.wk .bench-flat,.wk .bench-55,.wk .bench-30,.wk .bench-85,.wk .bench-decline{
+  background:var(--bg);color:var(--text-2);box-shadow:inset 0 0 0 1px var(--border)}
+
+/* ── the smallest type, a notch up ── */
+.wk .sec-lbl{font-size:10.5px;letter-spacing:1.6px}
+.rk-lift-src{font-size:9.5px;letter-spacing:.5px}
+.rk-lift-foot{font-size:11px}
+.pg-s-d{font-size:11px}
+.pg-card-note{font-size:11px}
+.pg-kicker{font-size:10px}
+.pg-b-gt>span:first-child{font-size:10.5px;letter-spacing:1.4px}
+.pg-b-gc{font-size:11px}
+.wk .mm-set>span{font-size:10px}
+
+/* ── rank: bands you can tell apart, and a dial you can press ── */
+html[data-theme="redline"] .rk-seg,html[data-theme="black"] .rk-seg,html[data-theme="dark"] .rk-seg{opacity:.62}
+.rk-segs{gap:2px}
+.rk-lift .rk-segs{height:10px}
+.rk-reps-seg{gap:6px}
+.rk-rep{width:44px;min-height:40px;padding:0;font-size:13px}
+
+/* ── session log: a row opens (sessionDetailHTML, rank.js) ── */
+.pg-s-row{cursor:pointer}
+.pg-s-row:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+.pg-s-row.open{background:var(--bg-hover);border-bottom-color:transparent}
+.pg-s-det{padding:4px 14px 12px;border-bottom:1px solid var(--border);background:var(--bg-hover)}
+.pg-s-det:last-child{border-bottom:none}
+.pg-sd-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px solid var(--border)}
+.pg-sd-n{font-size:12px;font-weight:600;color:var(--text);min-width:0}
+.pg-sd-v{flex:none;display:flex;align-items:baseline;gap:8px;font-family:var(--mono);font-size:11.5px;color:var(--text-2);font-variant-numeric:tabular-nums}
+.pg-sd-v b{color:var(--ink-green);font-weight:700}
+.pg-sd-meta{padding:6px 0;font-size:11.5px;line-height:1.5;color:var(--text-3)}
+.pg-sd-row+.pg-sd-meta{border-top:1px solid var(--border)}
+
+/* ── awards: what each is for, how far along, and what is next ── */
+.pg-b-intro{margin:-4px 0 14px;font-size:12px;line-height:1.55;color:var(--text-3)}
+.pg-b{opacity:.82;padding:12px 9px}
+.pg-b-q{margin-top:4px;font-size:10.5px;line-height:1.4;color:var(--text-2)}
+.pg-b-r{font-size:10.5px;font-family:var(--mono);margin-top:6px}
+.pg-b.on .pg-b-q{color:var(--text)}
+.pg-b-bar{height:4px;margin-top:6px;background:var(--border);overflow:hidden}
+.pg-b-bar>i{display:block;height:100%;background:var(--blue)}
+.pg-next .pg-card-note{white-space:normal;text-align:right}
+.pg-nx{display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-top:1px solid var(--border)}
+.pg-nx .pg-b-ico{flex:none;margin:2px 0 0}
+.pg-nx-b{flex:1;min-width:0}
+.pg-nx-n{font-size:13px;font-weight:700;color:var(--text)}
+.pg-nx-q{margin-top:2px;font-size:11.5px;line-height:1.4;color:var(--text-2)}
+.pg-nx .pg-b-bar{height:6px;margin-top:8px}
+.pg-nx-p{margin-top:5px;font-family:var(--mono);font-size:11px;color:var(--text-3);font-variant-numeric:tabular-nums}
+
+/* the fold chevron needs the room the '//' was using on a phone */
+@media(max-width:480px){.wk .day-sep{display:none}.wk .day-top-r{gap:6px}}
+/* a name with two chips after it wraps rather than clipping the second */
+.rk-lift-n{flex-wrap:wrap;row-gap:4px}

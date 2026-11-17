@@ -37,13 +37,13 @@
    ═══════════════════════════════════════════════════════════ */
 
 import { PROGRAM, LADDERS, GYM_STEP } from './data.js?v=3d-oct18a';
-import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, rankFor, ord, verseFor, VERSE_NOTICE } from './standards.js?v=3d-oct14d';
+import { LIFTS, DB_LADDER, onLadder, SRC_LABEL, TIER_PCT, RANKS, rankFor, ord, verseFor, VERSE_NOTICE } from './standards.js?v=3d-oct14d';
 import { load, save, remove, todayStr, dateStr } from './store.js?v=3d-oct14d';
 /* An entry in bp_bw can now carry a waist and neck but no weight, so the
    last entry is no longer reliably the last bodyweight. Everything here that
    wants a weight goes through weighed(). */
 import { weighed, taped, navyBF, prof, snapshot as bodySnap, scoringRef } from './body.js?v=3d-oct14d';
-import { TIME_RESET, timeCount } from './sessions.js?v=3d-oct18a';
+import { TIME_RESET, timeCount, sessions as timedSessions, fmtDur } from './sessions.js?v=3d-oct18a';
 import { gripOn, gripAll, gripStanding, gripUnit, toGU, GRIP_UNITS, GRIP_HOW } from './grip.js?v=3d-nov05b';
 
 /* ── storage ── */
@@ -646,14 +646,20 @@ const BADGES = [
    `st` is always the PROVEN view — a weight you typed but have not trained
    unlocks nothing, which is what lets a back-off roll cleanly back. */
 export function earned(cs, st) {
-  /* The balance badges ask about the sheet, so they read the same set the
+  /* (flatOf) The balance badges ask about the sheet, so they read the same set the
      letter does — otherwise "every scored lift at C or above" could be
      failed by a weight sitting on an alternate that is not on screen and
      cannot be raised. Best-lift and max-ratio stay over everything: a lift
      you genuinely hit counts whether or not it is currently displayed. */
+  return new Set(BADGES.filter(b => b.t(flatOf(cs, st))).map(b => b.id));
+}
+function flatOf(cs, st) {
   const pcts = st.counted.map(l => l.pct);
-  const flat = {
+  return {
     ...cs,
+    /* for the progress bars (PROG below), not for any test */
+    overall: st.counted.length ? st.overall : 0,
+    bestPct: st.lifts.reduce((a, l) => Math.max(a, l.pct), 0),
     rankIdx: st.counted.length ? st.rank.i : 0,
     /* lifts only: the balance badges wait for a full sheet, and a grip
        reading is not one more lift towards it */
@@ -664,7 +670,48 @@ export function earned(cs, st) {
     maxRatio: st.lifts.reduce((a, l) => Math.max(a, l.ratio), 0),
     allLogged: st.totalScorable > 0 && st.scoredReachable >= st.totalScorable,
   };
-  return new Set(BADGES.filter(b => b.t(flat)).map(b => b.id));
+}
+
+/* How far along a badge is: [now, goal, what is being counted], off the
+   same figures its test reads. Only for badges whose test is one number
+   climbing to a line — the rest (a comeback after two weeks off, a full
+   sheet, a body fat to get UNDER) have no bar worth drawing and simply
+   say what they ask for. Keyed by badge id; a badge missing here just
+   shows no progress. */
+const cnt = (k, goal, unit) => s => [s[k], goal, unit];
+const rk = i => s => [s.overall, RANKS[i].min, 'overall score'];
+const lf = i => s => [s.bestPct, RANKS[i].min, 'percentile, best lift'];
+const sheet = min => s => (s.scored >= 8 ? [s.minPct, min, 'percentile, weakest lift'] : [s.scored, 8, 'lifts scored']);
+const PROG = {
+  first: cnt('sessions', 1, 'sessions'), ten: cnt('sessions', 10, 'sessions'), twentyfive: cnt('sessions', 25, 'sessions'),
+  fifty: cnt('sessions', 50, 'sessions'), seventy5: cnt('sessions', 75, 'sessions'), hundred: cnt('sessions', 100, 'sessions'),
+  twoHundred: cnt('sessions', 200, 'sessions'),
+  streak3: cnt('best', 3, 'days, best streak'), streak8: cnt('best', 8, 'days, best streak'),
+  streak20: cnt('best', 20, 'days, best streak'), streak40: cnt('best', 40, 'days, best streak'),
+  week: cnt('perfectWeeks', 1, 'perfect weeks'), weeks2: cnt('perfectWeeks', 2, 'perfect weeks'),
+  weeks4: cnt('perfectWeeks', 4, 'perfect weeks'), weeks10: cnt('perfectWeeks', 10, 'perfect weeks'),
+  season: cnt('daysIn', 90, 'days'), year1: cnt('daysIn', 365, 'days'), everyDay: cnt('dowCount', 7, 'weekdays'),
+  rankD: rk(1), rankC: rk(2), rankB: rk(3), rankA: rk(4), rankS: rk(5), rankSS: rk(6),
+  liftB: lf(3), liftA: lf(4), liftS: lf(5), liftSS: lf(6),
+  noWeak: sheet(20), allB: sheet(50),
+  p4p: s => [s.maxRatio, 1, '× bodyweight'], bw15: s => [s.maxRatio, 1.5, '× bodyweight'],
+  sets100: cnt('sets', 100, 'sets'), sets250: cnt('sets', 250, 'sets'), sets500: cnt('sets', 500, 'sets'),
+  sets1500: cnt('sets', 1500, 'sets'), sets4000: cnt('sets', 4000, 'sets'), sets10k: cnt('sets', 10000, 'sets'),
+  pr1: cnt('prs', 1, 'increases'), pr5: cnt('prs', 5, 'increases'), pr15: cnt('prs', 15, 'increases'), pr50: cnt('prs', 50, 'increases'),
+  load100: cnt('loadAdded', 100, 'lbs added'), load250: cnt('loadAdded', 250, 'lbs added'),
+  load500: cnt('loadAdded', 500, 'lbs added'), load1000: cnt('loadAdded', 1000, 'lbs added'),
+  weighIn: cnt('bwCount', 15, 'weigh-ins'), bwLog50: cnt('bwCount', 50, 'weigh-ins'),
+  tape1: cnt('tapes', 1, 'tape measurements'), tape6: cnt('tapes', 6, 'tape measurements'),
+  bfDrop3: cnt('bfDrop', 3, 'points dropped'),
+};
+function progOf(b, flat) {
+  const f = PROG[b.id];
+  if (!f) return null;
+  const [cur, goal, unit] = f(flat);
+  if (!(goal > 0) || !Number.isFinite(cur)) return null;
+  const c = Math.max(0, cur);
+  const num = v => (Math.abs(v - Math.round(v)) < 0.05 ? fmtN(Math.round(v)) : v.toFixed(1));
+  return { frac: Math.min(1, c / goal), txt: `${num(Math.min(c, goal))} / ${num(goal)} ${unit}` };
 }
 
 /* Milestones latch. Reaching B is a thing that happened on a date, so a
@@ -974,12 +1021,12 @@ function scoreAll(w, bodyweight, ref, r, reach, grip, xr = xrepsAll()) {
     let pct = pctFor(ratio, tiers);
     let rk = rankFor(pct);
     /* lbs of working weight still needed for the next letter */
-    const needFor = k => {
-      if (!k.next) return null;
+    const targetOf = k => {
       const ti = TIER_PCT.indexOf(k.next.min);
-      const targetRatio = ti >= 0 ? tiers[ti] : tiers[tiers.length - 1] * 1.08;
-      return Math.max(0, weightFor(spec, targetRatio, bodyweight, ref, rr.n) - wv);
+      return ti >= 0 ? tiers[ti] : tiers[tiers.length - 1] * 1.08;
     };
+    const needFor = k => (k.next
+      ? Math.max(0, weightFor(spec, targetOf(k), bodyweight, ref, rr.n) - wv) : null);
     let need = needFor(rk);
     /* A lift sitting on a letter's boundary can land a hair under it in
        the arithmetic and read "+0.0 lbs → C": nothing left to add, and
@@ -991,8 +1038,33 @@ function scoreAll(w, bodyweight, ref, r, reach, grip, xr = xrepsAll()) {
       rk = rankFor(pct);
       need = needFor(rk);
     }
+    /* The same gap as steps that exist. "+1 lbs" is true and cannot be
+       done: a dumbbell goes up a rung at a time, and the other way to a
+       higher estimate is one more rep at the weight already in your hands.
+         toW     the next weight on the rack that reaches the letter
+         toReps  the rep count that reaches it at this weight — offered only
+                 inside the range the lift is meant to fail in, since past
+                 it the answer is more weight, not more reps */
+    let toW = null, toReps = null, over = false;
+    if (rk.next && need !== null) {
+      const goal = wv + need;
+      const up = st => +(Math.ceil(goal / st - 1e-9) * st).toFixed(2);
+      if (GYM_STEP) toW = up(GYM_STEP);
+      else if (spec.mode === 'added') toW = null;          // what hangs off a belt: plain pounds
+      else if (!onLadder(spec) || wv > DB_MAX) toW = up(2.5);   // a bar, or dumbbells this list does not describe
+      else {
+        toW = DB_LADDER.find(v => v >= goal - 1e-9) ?? null;
+        over = toW === null;                               // the letter is past the heaviest dumbbell
+      }
+      const tr = targetOf(rk);
+      const nT = spec.mode === 'added'
+        ? 30 * ((bodyweight + tr * ref) / (bodyweight + wv) - 1)
+        : 30 * (tr * ref / (wv * (spec.mult || 1)) - 1);
+      const r = Math.ceil(nT - 1e-9);
+      if (r > rr.n && r <= (spec.rng ? spec.rng[1] : EPLEY_SOFT_MAX)) toReps = r;
+    }
     out.lifts.push({
-      name, w: wv, ratio, pct, rank: rk, need,
+      name, w: wv, ratio, pct, rank: rk, need, toW, toReps, over,
       /* the 1RM the ratio was actually derived from */
       oneRM: spec.mode === 'added' ? ratio * ref : est1RM(wv * (spec.mult || 1), rr.n),
       oneRMLabel: spec.mode === 'added' ? 'est. 1RM added' : 'est. 1RM',
@@ -1162,6 +1234,23 @@ export function setReps(r) { if (REP_OPTS.includes(+r)) sReps(+r); }
 /* The map, plus the one fact about HOW it was scored that the Program tab's
    tooltips need. Returned from the same run rather than fetched by a second
    strength() call, which would re-score every lift to read one boolean. */
+/* What the next letter takes, as the parts of a sentence: ["50 lbs",
+   "11 reps"] reads "50 lbs or 11 reps → C". `long` names the weight the
+   reps are at, for the lab, which has the room. A lift with no rack to
+   read (toW null) keeps the plain pounds. */
+const wTxt = n => (Math.round(n * 10) % 10 === 0 ? String(Math.round(n)) : n.toFixed(1));
+export function nextStep(l, long = false) {
+  if (!l.rank.next || l.need === null) return null;
+  const parts = [l.toW !== null && l.toW !== undefined
+    ? `${wTxt(l.toW)} lbs`
+    : `+${l.need < 1 ? l.need.toFixed(1) : Math.round(l.need)} lbs`];
+  if (l.toReps) parts.push(long ? `${l.toReps} reps at ${wTxt(l.w)}` : `${l.toReps} reps`);
+  /* past the top of the rack there is no weight to name: if reps can get
+     there they are the whole answer, and if not the pounds stand, marked */
+  if (l.over && l.toReps) parts.shift();
+  return parts;
+}
+
 export function liftScores() {
   const st = strength();
   const map = new Map(st.lifts.map(l => [l.name, l]));
@@ -1924,8 +2013,8 @@ function liftsHTML(st) {
             : ''} · ${l.ratio.toFixed(2)}× ${st.usingLean ? 'ref' : 'bw'}</span>
         <span class="rk-lift-need">${l.beyond
             ? 'past the top of the table'
-            : l.need !== null && l.rank.next
-              ? `+${l.need < 1 ? l.need.toFixed(1) : Math.round(l.need)} lbs → ${l.rank.next.l}`
+            : nextStep(l)
+              ? `${nextStep(l).join(' or ')} → ${l.rank.next.l}`
               : 'maxed'}</span>
       </div>
     </div>`).join('');
@@ -2253,21 +2342,46 @@ function progressionHTML(s, st) {
   </div>`;
 }
 
-function badgesHTML(ach) {
+function badgesHTML(ach, flat) {
   /* Three states, not two. "Earned" and "still true" stopped being the same
      thing the moment a back-off could move you back down a letter, and
      deleting the badge would be pretending the month you held it never
      happened. */
+  /* Every tile says what it is for, earned or not. An earned one used to
+     swap its requirement for "Unlocked · Nov 6", which left a wall of
+     names — "Hat Trick", "Unbroken" — with nothing to say what any of
+     them had been for. Now the requirement always shows; under it, the
+     day it was earned, or how far along it is. */
   const cell = (b, i) => {
     const on = ach.ids.has(b.id), held = ach.now.has(b.id);
+    const when = ach.at[b.id] ? ` ${fmtD(ach.at[b.id])}` : '';
+    const p = on ? null : progOf(b, flat);
     return `<div class="pg-b ${on ? 'on' : ''} ${on && !held ? 'lapsed' : ''}" style="--i:${i}">
       <div class="pg-b-ico ${on ? 'on' : ''}">${svg(b.ico)}</div>
       <div class="pg-b-n">${b.n}</div>
-      <div class="pg-b-r">${!on ? b.req
-        : held ? `Unlocked${ach.at[b.id] ? ` · ${fmtD(ach.at[b.id])}` : ''}`
-        : 'Earned · not held now'}</div>
+      <div class="pg-b-q">${b.req}</div>
+      <div class="pg-b-r">${on ? `Earned${when}${held ? '' : ' · not held now'}` : p ? p.txt : 'Not yet'}</div>
+      ${p ? `<div class="pg-b-bar"><i style="width:${(p.frac * 100).toFixed(0)}%"></i></div>` : ''}
     </div>`;
   };
+
+  /* The three you are nearest to, so the tab opens on something to go and
+     get rather than on a cabinet to scroll. */
+  const near = BADGES.filter(b => !ach.ids.has(b.id))
+    .map(b => ({ b, p: progOf(b, flat) })).filter(x => x.p)
+    .sort((x, y) => y.p.frac - x.p.frac).slice(0, 3);
+  const nextUp = near.length ? `<div class="pg-card pg-next">
+    <div class="pg-card-head"><div class="pg-card-title">Next Up</div><div class="pg-card-note">closest to unlocking</div></div>
+    ${near.map(({ b, p }) => `<div class="pg-nx">
+      <div class="pg-b-ico">${svg(b.ico)}</div>
+      <div class="pg-nx-b">
+        <div class="pg-nx-n">${b.n}</div>
+        <div class="pg-nx-q">${b.req}</div>
+        <div class="pg-b-bar"><i style="width:${(p.frac * 100).toFixed(0)}%"></i></div>
+        <div class="pg-nx-p">${p.txt}</div>
+      </div>
+    </div>`).join('')}
+  </div>` : '';
 
   const groups = CATS.map((title, ci) => {
     const all = BADGES.filter(b => b.cat === ci);
@@ -2291,8 +2405,9 @@ function badgesHTML(ach) {
      cards themselves do not draw — and the tab is for looking at what you
      earned, not for reading about it. The latching behaviour is unchanged;
      it just no longer narrates itself. */
-  return `<div class="pg-card">
-    <div class="pg-card-head"><div class="pg-card-title">Achievements</div><div class="pg-card-note">${ach.ids.size}/${BADGES.length}</div></div>
+  return `${nextUp}<div class="pg-card">
+    <div class="pg-card-head"><div class="pg-card-title">Achievements</div><div class="pg-card-note">${ach.ids.size}/${BADGES.length} earned</div></div>
+    <p class="pg-b-intro">Milestones for turning up, getting stronger and keeping the log. Each one says what earns it. Green ones are yours, with the day you earned them; the rest show how far along you are.</p>
     ${groups}
   </div>`;
 }
@@ -2301,7 +2416,7 @@ function historyHTML(s) {
   if (!s.sessions) return '';
   const rows = [...s.log].reverse().slice(0, 12).map(e => {
     const day = PROGRAM[e.di];
-    return `<div class="pg-s-row">
+    return `<div class="pg-s-row" data-act="pg-open" data-d="${e.d}" data-di="${e.di}" role="button" tabindex="0" aria-expanded="false" title="Show what you did">
       <span class="day-badge ${day?.day || ''}">${day?.day || '—'}</span>
       <div class="pg-s-body"><div class="pg-s-n">${day?.label || 'Session'}</div><div class="pg-s-d">${fmtD(e.d)} · ${e.sets} sets</div></div>
       <button class="bw-h-btn del" data-act="pg-del" data-d="${e.d}" data-di="${e.di}" title="Delete session">
@@ -2313,6 +2428,40 @@ function historyHTML(s) {
     <div class="pg-card-head"><div class="pg-card-title">Session Log</div><div class="pg-card-note">${s.sessions > 12 ? `Last 12 of ${s.sessions}` : `${s.sessions} total`}</div></div>
     <div class="pg-s-list">${rows}</div>
   </div>`;
+}
+
+/* What a logged session actually was: each exercise with the weight and
+   the sets counted that day, read from the rep history (bp_rephist), and
+   how long it took where it was timed (bp_time). The log itself only ever
+   knew "finished, N sets", so a session from before sets were counted has
+   nothing more to show, and says so.
+
+   Names are looked up as the exercise is now and as it is written in the
+   program, since an equipment switch or a skill step since then changes
+   which of the two the history was filed under. */
+export function sessionDetailHTML(d, di) {
+  const day = PROGRAM[di];
+  if (!day) return '';
+  const hist = histAll();
+  const on = k => (hist[k] || []).filter(e => e.d === d && Array.isArray(e.s) && e.s.some(n => n > 0)).pop();
+  const lines = [];
+  let missing = 0;
+  day.sections.forEach(sec => sec.ex.forEach(raw => {
+    const ex = resEx(raw);
+    const keys = [...new Set([ex.n, xsKey(ex), raw.n, raw.alt?.n].filter(Boolean))];
+    const e = keys.map(on).find(Boolean);
+    if (!e) { missing++; return; }
+    const u = trackOf(ex).unit, sets = e.s.filter(n => n > 0);
+    const what = u === '-' ? `${sets.length} set${sets.length === 1 ? '' : 's'}`
+      : sets.map(n => `${n}${u === 's' ? 's' : ''}`).join(' · ');
+    lines.push(`<div class="pg-sd-row"><span class="pg-sd-n">${ex.n}</span><span class="pg-sd-v">${e.w > 0 ? `<b>${wTxt(e.w)} lbs</b>` : ''}<span>${what}</span></span></div>`);
+  }));
+  const t = timedSessions().find(s => s.d === d && s.di === di && s.done);
+  const time = t ? `<div class="pg-sd-meta">Took ${fmtDur(t.ms)}${t.part ? ', timed from part-way in' : ''}.</div>` : '';
+  const body = lines.length
+    ? lines.join('') + (missing ? `<div class="pg-sd-meta">No set counts for the other ${missing}.</div>` : '')
+    : `<div class="pg-sd-meta">Nothing was counted set by set that day, only that the session was finished. Sets you log in the exercise lab show up here.</div>`;
+  return `<div class="pg-s-det">${time}${body}</div>`;
 }
 
 /* ── reset card ── */
@@ -2423,7 +2572,7 @@ export function renderAwards(root) {
   if (!p) return;
   const st = strength(), s = stats();
 
-  p.innerHTML = badgesHTML(achievements(s, st));
+  p.innerHTML = badgesHTML(achievements(s, st), flatOf(s, st.proven));
   tickCounts(p);
   slideMarkers(p);
 }
