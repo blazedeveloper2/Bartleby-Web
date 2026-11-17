@@ -69,7 +69,11 @@ export function progressHTML({ hist, wv, loaded, soft = false, unit, W, width })
   return `<div class="xp${pending ? ' pending' : ''}">
     <div class="xp-head"><div class="xp-t">Progress${showW ? `<span>${esc(W(w))}</span>` : ''}</div>${chip}</div>
     ${pending ? `<p class="xp-msg">Starts over at ${esc(W(wv))} after your first set.</p>` : ''}
-    ${chart(pts, u, width)}
+    ${pts.length < 2
+      /* One session is a dot, not a line, and a chart's worth of card for
+         one dot told you nothing its number does not. */
+      ? `<p class="xp-msg">One session so far: best set <b>${pts[0].best}${u}</b> on ${fmtD(pts[0].d)}. The line starts with the next one.</p>`
+      : chart(pts, u, width)}
   </div>`;
 }
 

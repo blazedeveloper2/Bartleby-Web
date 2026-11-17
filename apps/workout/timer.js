@@ -12,6 +12,12 @@
    app picks the same rest back up. When it runs out it buzzes (where the
    phone allows it), beeps, and says which set is next.
 
+   A page cannot ring through a locked screen: the phone suspends its
+   timers the moment the display sleeps, so the beep waited until you
+   picked the phone back up. While a rest is on the clock the screen is
+   therefore held awake (wake lock, below) and let go the moment the rest
+   is skipped or tidied away.
+
    wk_rest is device state, not training data: it is not a bp_ key, so
    backups, resets and whose-program switches leave it alone.
    ═══════════════════════════════════════════════════════════ */
@@ -28,11 +34,43 @@ const fmt = ms => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 };
 
+/* ── screen wake lock ──
+
+   Held from the first tick of a rest to stop(), so the countdown stays in
+   view and its beep and buzz land on time. `tick` is the test for "a rest
+   is on screen": the request is asynchronous, and a rest skipped while it
+   was in flight must not be left holding the display on.
+
+   The browser drops the lock by itself whenever the page is hidden —
+   another app, a manual lock — so coming back to a rest still running asks
+   again. Where the API is missing, or the phone refuses (low-power mode),
+   nothing else changes: the timer behaves exactly as it did before. */
+let lock = null, asking = false;
+
+async function hold() {
+  if (lock || asking || !tick || !navigator.wakeLock || document.visibilityState !== 'visible') return;
+  asking = true;
+  try {
+    const l = await navigator.wakeLock.request('screen');
+    l.addEventListener('release', () => { if (lock === l) lock = null; });
+    if (tick) lock = l; else l.release().catch(() => {});
+  } catch {} finally { asking = false; }
+}
+function letGo() {
+  const l = lock; lock = null;
+  l?.release().catch(() => {});
+}
+const onVisible = () => { if (document.visibilityState === 'visible') hold(); };
+/* A rest picked back up by a reload starts with no tap behind it, and a
+   phone may refuse the lock until there is one — so any tap asks again. */
+const onTap = () => { unlock(); hold(); };
+
 export function mount(node) {
   el = node;
+  document.addEventListener('visibilitychange', onVisible);
   /* Audio can only start inside a tap on iOS, so the first tap anywhere in
      the app warms it up for the beep that comes later with no tap at all. */
-  document.addEventListener('pointerdown', unlock, { passive: true });
+  document.addEventListener('pointerdown', onTap, { passive: true });
   const st = load(KEY, null);
   if (st && Date.now() < st.end + DONE_FOR) { rang = Date.now() >= st.end; run(); }
   else if (st) remove(KEY);
@@ -40,7 +78,9 @@ export function mount(node) {
 
 export function unmount() {
   clearInterval(tick); tick = null;
-  document.removeEventListener('pointerdown', unlock);
+  letGo();
+  document.removeEventListener('pointerdown', onTap);
+  document.removeEventListener('visibilitychange', onVisible);
   document.body.classList.remove('wk-resting');
   el = null;
 }
@@ -77,6 +117,7 @@ export const current = () => load(KEY, null);
 export function stop() {
   remove(KEY);
   clearInterval(tick); tick = null;
+  letGo();
   if (el) { el.hidden = true; el.innerHTML = ''; }
   document.body.classList.remove('wk-resting');
 }
@@ -85,6 +126,7 @@ function run() {
   clearInterval(tick);
   paint();
   tick = setInterval(paint, 250);
+  hold();
 }
 
 function paint() {

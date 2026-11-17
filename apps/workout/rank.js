@@ -971,14 +971,25 @@ function scoreAll(w, bodyweight, ref, r, reach, grip, xr = xrepsAll()) {
     const spec = LIFTS[name], tiers = spec.r;
     const rr = repsRead(name, spec, wv, r, xr);
     const ratio = ratioOf(spec, wv, bodyweight, ref, rr.n);
-    const pct = pctFor(ratio, tiers);
-    const rk = rankFor(pct);
+    let pct = pctFor(ratio, tiers);
+    let rk = rankFor(pct);
     /* lbs of working weight still needed for the next letter */
-    let need = null;
-    if (rk.next) {
-      const ti = TIER_PCT.indexOf(rk.next.min);
+    const needFor = k => {
+      if (!k.next) return null;
+      const ti = TIER_PCT.indexOf(k.next.min);
       const targetRatio = ti >= 0 ? tiers[ti] : tiers[tiers.length - 1] * 1.08;
-      need = Math.max(0, weightFor(spec, targetRatio, bodyweight, ref, rr.n) - wv);
+      return Math.max(0, weightFor(spec, targetRatio, bodyweight, ref, rr.n) - wv);
+    };
+    let need = needFor(rk);
+    /* A lift sitting on a letter's boundary can land a hair under it in
+       the arithmetic and read "+0.0 lbs → C": nothing left to add, and
+       still not a C. Less than a twentieth of a pound short is the letter —
+       no dumbbell moves in steps that small — so it is given, and the
+       percentile goes with it so the row, the bar and the tint all agree. */
+    while (rk.next && need !== null && need < 0.05) {
+      pct = Math.max(pct, rk.next.min);
+      rk = rankFor(pct);
+      need = needFor(rk);
     }
     out.lifts.push({
       name, w: wv, ratio, pct, rank: rk, need,
@@ -1695,9 +1706,11 @@ function bandTrack(pct, showLabels) {
 /* Exported and rendered at the top of the Program tab. It opened the Rank
    tab for a while, which was the wrong place: the verse is the thing you
    read on the way into a session, not on the way to checking a letter. */
-export function verseHTML() {
+/* `open` false is the folded form: reference and the first words on one
+   line, once it has been read today (see verseOpen in index.js). */
+export function verseHTML(open = true) {
   const v = verseFor(todayStr());
-  return `<div class="pg-card rk-verse">
+  return `<div class="pg-card rk-verse${open ? '' : ' min'}" data-act="verse" role="button" tabindex="0" aria-expanded="${open}" title="${open ? 'Tap to fold away' : 'Tap to read it in full'}">
     <div class="rk-verse-mark">&ldquo;</div>
     <div class="rk-verse-t">${v.t}</div>
     <div class="rk-verse-r">${v.r} <span title="${VERSE_NOTICE}">· NIV · changes daily</span></div>

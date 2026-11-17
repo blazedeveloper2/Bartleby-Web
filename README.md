@@ -36,7 +36,9 @@ Live apps:
   for compound lifts (Schoenfeld et al. 2016), 2:30 for skill holds, 2:00
   for one-side-at-a-time and bodyweight compounds, 1:30 for isolation,
   1:00 for abs, calves and forearms, 0:30 for warm-ups. It survives a
-  locked phone or a reload, and buzzes and beeps when it runs out. After
+  reload or a trip to another app, holds the screen awake while a rest is
+  running (a page cannot ring through a locked phone), and buzzes and
+  beeps when it runs out. After
   an exercise's last set it names the next exercise down the day's list,
   and **Go** opens that one in the exercise lab from whichever tab you
   are on. With **Settings → Workout → Auto-Advance** on (the default),

@@ -53,8 +53,10 @@ export function animHTML(name) {
   </figure>`;
 }
 
-/* Starts the rep in a figure animHTML() built; returns the stop. */
-export function playAnim(fig, name) {
+/* Starts the rep in a figure animHTML() built; returns the stop.
+   `play` starts it moving at once — for a figure that only exists because
+   its play button was just pressed (the how-to's poster, index.js). */
+export function playAnim(fig, name, { play = false } = {}) {
   const m = MOTION[name];
   if (!fig || !m) return () => {};
   const pp = fig.querySelector('.rp-pp');
@@ -62,7 +64,7 @@ export function playAnim(fig, name) {
   const bar = fillBar([...fig.querySelectorAll('.rp-seg')]);
   /* It waits on the play button rather than starting by itself: a 3D
      rep drawn every frame is a steady drain on a phone's battery. */
-  let handle = null, stopped = false, paused = !still, viewer = null;
+  let handle = null, stopped = false, paused = !still && !play, viewer = null;
   if (still) { fig.classList.add('still'); pp.hidden = true; }
   const showPaused = () => {
     fig.classList.toggle('paused', paused);

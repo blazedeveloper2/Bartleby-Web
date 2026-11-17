@@ -17,19 +17,19 @@ import {
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip, exHistory,
   chkAll, chkSave, lastCount, dayCount, latchAwards, xsKey,
-} from './rank.js?v=3d-nov13x';
-import { progressHTML } from './progress.js?v=3d-nov13w';
+} from './rank.js?v=3d-nov16c';
+import { progressHTML } from './progress.js?v=3d-nov16c';
 
 /* Which movements have a published standard, so the rep boxes only appear
    where there is an estimate for them to sharpen. */
 const LIFT_NAMES = new Set(Object.keys(LIFTS));
 import { MUSCLE_SVG } from './bodymap.js?v=3d-oct14d';
 import { restBand, BANDS, fmtRest } from './rest.js?v=3d-oct14d';
-import * as rest from './timer.js?v=3d-nov13w';
+import * as rest from './timer.js?v=3d-nov16b';
 import * as timing from './sessions.js?v=3d-oct18a';
 import { HOWTO } from './howto.js?v=3d-oct14h';
-import * as anatomy from './anatomy.js?v=3d-nov13w';
-import { animHTML, playAnim } from './pose.js?v=3d-nov03a';
+import * as anatomy from './anatomy.js?v=3d-nov16c';
+import { animHTML, playAnim } from './pose.js?v=3d-nov16c';
 import { standingsFor } from './anthro.js?v=3d-oct14d';
 import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=3d-nov05b';
 import {
@@ -105,6 +105,13 @@ let mmEx = null;             // exercise currently open in the muscle modal
 let mmSlot = null;           // [di, si, ei] it came from, so a level change can re-resolve it
 let mmOpenedAt = 0;          // when it was opened: a session's first set began about then
 let clockTick = null;        // repaints the running session clocks once a second
+/* The verse is read in full on the day's first visit and folds to one line
+   after that, so the second time you open the app today's card is what you
+   see. A tap unfolds it. Which day it was last read is device state, like
+   the rest timer's — wk_, not bp_, so it stays out of backups and resets. */
+const VERSE_KEY = 'wk_verse';
+let verseOpen = true;
+let bwProfOpen = false;      // height / age / activity, folded behind Edit once they are set
 
 const BW_RANGES = [
   {k:'7',  d:7,   lbl:'7D'},
@@ -125,7 +132,7 @@ function renderProg() {
   const tdi = todayDi();
   progStale = false;
   /* Before the first day card: the verse is what you read on the way in. */
-  let h = verseHTML();
+  let h = verseHTML(verseOpen);
   WEEK_ORDER.forEach((di, pos) => {
     const day = PROGRAM[di];
     let tot = 0, dn = 0;
@@ -581,8 +588,9 @@ function paintSetNow() {
    One line under the boxes, in every state, because the target is worth
    seeing even when there is nothing to do about it — it is what you are
    aiming at on the set you are about to do. Green and amber are buttons
-   and mean act; red is inert and means the opposite, so the colour alone
-   says whether there is anything here to press.
+   and mean act; the inert states carry no colour at all, so colour alone
+   says whether there is anything here to press. (They were red once,
+   which in a red theme made "nothing to change" look like an alarm.)
 
    The date a count was taken lives in the tooltip, which is where the rest
    of this app keeps the reasoning it does not want to print. Painted on
@@ -1020,9 +1028,8 @@ function openMM(ex) {
   const own = rs !== band.s ? ` · ${fmtRest(band.s)} by default, ${rs > band.s ? 'longer' : 'shorter'} from your own ±15s` : '';
   info += `<span class="mm-tag mm-rest-tag" title="${band.n} — the timer that starts when you log a set${own}">Rest ${fmtRest(rs)}</span>`;
   q('#mm-info').innerHTML = info;
+  stopAnim(); stopAnim = () => {};
   q('#mm-howto').innerHTML = mmHowtoHTML(ex);
-  stopAnim();
-  stopAnim = playAnim(q('#mm-howto .mm-anim'), ex.n);
 
   /* Only a movement that can carry a load gets a weight field. On a belt
      the number is what is added to you, so blank reads as bodyweight. */
@@ -1104,13 +1111,56 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '
 
 let stopAnim = () => {};
 
+/* Folded by default. The lab is opened once per exercise per session to
+   log sets, and the how-to is read perhaps once per exercise ever — open
+   every time, it was two screens of scrolling between the sets and
+   everything under them. One tap opens it.
+
+   And the rep is a poster until you press play, the way a video is: no
+   canvas, no model on the card and nothing drawn per frame for a rep
+   nobody asked to watch. Pressing play swaps the poster for the real
+   figure and starts it; folding the section puts the poster back. */
+const posterHTML = name => animHTML(name)
+  ? `<button type="button" class="mm-poster" data-act="mm-anim-play" aria-label="Play the rep in 3D">
+      <span class="mm-poster-play" aria-hidden="true"></span>
+      <span class="mm-poster-t">Watch the rep</span>
+      <span class="mm-poster-s">3D · drag to turn, pinch to zoom</span>
+    </button>` : '';
+
 function mmHowtoHTML(ex) {
   const h = HOWTO[ex.n];
   if (!h) return '';
-  return `<div class="mm-howto-h">How to</div>
-    ${animHTML(ex.n)}
-    <ol class="mm-cues">${h.do.map(c => `<li>${esc(c)}</li>`).join('')}</ol>
-    ${h.avoid?.length ? `<div class="mm-avoid"><span>Avoid</span><ul>${h.avoid.map(c => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}`;
+  const poster = posterHTML(ex.n);
+  return `<button type="button" class="mm-howto-tog" data-act="mm-howto" aria-expanded="false" aria-controls="mm-howto-body">
+      <span>How to</span><small>${h.do.length} steps${poster ? ' · 3D rep' : ''}</small><i aria-hidden="true"></i>
+    </button>
+    <div class="mm-howto-body" id="mm-howto-body" hidden>
+      ${poster}
+      <ol class="mm-cues">${h.do.map(c => `<li>${esc(c)}</li>`).join('')}</ol>
+      ${h.avoid?.length ? `<div class="mm-avoid"><span>Avoid</span><ul>${h.avoid.map(c => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}
+    </div>`;
+}
+
+function toggleHowto(btn) {
+  const body = q('#mm-howto-body');
+  if (!body) return;
+  const open = body.hidden;
+  body.hidden = !open;
+  btn.setAttribute('aria-expanded', String(open));
+  if (open) return;
+  /* folded away, a playing rep has nobody watching it */
+  stopAnim(); stopAnim = () => {};
+  const fig = q('#mm-howto .mm-anim');
+  if (fig && mmEx) fig.outerHTML = posterHTML(mmEx.n);
+}
+
+function playHowto() {
+  const poster = q('#mm-howto .mm-poster');
+  if (!poster || !mmEx) return;
+  poster.outerHTML = animHTML(mmEx.n);
+  stopAnim();
+  stopAnim = playAnim(q('#mm-howto .mm-anim'), mmEx.n, { play: true });
+  q('#mm-howto .rp-pp')?.focus({ preventScroll: true });
 }
 
 function closeMM(fromPop = false) {
@@ -1633,13 +1683,32 @@ function profileHTML(s) {
   </div>`;
 }
 
+function profileFoldHTML(s) {
+  if (bwProfOpen) return `<div class="bd-fold open">
+      <div class="bd-fold-h"><span>Profile</span><button type="button" class="bd-fold-b" data-act="bd-prof">Done</button></div>
+      ${profileHTML(s)}
+    </div>`;
+  const ft = Math.floor(s.h / 12);
+  const ht = unitFor(s.units, 'h') === 'cm'
+    ? `${Math.round(toU(s.h, 'cm'))} cm`
+    : `${ft}′ ${+(s.h - ft * 12).toFixed(1)}″`;
+  const act = ACTIVITY.find(x => x.k === s.act);
+  const bits = [ht, s.age ? `age ${s.age}` : null, act ? act.n : null].filter(Boolean).join(' · ');
+  return `<div class="bd-fold">
+      <div class="bd-fold-h"><span>Profile</span><b>${bits}</b><button type="button" class="bd-fold-b" data-act="bd-prof" aria-label="Edit height, age and activity">Edit</button></div>
+    </div>`;
+}
+
 /* ── the tab ── */
 function renderBW() {
   const p = q('#p-bw'), all = bwAll();
   /* bodySnap, not snapshot — rank.js exports a `snapshot` too, and that one
      is the level-up before/after picture, not the body one. */
   const s = bodySnap(), a = advise(s);
-  let h = profileHTML(s);
+  /* Height, age and activity are typed once. Until there is a height the
+     form leads, because nothing on this tab can be worked out without it;
+     after that it folds to one line at the foot of the tab, behind Edit. */
+  let h = s.h === null ? profileHTML(s) : '';
 
   /* Row one is what you are. Row two is what that means and how fast it is
      changing — every figure on it is derived from row one plus height. */
@@ -1777,6 +1846,7 @@ function renderBW() {
     });
     h += `</div></div>`;
   }
+  if (s.h !== null) h += profileFoldHTML(s);
   p.innerHTML = h;
 }
 
@@ -2076,6 +2146,20 @@ function onClick(e) {
     case 'mm-tick':   tickSet(el); break;
     case 'mm-same':   fillSame(); break;
     case 'mm-wt-step': stepWeight(+a.d); break;
+    case 'mm-howto':  toggleHowto(el); break;
+    case 'mm-anim-play': playHowto(); break;
+    case 'verse': {
+      verseOpen = !verseOpen;
+      const v = q('#p-program .rk-verse');
+      if (v) v.outerHTML = verseHTML(verseOpen);
+      break;
+    }
+    case 'bd-prof': {
+      const draft = bwFormDraft();
+      bwProfOpen = !bwProfOpen;
+      renderBW(); bwRestoreDraft(draft);
+      break;
+    }
     case 'rest-adj':  restAdjust(+a.d); break;
     case 'rest-skip': rest.stop(); break;
     case 'rest-go':   restGo(); break;
@@ -2170,6 +2254,7 @@ function onResume() {
   const d = todayStr();
   if (d === dayShown) return;
   dayShown = d;
+  verseOpen = true; save(VERSE_KEY, d);         // a new day, a new verse to read
   const picked = id => { const el = q(id); return el && !el.readOnly && el.value && el.value !== el.max ? el.value : null; };
   renderProg();
   const bwDate = picked('#bw-date'), draft = bwFormDraft();
@@ -2237,6 +2322,7 @@ function onKeydown(e) {
     }
   }
   if (e.key !== 'Enter') return;
+  if (e.target.classList?.contains('rk-verse')) { e.preventDefault(); e.target.click(); return; }
   if (e.target.id === 'bw-weight' || TAPE_KEYS.some(k => e.target.id === 'bw-' + k)) bwSave();
   else if (e.target.id === 'bd-goal') bdGoalSave();
   else if (e.target.id === 'gr-r' || e.target.id === 'gr-l') grSave();
@@ -2350,7 +2436,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=3d-nov13w',
+  styles: 'apps/workout/workout.css?v=3d-nov16c',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
@@ -2358,6 +2444,8 @@ export default {
     /* activeTab deliberately survives a remount — coming back to an app
        should return you to the tab you left, not to its front page. */
     bwRange = '30'; bwMetric = 'w'; bwMore = false; bwEditDate = null; mmEx = null; mmSlot = null;
+    verseOpen = load(VERSE_KEY, '') !== todayStr(); save(VERSE_KEY, todayStr());
+    bwProfOpen = false;
     root.innerHTML = template();
     root.addEventListener('click', onClick);
     root.addEventListener('change', onChange);

@@ -405,9 +405,9 @@ html.rv-open{overflow:hidden}
 .mm-set>em{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--text-3);margin-left:-4px}
 
 /* The verdict strip. Green and amber are buttons and mean act on this;
-   red is a plain div and means the opposite — in range, out of dumbbells,
-   or nothing counted yet. The colour is the affordance, so the inert
-   states take no pointer, no hover and no press. */
+   the plain one is a div and means the opposite — in range, out of
+   dumbbells, or nothing counted yet. The colour is the affordance, so the
+   inert states take no colour, no pointer, no hover and no press. */
 .mm-bump{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;
   margin-top:10px;padding:10px 12px;text-align:left;border-radius:var(--rs);
   font-family:var(--font);transition:filter .12s,transform .12s}
@@ -421,10 +421,10 @@ button.mm-bump:active{transform:scale(.99)}
 .mm-bump.up .mm-bump-k,.mm-bump.up .mm-bump-v{color:var(--ink-green)}
 .mm-bump.down{background:var(--amber-d);border:1px solid var(--amber)}
 .mm-bump.down .mm-bump-k,.mm-bump.down .mm-bump-v{color:var(--ink-amber)}
-.mm-bump.hold,.mm-bump.capped,.mm-bump.uncounted{background:var(--red-d);border:1px solid var(--red)}
+.mm-bump.hold,.mm-bump.capped,.mm-bump.uncounted{background:var(--bg);border:1px solid var(--border-lt)}
 .mm-bump.hold .mm-bump-k,.mm-bump.hold .mm-bump-v,
 .mm-bump.capped .mm-bump-k,.mm-bump.capped .mm-bump-v,
-.mm-bump.uncounted .mm-bump-k,.mm-bump.uncounted .mm-bump-v{color:var(--ink-red)}
+.mm-bump.uncounted .mm-bump-k,.mm-bump.uncounted .mm-bump-v{color:var(--text-2)}
 /* Nothing counted is an absence, not a verdict — same strip, quieter. */
 .mm-bump.uncounted{border-style:dashed}
 /* Top of a skill ladder: nothing to press, and nothing wrong either */
@@ -1078,11 +1078,11 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 .wk .mm-info{padding:12px 22px;gap:8px}.wk .mm-tag{font-family:var(--mono);font-size:12px;padding:6px 10px;border:1px solid var(--border);background:var(--bg);color:var(--text-2)}
 .wk .mm-wt-row{padding:18px 22px;gap:16px}.wk .mm-wt-lbl{font-size:14px;letter-spacing:0;text-transform:none;color:var(--text);font-weight:600}
 .wk .mm-reps-row{padding:18px 22px}.wk .mm-reps-lbl{font-size:14px;letter-spacing:0;text-transform:none;color:var(--text);font-weight:600}
-.wk .mm-reps-lbl>span{font-size:11px}.wk .mm-set-in{font-size:19px;width:50px;color:var(--blue)}
+.wk .mm-reps-lbl>span{font-size:11px}.wk .mm-set-in{font-size:19px;width:50px}
 .wk .mm-bump{padding:12px 14px}.wk .mm-bump-k{font-size:10px;letter-spacing:1.5px}.wk .mm-bump-v{font-size:16px}
-.wk .mm-set{border-color:var(--sel-bd);background:var(--blue-d);padding:8px 12px}
+.wk .mm-set{padding:8px 12px}
 .wk .mm-wt-lbl>span{display:block;font-size:11px;color:var(--text-3);font-weight:400;margin-top:4px;max-width:155px}
-.wk .mm-wt-box{padding:10px 12px;border-color:var(--sel-bd);background:var(--blue-d)}.wk .mm-wt-in{font-size:26px;width:78px;color:var(--blue)}.wk .mm-wt-u{font-size:13px}
+.wk .mm-wt-box{padding:6px;gap:4px}.wk .mm-wt-in{font-size:26px;width:78px;color:var(--blue)}.wk .mm-wt-u{font-size:13px}
 .wk .mm-rank{padding:14px 22px}.wk .mm-rank.none{font-size:13px;line-height:1.6}.wk .mm-rank-s{font-size:12px}.wk .mm-rank-n{font-size:14px}
 .mm-anatomy{margin:16px 18px 0;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--bg)}
 .mm-map-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border)}
@@ -1653,9 +1653,82 @@ html.wk-ax .rest-bar{visibility:hidden}
    wraps the box under its label if a narrow phone cannot fit both. */
 .mm-wt-row{flex-wrap:wrap}
 .mm-wt-box{margin-left:auto}
-.mm-wt-step{flex:none;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;padding:0;
+.mm-wt-step{flex:none;width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0;
   border:1px solid var(--border);border-radius:var(--rs);background:var(--bg-card);color:var(--text-2);
   font-family:var(--mono);font-size:18px;font-weight:700;line-height:1;cursor:pointer;transition:color .15s,border-color .15s}
 .mm-wt-step:hover{color:var(--text);border-color:var(--border-lt)}
 .mm-wt-step:active{color:var(--blue);border-color:var(--blue)}
 .mm-wt-step:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+
+/* ═══════════════════════════════════════════════════════════
+   PHONE LEGIBILITY PASS (Nov 2026)
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── program rows: the name is the line you came for ──
+   It wraps to a second line rather than clipping. Half the names were
+   cut at 375px, most of all in a mono face, and "Dumbbell Bench…" next
+   to "Dumbbell Shoul…" is not something to tell apart mid-session. */
+.wk .ex-name{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+.wk .ex-detail{min-width:0}
+.wk .ex-musc{min-width:0;max-width:100%}
+
+/* ── the verse, folded (verseOpen, index.js) ── */
+.rk-verse{cursor:pointer}
+.rk-verse:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.rk-verse.min{display:flex;align-items:baseline;gap:10px;padding-top:10px;padding-bottom:10px}
+.rk-verse.min .rk-verse-mark{display:none}
+.rk-verse.min .rk-verse-r{order:-1;flex:none;margin-top:0}
+.rk-verse.min .rk-verse-r span{display:none}
+.rk-verse.min .rk-verse-t{flex:1;min-width:0;font-size:12.5px;line-height:1.4;font-weight:400;color:var(--text-2);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ── the weight field: − and + a thumb can hit ── */
+.mm-wt-step{font-size:22px}
+.wk .mm-wt-u{margin-right:4px}
+@media(max-width:480px){.wk .mm-wt-in{width:66px}}
+
+/* ── set boxes: one row, the number the biggest thing in it ──
+   Label over number, so three boxes share a phone's width instead of
+   wrapping two and one, and the box is a target rather than a slot. */
+.mm-sets{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr))}
+.wk .mm-set{position:relative;flex-direction:column;align-items:stretch;gap:2px;padding:8px 8px 6px;min-height:66px}
+.wk .mm-set>span{text-align:center}
+.wk .mm-set-in{width:100%;min-width:0;text-align:center;font-size:24px;padding:2px 0}
+.wk .mm-set>em{position:absolute;right:8px;bottom:11px;margin:0}
+.wk .mm-set.mm-tick{min-width:0;align-items:center;justify-content:center;gap:7px}
+.wk .mm-tick>b{width:26px;height:26px}
+
+/* ── how to: folded, and the rep behind a play button ── */
+.mm-howto-tog{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;margin:0;padding:0;
+  background:none;border:0;cursor:pointer;text-align:left;font-family:var(--font);color:var(--text)}
+.mm-howto-tog>span{font-size:14px;font-weight:600}
+.mm-howto-tog>small{font-size:11px;font-weight:400;color:var(--text-3)}
+.mm-howto-tog>i{margin-left:auto;margin-right:4px;width:8px;height:8px;border-right:2px solid var(--text-3);
+  border-bottom:2px solid var(--text-3);transform:translateY(-2px) rotate(45deg);transition:transform .15s}
+.mm-howto-tog[aria-expanded="true"]>i{transform:translateY(2px) rotate(-135deg)}
+.mm-howto-tog:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.mm-howto-body{padding-top:10px}
+.mm-howto-body[hidden]{display:none}
+.mm-poster{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:100%;
+  aspect-ratio:16/9;margin:0 0 14px;padding:0;border:1px solid var(--border);border-radius:12px;cursor:pointer;
+  font-family:var(--font);color:var(--text);
+  background:radial-gradient(ellipse 80% 70% at 50% 38%,var(--bg-alt),var(--bg) 78%)}
+.mm-poster-play{display:grid;place-items:center;width:66px;height:46px;border-radius:13px;background:var(--blue);
+  transition:transform .15s}
+.mm-poster-play::before{content:'';margin-left:4px;border-style:solid;border-width:10px 0 10px 17px;
+  border-color:transparent transparent transparent var(--bg)}
+.mm-poster:hover .mm-poster-play,.mm-poster:focus-visible .mm-poster-play{transform:scale(1.07)}
+.mm-poster:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.mm-poster-t{font-size:13px;font-weight:600}
+.mm-poster-s{font-size:11px;color:var(--text-3)}
+
+/* ── body: the profile, folded at the foot of the tab ── */
+.bd-fold{margin-top:14px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r)}
+.bd-fold-h{display:flex;align-items:center;gap:10px;min-height:48px;padding:6px 8px 6px 14px}
+.bd-fold-h>span{flex:none;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-3)}
+.bd-fold-h>b{flex:1;min-width:0;font-size:12.5px;font-weight:500;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bd-fold-b{flex:none;margin-left:auto;min-height:36px;padding:0 14px;font-family:var(--font);font-size:11px;font-weight:600;
+  color:var(--text-2);background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);cursor:pointer}
+.bd-fold-b:hover{color:var(--text);border-color:var(--border-lt)}
+.bd-fold-b:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.bd-fold .bd-prof{margin:0;border:0;border-top:1px solid var(--border);border-radius:0;background:none}
