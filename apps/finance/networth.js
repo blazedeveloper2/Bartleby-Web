@@ -143,7 +143,7 @@ function chartHTML(entries) {
      being the line, so the line is left to speak for itself. */
   const dots = entries.length <= 40 ? entries.map((e, i) =>
     `<i class="nw-dot" style="left:${(xf(i) * 100).toFixed(2)}%;top:${(yf(e.amt) * 100).toFixed(2)}%;background:${AC}"
-        title="${esc(fmtFull(e.d))} · ${money(e.amt)}"></i>`).join('') : '';
+        title="${esc(fmtFull(e.d))}, ${money(e.amt)}"></i>`).join('') : '';
 
   const n = entries.length;
   const marks = [0];
@@ -197,7 +197,7 @@ function chartCard(all) {
   const shown = inRange(all, range);
   const body = shown.length >= 2
     ? chartHTML(shown)
-    : `<div class="nw-empty">Just one snapshot so far — ${money(all[all.length - 1].amt)} on ${fmtShort(all[all.length - 1].d)}.<br>Log your total again later and the line starts here.</div>`;
+    : `<div class="nw-empty">One snapshot so far. Log another to start the line.</div>`;
 
   const btns = showRanges ? `<div class="nw-range">${RANGES.map(r =>
     `<button class="nw-r-btn ${r.k === range ? 'sel' : ''}" data-act="nw-range" data-k="${r.k}"
@@ -212,19 +212,17 @@ function chartCard(all) {
 /* ═══════════════════ HERO + STATS ═══════════════════ */
 function heroHTML(all) {
   const cur = all[all.length - 1], prev = all[all.length - 2];
-  let deltaHTML = '<div class="nw-hero-d flat">First snapshot — nothing to compare it to yet.</div>';
+  let deltaHTML = '<div class="nw-hero-d flat">First snapshot</div>';
   if (prev) {
     const d = cur.amt - prev.amt;
     const cls = d > 0 ? 'up' : d < 0 ? 'dn' : 'flat';
-    const arrow = d > 0 ? '↑' : d < 0 ? '↓' : '·';
-    const gap = daysApart(prev.d, cur.d);
-    deltaHTML = `<div class="nw-hero-d ${cls}">${arrow} ${d === 0 ? 'no change' : signed(d)}
-      <span>since ${fmtShort(prev.d)}${gap ? ` · ${gap} day${gap === 1 ? '' : 's'}` : ''}</span></div>`;
+    deltaHTML = `<div class="nw-hero-d ${cls}">${d === 0 ? 'No change' : signed(d)}
+      <span>since ${fmtShort(prev.d)}</span></div>`;
   }
   return `<div class="nw-hero">
     <div class="nw-hero-l">Net Worth</div>
     <div class="nw-hero-v">${money(cur.amt)}</div>
-    <div class="nw-hero-sub">as of ${fmtFull(cur.d)}${cur.note ? ` · ${esc(cur.note)}` : ''}</div>
+    <div class="nw-hero-sub">as of ${fmtFull(cur.d)}${cur.note ? `, ${esc(cur.note)}` : ''}</div>
     ${deltaHTML}
   </div>`;
 }
@@ -263,7 +261,6 @@ function statsHTML(all) {
     return `<div class="nw-stat" title="${signed(b.w.delta)} over ${b.w.days} day${b.w.days === 1 ? '' : 's'}, from ${fmtFull(b.w.from)}">
       <div class="nw-stat-v ${cls}">${b.w.delta === 0 ? '$0' : (b.w.delta < 0 ? '' : '+') + compact(b.w.delta)}</div>
       <div class="nw-stat-l">${b.lbl}</div>
-      <div class="nw-stat-s">${b.w.days}d</div>
     </div>`;
   }).join('')}</div>`;
 }
@@ -294,7 +291,7 @@ function calGrid(view) {
     if (ds === today) cls.push('today');
     if (logged.has(ds)) cls.push('has');
     cells += `<button class="${cls.join(' ')}" data-act="nw-cal-pick" data-d="${ds}" ${ds > today ? 'disabled' : ''}
-      title="${fmtFull(ds)}${logged.has(ds) ? ' · already logged' : ''}">${day}</button>`;
+      title="${fmtFull(ds)}${logged.has(ds) ? ', already logged' : ''}">${day}</button>`;
   }
   return `<div class="fx-cal">${head}<div class="cal-grid">${dows}</div><div class="cal-grid">${cells}</div>
     <div class="cal-foot"><button class="fx-btn gho" data-act="nw-cal-today">Jump to Today</button></div></div>`;
@@ -341,36 +338,34 @@ const spentBetween = (a, b) => txAll().filter(t => t.d > a && t.d <= b).reduce((
 
 function historyHTML(all) {
   const rows = [...all].reverse();
-  let inferred = false;
 
   const body = rows.map((e, i) => {
     const prev = rows[i + 1];
-    let deltaHTML = '<div class="nw-h-d flat">start</div>', flow = '', rel = 'Starting point';
+    let deltaHTML = '<div class="nw-h-d flat">start</div>', flow = '';
     if (prev) {
       const d = e.amt - prev.amt;
       const cls = d > 0 ? 'up' : d < 0 ? 'dn' : 'flat';
-      const arrow = d > 0 ? '↑' : d < 0 ? '↓' : '·';
-      const gap = daysApart(prev.d, e.d);
-      deltaHTML = `<div class="nw-h-d ${cls}">${arrow} ${d === 0 ? '0' : signed(d)}</div>`;
-      rel = `${gap} day${gap === 1 ? '' : 's'} after ${fmtShort(prev.d)}`;
+      deltaHTML = `<div class="nw-h-d ${cls}">${d === 0 ? '0' : signed(d)}</div>`;
 
+      /* One short figure where there was a sentence on every row and a
+         paragraph under the list explaining it. How it is worked out is in
+         the tooltip, and above. */
       const spent = spentBetween(prev.d, e.d);
       if (spent > 0) {
-        inferred = true;
-        const inflow = d + spent;
+        const inflow = d + spent, whole = n => '$' + Math.round(Math.abs(n)).toLocaleString('en-US');
+        const how = `Change in your total (${signed(d)}) plus the ${money(spent)} you logged as spent since ${fmtShort(prev.d)}.`;
         flow = inflow > 0
-          ? `<div class="nw-h-flow">Logged ${money(spent)} spent, so about <b>${money(inflow)}</b> came in</div>`
-          : `<div class="nw-h-flow">Logged ${money(spent)} spent, and <b>${money(-inflow)}</b> more left than that</div>`;
+          ? `<div class="nw-h-flow" title="${how}">In: about <b>${whole(inflow)}</b></div>`
+          : `<div class="nw-h-flow" title="${how}">Unlogged spending: about <b>${whole(inflow)}</b></div>`;
       }
     }
     return `<div class="nw-h-row" data-act="nw-edit" data-d="${e.d}" title="Tap to edit this snapshot">
       <div class="nw-h-main">
-        <div class="nw-h-l"><div class="nw-h-date">${fmtRow(e.d)}</div><div class="nw-h-rel">${rel}</div></div>
+        <div class="nw-h-l"><div class="nw-h-date">${fmtRow(e.d)}</div>${flow}</div>
         <div class="nw-h-r"><div class="nw-h-v">${money(e.amt)}</div>${deltaHTML}</div>
         <button class="nw-h-del" data-act="nw-del" data-d="${e.d}" title="Delete this snapshot">${TRASH_SVG}</button>
       </div>
       ${e.note ? `<div class="nw-h-note">${esc(e.note)}</div>` : ''}
-      ${flow}
     </div>`;
   }).join('');
 
@@ -378,10 +373,10 @@ function historyHTML(all) {
     <div class="day-top">
       <div class="day-top-l"><span class="day-badge" style="background:var(--blue)">History</span>
         <span class="day-title">${all.length} Snapshot${all.length === 1 ? '' : 's'}</span></div>
-      <span class="day-prog">${fmtShort(all[0].d)} → ${fmtShort(all[all.length - 1].d)}</span>
+      <span class="day-prog">${fmtShort(all[0].d)} to ${fmtShort(all[all.length - 1].d)}</span>
     </div>
     <div class="nw-hist">${body}</div>
-    ${inferred ? `<div class="nw-h-foot">“Came in” is inferred — the change in your total plus what you logged as spent over the same stretch. It is only ever as complete as the expense log behind it.</div>` : ''}
+
   </div>`;
 }
 
@@ -395,7 +390,7 @@ function paint(root) {
   if (!all.length) {
     h += `<div class="nw-intro">
       <div class="nw-intro-t">Start with one number</div>
-      <div class="nw-intro-p">Add up everything you hold — accounts, cash, investments — and subtract what you owe. Log that total. Come back whenever you like, do the sum again, and the line between the two is the part that matters.</div>
+      <div class="nw-intro-p">Add up what you have, subtract what you owe, and log the total.</div>
     </div>`;
     h += formHTML(all);
   } else {
@@ -440,7 +435,7 @@ function saveSnapshot(root) {
   draft = blankDraft();
   calOpen = false;
   paint(root);
-  toast(existed ? `Updated ${fmtShort(d)} — ${money(val)}` : `Logged ${money(val)}`);
+  toast(existed ? `Updated ${fmtShort(d)}: ${money(val)}` : `Logged ${money(val)}`);
 }
 
 function editSnapshot(root, d) {

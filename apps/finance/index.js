@@ -10,7 +10,7 @@
 import { DEFAULT_CATS, PALETTE } from './data.js?v=3d-oct14d';
 import { load, save, remove, todayStr } from '../../assets/js/storage.js?v=3d-oct14d';
 import { toast } from '../../assets/js/ui.js?v=3d-oct14d';
-import { renderNetWorth, nwClick, nwKeydown, nwReset } from './networth.js?v=3d-nov13f';
+import { renderNetWorth, nwClick, nwKeydown, nwReset } from './networth.js?v=3d-nov17a';
 
 /* ── tab bar ──
 
@@ -127,7 +127,7 @@ function txRow(t, cm = catMap()) {
   return `<div class="tx-row" data-act="view-tx" data-id="${t.id}">
     <span class="tx-dot" style="background:${color}"></span>
     <div class="tx-body"><div class="tx-cat">${primary}</div>${secondary}</div>
-    <div class="tx-meta"><div class="tx-amt">${fmtMoney(t.amt)}</div><div class="tx-date">${fmtDateShort(t.d)}</div></div>
+    <div class="tx-meta"><div class="tx-amt">${fmtMoney(t.amt)}</div></div>
   </div>`;
 }
 
@@ -187,7 +187,7 @@ function renderAdd() {
   const orphanChip = (orphan && !cats.some(c => c.name === orphan)) ? (() => {
     const on = selCat === orphan, col = '#8b92a8';
     const style = on ? `background:${col}26;border-color:${col};box-shadow:0 0 0 1px ${col}` : '';
-    return `<button class="fx-cat ${on ? 'sel' : ''}" data-act="pick-cat" data-cat="${esc(orphan)}" data-color="${col}" style="${style}" title="No longer a category — kept on this expense"><span class="fx-dot" style="background:${col}"></span>${esc(orphan)}${on ? '<span class="fx-check">✓</span>' : ''}</button>`;
+    return `<button class="fx-cat ${on ? 'sel' : ''}" data-act="pick-cat" data-cat="${esc(orphan)}" data-color="${col}" style="${style}" title="No longer a category, kept on this expense"><span class="fx-dot" style="background:${col}"></span>${esc(orphan)}${on ? '<span class="fx-check">✓</span>' : ''}</button>`;
   })() : '';
 
   const catExtra = managingCats
@@ -197,7 +197,7 @@ function renderAdd() {
   const newCatBlock = addingCat ? `
     <div class="fx-newcat">
       <input class="fx-newcat-in" id="fx-newcat-in" placeholder="New category name" maxlength="24" autocomplete="off">
-      <div class="fx-sw-lbl">Color <span class="fx-opt">— tap the wheel for any color</span></div>
+      <div class="fx-sw-lbl">Color <span class="fx-opt">(tap the wheel for any color)</span></div>
       <div class="fx-sw-row">
         ${PALETTE.map(c => `<button class="fx-sw ${c.toLowerCase() === newCatColor.toLowerCase() ? 'sel' : ''}" data-act="new-cat-color" data-c="${c}" style="background:${c}"></button>`).join('')}
         <span class="fx-color-wrap"><input type="color" class="fx-color" id="fx-color" value="${newCatColor}" title="Pick any color"></span>
@@ -208,7 +208,7 @@ function renderAdd() {
   const editCatBlock = (managingCats && editCat && cats.some(c => c.name === editCat)) ? `
     <div class="fx-newcat">
       <input class="fx-newcat-in" id="fx-editcat-in" value="${esc(editCat)}" maxlength="24" autocomplete="off">
-      <div class="fx-sw-lbl">Color <span class="fx-opt">— tap the wheel for any color</span></div>
+      <div class="fx-sw-lbl">Color <span class="fx-opt">(tap the wheel for any color)</span></div>
       <div class="fx-sw-row">
         ${PALETTE.map(c => `<button class="fx-sw ${c.toLowerCase() === newCatColor.toLowerCase() ? 'sel' : ''}" data-act="new-cat-color" data-c="${c}" style="background:${c}"></button>`).join('')}
         <span class="fx-color-wrap"><input type="color" class="fx-color" id="fx-color" value="${newCatColor}" title="Pick any color"></span>
@@ -232,7 +232,7 @@ function renderAdd() {
 
       <div class="fx-field fx-field-b"><div class="fx-lbl">Date</div><button class="fx-datebtn ${calOpen ? 'open' : ''}" data-act="cal-toggle"><span>${fmtDateBtn(date)}</span>${CAL_SVG}</button></div>
       ${calOpen ? calGrid(calView) : ''}
-      <div class="fx-field fx-field-b"><div class="fx-lbl">Note <span class="fx-opt">(optional)</span></div><textarea class="fx-in fx-note" id="fx-note" rows="1" placeholder="Optional Note" maxlength="200">${esc(draft.note)}</textarea><div class="fx-sug" id="fx-sug"></div></div>
+      <div class="fx-field fx-field-b"><div class="fx-lbl">Note <span class="fx-opt">(optional)</span></div><textarea class="fx-in fx-note" id="fx-note" rows="1" placeholder="e.g. Costco" maxlength="200">${esc(draft.note)}</textarea><div class="fx-sug" id="fx-sug"></div></div>
 
       <div class="fx-actions">
         <button class="fx-btn pri" data-act="save-tx">${editing ? 'Update Expense' : 'Add Expense'}</button>
@@ -241,15 +241,14 @@ function renderAdd() {
     </div>`;
 
   if (!editing) {
-    h += `<div class="fx-stats">
+    h += `<div class="fx-stats two">
       <div class="fx-stat"><div class="fx-stat-v">${fmtMoneyC(sum(today))}</div><div class="fx-stat-l">Today</div></div>
       <div class="fx-stat accent"><div class="fx-stat-v">${fmtMoneyC(sum(month))}</div><div class="fx-stat-l">This Month</div></div>
-      <div class="fx-stat"><div class="fx-stat-v">${month.length}</div><div class="fx-stat-l">Entries</div></div>
     </div>`;
 
     // Today's expenses
     const todayList = today.slice().reverse(), cm = catMap();
-    h += `<div class="day-card"><div class="day-top"><div class="day-top-l"><span class="day-badge" style="background:var(--green)">Today</span><span class="day-title">${todayList.length} ${todayList.length===1?'Expense':'Expenses'}</span></div>${todayList.length?`<span class="day-prog">${fmtMoneyC(sum(todayList))}</span>`:''}</div>`;
+    h += `<div class="day-card"><div class="day-top"><div class="day-top-l"><span class="day-badge" style="background:var(--green)">Today</span><span class="day-title">${todayList.length} ${todayList.length===1?'Expense':'Expenses'}</span></div></div>`;
     h += todayList.length ? `<div class="tx-list">${todayList.map(t => txRow(t, cm)).join('')}</div>` : `<div class="fx-empty" style="padding:26px 16px">Nothing logged today yet.</div>`;
     h += `</div>`;
   }
@@ -393,7 +392,7 @@ function saveEditCat() {
 function editCatDelete() {
   const name = editCat; if (!name) return;
   const used = txAll().filter(t => t.cat === name).length;
-  const msg = used ? `Delete “${name}”?\n\n${used} expense${used>1?'s':''} use it — those entries keep the label but lose the color.` : `Delete “${name}”?`;
+  const msg = used ? `Delete “${name}”?\n\n${used} expense${used>1?'s':''} use it. They keep the label but lose the color.` : `Delete “${name}”?`;
   if (!confirm(msg)) return;
   catsSave(getCats().filter(c => c.name !== name));
   if (selCat === name) selCat = null;
@@ -450,12 +449,12 @@ function cancelEdit() {
 }
 function delTx(id) {
   const list = txAll(), i = list.findIndex(x => x.id === id), t = list[i]; if (!t) return;
-  if (!confirm(`Delete ${fmtMoney(t.amt)} — ${t.cat}?`)) return;
+  if (!confirm(`Delete ${fmtMoney(t.amt)}, ${t.cat}?`)) return;
   txSave(list.filter(x => x.id !== id));
   const wasEditing = editId === id;
   if (wasEditing) { editId = null; editFrom = ''; draft = blankDraft(); }
   renderAll(!wasEditing);
-  showUndo(`Deleted ${fmtMoney(t.amt)} — ${t.cat}`, { t, i });
+  showUndo(`Deleted ${fmtMoney(t.amt)}, ${t.cat}`, { t, i });
 }
 
 /* ═══════════════════ UNDO TOAST ═══════════════════
@@ -535,7 +534,7 @@ function histCalHTML(all) {
     if (ds === today) cls.push('today');
     if (!amt) cls.push('none');
     cells += `<button class="${cls.join(' ')}" data-act="hist-day-pick" data-d="${ds}"
-        ${amt ? `style="--heat:${heat.toFixed(2)}"` : ''} title="${fmtDateLong(ds)}${amt ? ' · ' + fmtMoney(amt) : ' · nothing logged'}">
+        ${amt ? `style="--heat:${heat.toFixed(2)}"` : ''} title="${fmtDateLong(ds)}${amt ? ', ' + fmtMoney(amt) : ', nothing logged'}">
       <span class="fx-cal-n">${day}</span>
       <span class="fx-cal-a">${amt ? (amt >= 1000 ? Math.round(amt/1000) + 'k' : Math.round(amt)) : ''}</span>
     </button>`;
@@ -561,7 +560,7 @@ function histCalHTML(all) {
 /* ═══════════════════ HISTORY TAB ═══════════════════ */
 function renderHistory() {
   const all = txAll();
-  const months = [...new Set(all.map(t => t.d.slice(0, 7)))].sort().reverse();
+  const months = [...new Set(all.map(t => t.d.slice(0, 7)).concat(histMonth === 'all' ? [] : [histMonth]))].sort().reverse();
   /* Every label an expense actually carries — including ones whose category
      was deleted, which keep their label (see editCatDelete) and would
      otherwise be impossible to filter to. Same order the chips use. */
@@ -629,25 +628,25 @@ function histResultsHTML(all) {
     const why = !all.length ? 'No expenses logged yet.<br>Add your first on the Add tab.'
               : qq         ? `No notes or categories match “${esc(histQ.trim())}”${histDay ? ` on ${label}` : histMonth !== 'all' ? ` in ${monthLabel(histMonth)}` : ''}.`
               : histDay    ? `Nothing logged on ${label}.`
+              : histMonth !== 'all' && histCat === 'all' ? `Nothing logged in ${monthLabel(histMonth)}.`
               :              'Nothing matches these filters.';
     return h + `<div class="fx-empty">${why}</div>`;
   }
 
   /* Every day carries its own total. That is the number you actually want
      when scanning back through a month, and it costs one row to show. */
-  const dayTotals = {}, dayCounts = {}, cm = catMap();
-  filtered.forEach(t => { dayTotals[t.d] = (dayTotals[t.d] || 0) + t.amt; dayCounts[t.d] = (dayCounts[t.d] || 0) + 1; });
+  const dayTotals = {}, cm = catMap();
+  filtered.forEach(t => { dayTotals[t.d] = (dayTotals[t.d] || 0) + t.amt; });
 
   h += `<div class="day-card"><div class="tx-list">`;
   let lastDate = null;
   filtered.forEach(t => {
     if (t.d !== lastDate) {
-      const n = dayCounts[t.d];
       /* tapping the header narrows to that one day — the fastest path to
          "what did I spend on this day" is the day already on screen */
       h += `<div class="tx-group ${histDay ? 'solo' : ''}" ${histDay ? '' : `data-act="hist-day-pick" data-d="${t.d}"`}>
         <span class="tx-group-d">${fmtDateFull(t.d)}${histDay ? '' : '<i class="tx-group-go">›</i>'}</span>
-        <span class="tx-group-t">${fmtMoney(dayTotals[t.d])}<span class="tx-group-n">${n}</span></span>
+        <span class="tx-group-t">${fmtMoney(dayTotals[t.d])}</span>
       </div>`;
       lastDate = t.d;
     }
@@ -683,7 +682,9 @@ function trendSVG(months) {
     const hot = insMode === 'month' && m.ym === insMonth;
     const cls = hot ? 'hot' : (m.total ? 'has' : 'nil');
     bars += `<rect class="fx-tb ${cls}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(hgt,1).toFixed(1)}" rx="3" style="cursor:pointer" data-act="ins-bar" data-ym="${m.ym}"><title>${monthLabel(m.ym)}: ${fmtMoney(m.total)}</title></rect>`;
-    labels += `<span style="left:${((x + bw / 2) / W * 100).toFixed(2)}%">${m.short}</span>`;
+    /* every other month, counted back from the current one, so each label
+       has room to be a word rather than a letter */
+    if ((n - 1 - i) % 2 === 0) labels += `<span style="left:${((x + bw / 2) / W * 100).toFixed(2)}%">${m.short}</span>`;
   });
   return `<div class="fx-trend"><svg class="fx-chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bars}</svg><div class="fx-trend-x">${labels}</div></div>`;
 }
@@ -693,7 +694,7 @@ function last12() {
   for (let i = 0; i < 12; i++) { out.unshift(ym); ym = shiftMonth(ym, -1); }
   return out.map(ym => {
     const [y, m] = ym.split('-').map(Number);
-    return { ym, short: new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short' })[0] + (m === 1 ? " '" + String(y).slice(2) : ''), total: sum(all.filter(t => t.d.startsWith(ym))) };
+    return { ym, short: new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short' }), total: sum(all.filter(t => t.d.startsWith(ym))) };
   });
 }
 function insPicker() {
@@ -756,7 +757,7 @@ function noteDetailHTML(g, color) {
   const peak = Math.max(...rows.map(r => r.total), 1);
   const bars = rows.map(r => `<i style="height:${Math.max(2, r.total / peak * 100).toFixed(1)}%;${
     r.total ? `background:${color}` : ''}" class="${r.total ? '' : 'nil'}"
-    title="${monthLabel(r.ym)} · ${r.total ? fmtMoney(r.total) : 'nothing'}"></i>`).join('');
+    title="${monthLabel(r.ym)}, ${r.total ? fmtMoney(r.total) : 'nothing'}"></i>`).join('');
 
   const ds = mine.map(t => t.d).sort();
   const first = ds[0], last = ds[ds.length - 1];
@@ -768,21 +769,20 @@ function noteDetailHTML(g, color) {
     <div class="fx-nt-spark">${bars}</div>
     <div class="fx-nt-spark-l"><span>${ymShort(rows[0].ym)}</span><span>Last 12 months</span><span>${ymShort(rows[11].ym)}</span></div>
     <div class="fx-nt-rows">
-      <div><span>All time</span><b>${fmtMoney(sum(mine))} · ${mine.length} purchase${mine.length === 1 ? '' : 's'}</b></div>
+      <div><span>All time</span><b>${fmtMoney(sum(mine))}, ${mine.length} purchase${mine.length === 1 ? '' : 's'}</b></div>
       <div><span>Largest</span><b>${fmtMoney(Math.max(...mine.map(t => t.amt)))}</b></div>
       <div><span>First</span><b>${fmtDateShort(first)}</b></div>
-      <div><span>Latest</span><b>${fmtDateShort(last)} · ${daysApart(last, todayStr())} days ago</b></div>
+      <div><span>Latest</span><b>${fmtDateShort(last)}, ${daysApart(last, todayStr())} days ago</b></div>
       ${every ? `<div><span>Cadence</span><b>about every ${every} day${every === 1 ? '' : 's'}</b></div>` : ''}
-      ${cats.length > 1 ? `<div><span>Categories</span><b>${cats.map(([n, v]) => `${esc(n)} ${fmtMoney(v)}`).join(' · ')}</b></div>` : ''}
+      ${cats.length > 1 ? `<div><span>Categories</span><b>${cats.map(([n, v]) => `${esc(n)} ${fmtMoney(v)}`).join(', ')}</b></div>` : ''}
     </div>
     <button class="fx-leg-go fx-nt-go" data-act="ins-see-note" data-q="${esc(g.label)}">See these expenses ›</button>
   </div>`;
 }
 
-function noteRowHTML(g, peak, periodTotal) {
+function noteRowHTML(g, peak) {
   const color = catColor(topCat(g));
   const open = insNote === g.key;
-  const cats = Object.keys(g.cats);
   return `<div class="fx-nt ${open ? 'open' : ''}">
     <button class="fx-nt-hd" data-act="ins-note" data-k="${g.key}">
       <span class="fx-nt-top">
@@ -791,28 +791,21 @@ function noteRowHTML(g, peak, periodTotal) {
         <span class="fx-nt-t">${fmtMoney(g.total)}</span>
       </span>
       <span class="fx-nt-bar"><i style="width:${(peak ? g.total / peak * 100 : 0).toFixed(1)}%;background:${color}"></i></span>
-      <span class="fx-nt-sub">
-        <span>${fmtMoney(g.total / g.count)} each</span>
-        <span>${esc(topCat(g))}${cats.length > 1 ? ` +${cats.length - 1}` : ''}</span>
-        <span>${periodTotal ? Math.round(g.total / periodTotal * 100) : 0}% of this period</span>
-      </span>
     </button>
     ${open ? noteDetailHTML(g, color) : ''}
   </div>`;
 }
 
-function noteTrendHTML(list, periodTotal) {
+function noteTrendHTML(list) {
   const groups = noteGroups(list);
   const repeat = groups.filter(g => g.count >= 2);
-  const once = groups.filter(g => g.count === 1);
-  const noNote = list.filter(t => !firstLine(t)).length;
 
   if (!repeat.length) {
     const why = !list.length
       ? 'No spending in this period.'
       : !groups.length
-      ? 'None of these purchases carry a note. Write where the money actually went — “Costco”, “Trader Joe’s” — and the repeats total themselves up here.'
-      : 'No note repeats in this period yet. Reuse the same note and it starts adding up here — the note field suggests ones you have written before, so it is one tap after the first time.';
+      ? 'Add a note like “Costco” to your expenses and repeats add up here.'
+      : 'No repeated notes in this period yet.';
     return `<div class="fx-nt-card">
       <div class="fx-chart-title">Where It Keeps Going</div>
       <div class="fx-empty" style="padding:24px 8px">${why}</div>
@@ -821,21 +814,13 @@ function noteTrendHTML(list, periodTotal) {
 
   const shown = insNoteAll ? repeat : repeat.slice(0, 6);
   const peak = repeat[0].total;
-  const repTotal = repeat.reduce((a, g) => a + g.total, 0);
-  const foot = [];
-  if (once.length) foot.push(`${once.length} other note${once.length === 1 ? '' : 's'} appear${once.length === 1 ? 's' : ''} once (${fmtMoney(once.reduce((a, g) => a + g.total, 0))})`);
-  if (noNote) foot.push(`${noNote} purchase${noNote === 1 ? '' : 's'} without a note`);
-
+  /* The card is the list. A summary line over it, three facts under each
+     row and a sentence under the lot all restated what the rows show. */
   return `<div class="fx-nt-card">
-    <div class="fx-nt-head">
-      <div class="fx-chart-title">Where It Keeps Going</div>
-      <div class="fx-nt-sum">${fmtMoney(repTotal)} across ${repeat.length} repeat note${repeat.length === 1 ? '' : 's'}${
-        periodTotal ? ` · ${Math.round(repTotal / periodTotal * 100)}% of the period` : ''}</div>
-    </div>
-    <div class="fx-nt-list">${shown.map(g => noteRowHTML(g, peak, periodTotal)).join('')}</div>
+    <div class="fx-chart-title">Where It Keeps Going</div>
+    <div class="fx-nt-list">${shown.map(g => noteRowHTML(g, peak)).join('')}</div>
     ${repeat.length > 6 ? `<button class="fx-nt-more" data-act="ins-note-all">${
       insNoteAll ? 'Show top 6' : `Show all ${repeat.length}`}</button>` : ''}
-    ${foot.length ? `<div class="fx-nt-foot">${foot.join(' · ')}.</div>` : ''}
   </div>`;
 }
 
@@ -859,11 +844,10 @@ function renderInsights() {
     if (insPickOpen) h += insPicker();
   }
 
-  h += `<div class="fx-stats">
-    <div class="fx-stat accent"><div class="fx-stat-v">${fmtMoneyC(total)}</div><div class="fx-stat-l">Total</div></div>
-    <div class="fx-stat"><div class="fx-stat-v">${list.length}</div><div class="fx-stat-l">Purchases</div></div>
-    <div class="fx-stat"><div class="fx-stat-v">${segs.length}</div><div class="fx-stat-l">Categories</div></div>
-  </div>`;
+  /* No tile row here: the total is the middle of the donut and the
+     categories are its list, so three tiles said both a second time. The
+     purchase count rides under the total. */
+  const nBuys = `${list.length} purchase${list.length === 1 ? '' : 's'}`;
 
   if (total > 0) {
     const legend = segs.map(s => {
@@ -871,14 +855,14 @@ function renderInsights() {
       return `<div class="fx-leg-row" data-act="arc-leg" data-name="${esc(s.name)}"><span class="fx-leg-dot" style="background:${s.color}"></span><span class="fx-leg-name">${esc(s.name)}</span><span class="fx-leg-pct">${pct}%</span><span class="fx-leg-amt">${fmtMoney(s.amount)}</span></div>`;
     }).join('');
     h += `<div class="fx-donut-card"><div class="fx-donut-wrap">
-      <div class="fx-donut">${donutSVG(segs, total)}<div class="fx-donut-mid" id="fx-donut-mid" data-total="${fmtMoneyC(total)}"><div class="fx-donut-total" id="fx-donut-total">${fmtMoneyC(total)}</div><div class="fx-donut-sub" id="fx-donut-sub">Spent</div></div></div>
+      <div class="fx-donut">${donutSVG(segs, total)}<div class="fx-donut-mid" id="fx-donut-mid" data-total="${fmtMoneyC(total)}" data-sub="${nBuys}"><div class="fx-donut-total" id="fx-donut-total">${fmtMoneyC(total)}</div><div class="fx-donut-sub" id="fx-donut-sub">${nBuys}</div></div></div>
       <div class="fx-legend">${legend}<button class="fx-leg-go" id="fx-leg-go" data-act="ins-see-cat" hidden></button></div>
     </div></div>`;
   } else {
     h += `<div class="fx-donut-card"><div class="fx-empty">No spending in this period.</div></div>`;
   }
 
-  h += noteTrendHTML(list, total);
+  h += noteTrendHTML(list);
   h += `<div class="fx-chart-card"><div class="fx-chart-title">Last 12 Months</div>${trendSVG(last12())}</div>`;
   q('#fp-insights').innerHTML = h;
   fitDonutTotal();
@@ -925,7 +909,7 @@ function openHistory({ month = 'all', cat = 'all', search = '' }) {
 function donutReset() {
   const mid = q('#fx-donut-mid'); if (!mid) return;
   q('#fx-donut-total').textContent = mid.dataset.total;
-  q('#fx-donut-sub').textContent = 'Spent';
+  q('#fx-donut-sub').textContent = mid.dataset.sub || 'Spent';
   fitDonutTotal();
   root.querySelectorAll('.fx-arc').forEach(a => a.classList.remove('hot'));
 }
@@ -1069,6 +1053,7 @@ function onResume() {
   dayKey = now;
   const wasM = was.slice(0, 7), wasY = was.slice(0, 4);
   if (insMonth === wasM) insMonth = curMonth();
+  if (histMonth === wasM) histMonth = curMonth();
   if (insYear === wasY) insYear = curYear();
   if (calOpen && !draft.date && calView === wasM) calView = curMonth();
   renderAll();
@@ -1094,7 +1079,7 @@ export default {
   id: 'finance',
   name: 'Finance',
   storagePrefix: 'fin_',
-  styles: 'apps/finance/finance.css?v=3d-nov13f',
+  styles: 'apps/finance/finance.css?v=3d-nov17a',
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
   mount(el) {
     root = el;
@@ -1105,7 +1090,9 @@ export default {
     draft = blankDraft();
     dayKey = todayStr(); undoDel = null; clearTimeout(undoTimer);
     noteSugs = [];
-    histMonth = 'all'; histCat = 'all'; histDay = ''; histQ = ''; histCalOpen = false; histCalView = '';
+    /* History opens on this month: All Time is every expense ever logged
+       in one list, and the month picker is one tap away. */
+    histMonth = curMonth(); histCat = 'all'; histDay = ''; histQ = ''; histCalOpen = false; histCalView = '';
     insMode = 'month'; insMonth = curMonth(); insYear = curYear(); insPickOpen = false;
     insNote = ''; insNoteAll = false;
     nwReset();
@@ -1147,7 +1134,7 @@ export default {
     const n = txAll().length, k = load('fin_cats', null)?.length || 0, w = load('fin_nw', []).length;
     return [
       { id: 'tx', n: 'Expenses', d: 'Every expense you have logged, on every day. History, Insights and the "came in" figures on Net Worth all count from these.', c: n, cl: `${n} ${n === 1 ? 'expense' : 'expenses'}` },
-      { id: 'cats', n: 'Custom categories', d: 'Your category list — added, renamed, recoloured or deleted — back to the eight defaults. Expenses keep the labels they were logged under.', c: k, cl: `${k} ${k === 1 ? 'category' : 'categories'}` },
+      { id: 'cats', n: 'Custom categories', d: 'Your category list (added, renamed, recoloured or deleted) back to the eight defaults. Expenses keep the labels they were logged under.', c: k, cl: `${k} ${k === 1 ? 'category' : 'categories'}` },
       { id: 'nw', n: 'Net worth snapshots', d: 'Every total logged on the Net Worth tab, and the line drawn through them.', c: w, cl: `${w} ${w === 1 ? 'snapshot' : 'snapshots'}` },
     ];
   },

@@ -486,3 +486,15 @@
   .nw-yl{right:calc(100% + 6px);font-size:9px}
   .nw-h-main{gap:9px}
 }
+
+/* ═══════════════════════════════════════════════════════════
+   TIDIED (Nov 2026) — less said twice, larger small type
+   ═══════════════════════════════════════════════════════════ */
+.fx-stats.two{grid-template-columns:repeat(2,1fr)}
+.fx-form-title,.fx-lbl{font-size:10.5px;letter-spacing:1.3px}
+.fx-stat-l{font-size:10.5px;letter-spacing:1px}
+/* Manage: a real button's worth of target, not a caption */
+.fx-manage{font-size:11px;min-height:32px;padding:6px 10px;margin:-8px -6px -4px 0;border:1px solid var(--border);border-radius:var(--rs);color:var(--text-2)}
+.fx-trend-x span{font-size:10px}
+/* net worth history: the "in" figure sits under the date */
+.nw-h-flow{margin-top:3px;padding:0;border:0;background:none;font-size:11px;line-height:1.4}
