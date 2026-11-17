@@ -1853,3 +1853,17 @@ html[data-theme="redline"] .rk-seg,html[data-theme="black"] .rk-seg,html[data-th
 
 /* the prescription line: items set apart by space, not by dots */
 .mm-sub{display:flex;flex-wrap:wrap;gap:2px 14px}
+
+/* ── the lab's rank: one row, always there ──
+   The letter with its caption, and the single line that says what the
+   next letter takes. */
+.wk .mm-rank{display:flex;align-items:center;gap:14px;padding:12px 22px;border-bottom:1px solid var(--border)}
+.wk .mm-rank.none{display:block;font-size:12.5px;line-height:1.5;color:var(--text-3)}
+.mm-rank-l{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:38px;padding-top:0;
+  font-size:26px;line-height:1}
+.mm-rank-l small{font-family:var(--font);font-size:9px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--text-3)}
+.wk .mm-rank-s{margin-top:0;font-size:13.5px;line-height:1.4;color:var(--text)}
+@media(max-width:480px){.wk .mm-rank{padding:10px 16px}}
+/* the fold is named Progress now, so the chart's own heading keeps only the weight */
+.wk .mm-fold .xp-t{font-size:0}
+.wk .mm-fold .xp-t>span{margin-left:0;font-size:12px}

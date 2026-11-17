@@ -425,29 +425,22 @@ function mmRankHTML(st) {
      in a sentence was the app repeating the absence out loud. */
   if (st.state === 'unscored') return '';
   if (st.state === 'nobw')
-    return `<div class="mm-rank none">Log your bodyweight in the <b>Weight</b> tab — every standard is relative to it.</div>`;
+    return `<div class="mm-rank none">Log your bodyweight on the Body tab to get a rank.</div>`;
   if (st.state === 'noweight')
-    return `<div class="mm-rank none">${trackOf(mmEx).load === 'added'
-      ? 'Bodyweight reps are counted, not scored — add weight above and this lift starts scoring.'
-      : 'Set a working weight above and this lift starts scoring.'}</div>`;
-  /* Three lines, each a plain statement: what rank this lift is, what
-     that means, and what the next one takes. It used to be "Novice · 49th
-     percentile [PROXY]" over "35 lbs or 12 reps at 30 → B · Intermediate":
-     every word true and the whole thing a puzzle. The tag for which
-     published standard a lift is scored against is gone from here; it
-     never changed what you would do next. */
+    return `<div class="mm-rank none">${trackOf(mmEx).load === 'added' ? 'Add weight above to get a rank.' : 'Set a weight above to get a rank.'}</div>`;
+  /* Always on the card, never inside a fold: the letter, and the one thing
+     it takes to reach the next. It had grown to three lines ("Rank C,
+     Novice", "Stronger than 34% of lifters", "To reach B: go up to…") and
+     then been folded away with the progress chart; the rank is the reason
+     to look at this card between sets, and one line is all of it you act
+     on. The tier's name and the percentile are on the Rank tab. */
   const l = st.lift;
-  const means = l.pct >= 1 ? `Stronger than ${Math.floor(l.pct)}% of lifters` : 'Below the published tables so far';
-  const next = nextLine(l, true);
+  const next = nextLine(l);
   return `<div class="mm-rank">
-    <div class="mm-rank-l" style="color:var(${l.rank.c})">${l.rank.l}</div>
-    <div class="mm-rank-b">
-      <div class="mm-rank-n">Rank ${l.rank.l}, ${l.rank.name}</div>
-      <div class="mm-rank-p">${means}</div>
-      <div class="mm-rank-s">${next
-        ? `${next}${l.over && !l.toReps ? ` (heavier than your ${DB_MAX} lb dumbbells)` : ''}`
-        : 'Past the top of the published scale.'}</div>
-    </div>
+    <div class="mm-rank-l" style="color:var(${l.rank.c})"><small>Rank</small>${l.rank.l}</div>
+    <div class="mm-rank-s">${next
+      ? `${next}${l.over && !l.toReps ? `, past your ${DB_MAX} lb dumbbells` : ''}`
+      : 'Top of the scale'}</div>
   </div>`;
 }
 
@@ -930,8 +923,8 @@ function paintMMStanding(keepBoxes = false) {
   const st = standingOf(mmEx.n);
   /* carry the row's tint through, so the modal reads as the same lift */
   q('#mm-name').style.color = st.state === 'scored' ? pctColor(st.lift.pct) : '';
-  q('#mm-rank').innerHTML = mmRankHTML(st) + rebaseHTML();
-  q('#mm-stats-sum').textContent = st.state === 'scored' ? `Rank ${st.lift.rank.l}, ${st.lift.rank.name}` : '';
+  q('#mm-rank').innerHTML = mmRankHTML(st);
+  q('#mm-rebase').innerHTML = rebaseHTML();
   /* Otherwise rebuilt rather than patched: the box count follows the
      prescription and the whole block disappears when the weight is
      cleared. Still skipped while a box has focus, for the same reason. */
@@ -939,7 +932,7 @@ function paintMMStanding(keepBoxes = false) {
   if (verdict && (keepBoxes || reps.contains(document.activeElement))) { verdict.innerHTML = mmVerdictHTML(); paintSetNow(); }
   else reps.innerHTML = mmRepsHTML();
   paintProg();
-  q('#mm-stats').hidden = !q('#mm-prog').innerHTML.trim() && !q('#mm-rank').innerHTML.trim();
+  q('#mm-stats').hidden = !q('#mm-prog').innerHTML.trim() && !q('#mm-rebase').innerHTML.trim();
   q('#mm-lvl').innerHTML = mmLvlHTML();
 }
 
@@ -1051,8 +1044,9 @@ function openMM(ex) {
      chart, the rank, the how-to, a muscle map and a muscle list, about
      two and a half screens. Now the prescription is one line under the
      name (with the rep range the weight is meant to fail in, which used
-     to live on the strip under the boxes), and Stats, How to and Muscles
-     are three rows that open on a tap and start shut each time. */
+     to live on the strip under the boxes), the rank is one line under the
+     boxes, and Progress, How to and Muscles are three rows that open on a
+     tap and start shut each time. */
   const band = BANDS[restBand(ex)], rs = restSecs(ex);
   const own = rs !== band.s ? `, ${fmtRest(band.s)} by default, ${rs > band.s ? 'longer' : 'shorter'} from your own ±15s` : '';
   const tk = trackOf(ex);
@@ -2437,13 +2431,14 @@ function template() {
           <div class="mm-wt-box"><button type="button" class="mm-wt-step" data-act="mm-wt-step" data-d="-1" aria-label="One step lighter" title="One step lighter">−</button><input class="mm-wt-in" id="mm-wt" type="number" step="2.5" min="0" inputmode="decimal" placeholder="—"><span class="mm-wt-u">lbs</span><button type="button" class="mm-wt-step" data-act="mm-wt-step" data-d="1" aria-label="One step heavier" title="One step heavier">+</button></div>
         </div>
         <div id="mm-reps"></div>
+        <div id="mm-rank"></div>
         <section class="mm-fold" id="mm-stats">
           <button type="button" class="mm-fold-tog" data-act="mm-fold" aria-expanded="false" aria-controls="mm-stats-body">
-            <span>Stats</span><small id="mm-stats-sum"></small><i aria-hidden="true"></i>
+            <span>Progress</span><small id="mm-stats-sum"></small><i aria-hidden="true"></i>
           </button>
           <div class="mm-fold-body" id="mm-stats-body" hidden>
             <div id="mm-prog"></div>
-            <div id="mm-rank"></div>
+            <div id="mm-rebase"></div>
           </div>
         </section>
         <section class="mm-howto" id="mm-howto"></section>
@@ -2515,7 +2510,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=3d-nov16k',
+  styles: 'apps/workout/workout.css?v=3d-nov16l',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
