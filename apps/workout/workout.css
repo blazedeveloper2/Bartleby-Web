@@ -959,12 +959,6 @@ select.bw-in{cursor:pointer;height:38px;padding-right:6px;text-overflow:ellipsis
 .pg-b-n{font-size:11px;font-weight:700;line-height:1.25}
 .pg-b-r{font-size:9.5px;color:var(--text-3);margin-top:4px;line-height:1.35}
 .pg-b.on .pg-b-r{color:var(--green)}
-/* earned, but no longer true at your current weights â€” kept, and labelled */
-.pg-b.lapsed{background:transparent;box-shadow:inset 0 0 0 1px var(--amber)}
-.pg-b.lapsed .pg-b-ico{background:transparent;border-color:var(--amber);color:var(--amber)}
-.pg-b.lapsed .pg-b-r{color:var(--amber)}
-.pg-b-lapse{font-size:11px;line-height:1.55;color:var(--text-3);background:var(--bg);border:1px solid var(--border);
-  border-left:2px solid var(--amber);border-radius:var(--rs);padding:9px 11px;margin-bottom:14px}
 
 /* â”€â”€ session log â”€â”€ */
 .pg-s-list{margin:0 -14px -14px;border-top:1px solid var(--border)}

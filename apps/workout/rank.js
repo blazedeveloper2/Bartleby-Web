@@ -714,28 +714,33 @@ function progOf(b, flat) {
   return { frac: Math.min(1, c / goal), txt: `${num(Math.min(c, goal))} / ${num(goal)} ${unit}` };
 }
 
-/* Milestones latch. Reaching B is a thing that happened on a date, so a
-   deload six months later shouldn't silently delete it — it stops being
-   HELD, which the grid says out loud, and that is a different statement.
+/* A milestone is earned while it is true, and dated the day it became so.
 
-   Latching only ever reads proven state, which is what makes the rollback
-   complete: a weight you set and backed off before training never unlocked
+   It used to latch: one reached and later lost — a letter given back by a
+   back-off, a body fat that drifted up — stayed on the grid in a third
+   state, "earned · not held now". That read as a badge you both had and
+   did not have, so it is two states again: one that is no longer true is
+   simply not earned, its date goes with it, and earning it back dates it
+   afresh (and counts as newly unlocked, card and all).
+
+   Only ever reads proven state, which is what makes a rollback complete:
+   a weight you set and backed off before training never unlocked
    anything, so there is nothing to take away afterwards. */
 function latch(cs, pv) {
   const held = achAll(), d = todayStr();
   const now = earned(cs || stats(), pv || strength().proven);
   let dirty = false;
   now.forEach(id => { if (!held[id]) { held[id] = d; dirty = true; } });
+  Object.keys(held).forEach(id => { if (!now.has(id)) { delete held[id]; dirty = true; } });
   if (dirty) achSv(held);
   return held;
 }
 
-/* What the grid draws: everything ever earned, everything held right now,
-   and the date each was earned. */
+/* What the grid draws: what is earned right now, and the date of each. */
 export function achievements(cs, st) {
   const now = earned(cs, st.proven);
   const held = latch(cs, st.proven);
-  return { ids: new Set([...Object.keys(held), ...now]), now, at: held };
+  return { ids: now, now, at: held };
 }
 /* The latch the Awards grid used to run as a side effect of being
    repainted after every change, for when it is not on screen to repaint:
@@ -1452,7 +1457,7 @@ export function snapshot() {
     rank: pv.rank,
     level: cs.level,
     lifts: new Map(pv.lifts.map(l => [l.name, { i: l.rank.i, rank: l.rank }])),
-    badges: new Set([...Object.keys(achAll()), ...earned(cs, pv)]),
+    badges: earned(cs, pv),
   };
 }
 
@@ -2343,24 +2348,20 @@ function progressionHTML(s, st) {
 }
 
 function badgesHTML(ach, flat) {
-  /* Three states, not two. "Earned" and "still true" stopped being the same
-     thing the moment a back-off could move you back down a letter, and
-     deleting the badge would be pretending the month you held it never
-     happened. */
   /* Every tile says what it is for, earned or not. An earned one used to
      swap its requirement for "Unlocked · Nov 6", which left a wall of
      names — "Hat Trick", "Unbroken" — with nothing to say what any of
      them had been for. Now the requirement always shows; under it, the
      day it was earned, or how far along it is. */
   const cell = (b, i) => {
-    const on = ach.ids.has(b.id), held = ach.now.has(b.id);
+    const on = ach.ids.has(b.id);
     const when = ach.at[b.id] ? ` ${fmtD(ach.at[b.id])}` : '';
     const p = on ? null : progOf(b, flat);
-    return `<div class="pg-b ${on ? 'on' : ''} ${on && !held ? 'lapsed' : ''}" style="--i:${i}">
+    return `<div class="pg-b ${on ? 'on' : ''}" style="--i:${i}">
       <div class="pg-b-ico ${on ? 'on' : ''}">${svg(b.ico)}</div>
       <div class="pg-b-n">${b.n}</div>
       <div class="pg-b-q">${b.req}</div>
-      <div class="pg-b-r">${on ? `Earned${when}${held ? '' : ' · not held now'}` : p ? p.txt : 'Not yet'}</div>
+      <div class="pg-b-r">${on ? `Earned${when}` : p ? p.txt : 'Not yet'}</div>
       ${p ? `<div class="pg-b-bar"><i style="width:${(p.frac * 100).toFixed(0)}%"></i></div>` : ''}
     </div>`;
   };
@@ -2400,11 +2401,6 @@ function badgesHTML(ach, flat) {
     </div>`;
   }).join('');
 
-  /* No lapsed-badge notice. A badge is a date on the calendar and stays
-     unlocked either way, so the line only ever explained a distinction the
-     cards themselves do not draw — and the tab is for looking at what you
-     earned, not for reading about it. The latching behaviour is unchanged;
-     it just no longer narrates itself. */
   return `${nextUp}<div class="pg-card">
     <div class="pg-card-head"><div class="pg-card-title">Achievements</div><div class="pg-card-note">${ach.ids.size}/${BADGES.length} earned</div></div>
     <p class="pg-b-intro">Milestones for turning up, getting stronger and keeping the log. Each one says what earns it. Green ones are yours, with the day you earned them; the rest show how far along you are.</p>

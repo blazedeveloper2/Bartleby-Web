@@ -17,7 +17,7 @@ import {
   trackOf, exSets, setExSets, skillAdvice, lineReady,
   rebaseline, hasHistory, setExReps, exReps, verseHTML, loadAdvice, DB_MAX, scoreGrip, exHistory,
   chkAll, chkSave, lastCount, dayCount, latchAwards, xsKey, nextStep, sessionDetailHTML,
-} from './rank.js?v=3d-nov16e';
+} from './rank.js?v=3d-nov16f';
 import { progressHTML } from './progress.js?v=3d-nov16c';
 
 /* Which movements have a published standard, so the rep boxes only appear
@@ -28,7 +28,7 @@ import { restBand, BANDS, fmtRest } from './rest.js?v=3d-oct14d';
 import * as rest from './timer.js?v=3d-nov16b';
 import * as timing from './sessions.js?v=3d-oct18a';
 import { HOWTO } from './howto.js?v=3d-oct14h';
-import * as anatomy from './anatomy.js?v=3d-nov16e';
+import * as anatomy from './anatomy.js?v=3d-nov16f';
 import { animHTML, playAnim } from './pose.js?v=3d-nov16c';
 import { standingsFor } from './anthro.js?v=3d-oct14d';
 import { logGrip, delGrip, gripUnit, setGripUnit, fromGU, toGU } from './grip.js?v=3d-nov05b';
@@ -2482,7 +2482,7 @@ export default {
   resetTargets, applyReset,
   skillLines, setSkill,
   people, setPerson, usesKit,
-  styles: 'apps/workout/workout.css?v=3d-nov16e',
+  styles: 'apps/workout/workout.css?v=3d-nov16f',
   /* A dumbbell read left to right: outer collar, plate, bar, plate, collar. */
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="9.5" width="3" height="5" rx="1.2"/><rect x="4.5" y="6.5" width="3.5" height="11" rx="1.4"/><path d="M8 12h8"/><rect x="16" y="6.5" width="3.5" height="11" rx="1.4"/><rect x="19.5" y="9.5" width="3" height="5" rx="1.2"/></svg>',
   mount(el) {
